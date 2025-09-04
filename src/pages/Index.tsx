@@ -1,36 +1,13 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dice6, Sparkles, Scroll, Swords, Crown } from 'lucide-react';
+import { Dice6, Swords } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
+import { AppSidebar } from '@/components/AppSidebar';
+import { useSidebar } from '@/components/ui/sidebar';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
-
-// Mock data matching your Notion schema
-const environments = [
-  'Any', 'Forest', 'Mountain', 'Desert', 'Swamp', 'Cave', 'Ocean', 'City', 'Dungeon', 'Plains'
-];
-
-const alignments = [
-  'Any', 'Lawful Good', 'Neutral Good', 'Chaotic Good', 
-  'Lawful Neutral', 'True Neutral', 'Chaotic Neutral',
-  'Lawful Evil', 'Neutral Evil', 'Chaotic Evil'
-];
-
-const creatureTypes = [
-  'Any', 'Aberration', 'Beast', 'Celestial', 'Construct', 'Dragon', 
-  'Elemental', 'Fey', 'Fiend', 'Giant', 'Humanoid', 'Monstrosity', 
-  'Ooze', 'Plant', 'Undead'
-];
-
-const sizes = ['Any', 'Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];
 
 interface EncounterParams {
   environment: string;
@@ -137,181 +114,34 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-      {/* Hero Section */}
-      <div 
-        className="relative h-64 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroBanner})` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/80" />
-        <div className="relative z-10 flex items-center justify-center h-full">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold text-white mb-4 drop-shadow-lg">
-              <Crown className="inline mr-3" />
-              D&D Encounter Generator
-            </h1>
-            <p className="text-xl text-gold-200 drop-shadow-md">
-              Forge legendary battles with mystical precision
-            </p>
+    <div className="flex w-full">
+      <AppSidebar 
+        params={params}
+        setParams={setParams}
+        onGenerate={handleGenerate}
+        isGenerating={isGenerating}
+      />
+      
+      <div className="flex-1">
+        {/* Hero Section */}
+        <div 
+          className="relative h-64 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroBanner})` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/80" />
+          <div className="relative z-10 flex items-center justify-center h-full">
+            <div className="text-center">
+              <h1 className="text-5xl font-bold text-white mb-4 drop-shadow-lg">
+                Forge Legendary Battles
+              </h1>
+              <p className="text-xl text-gold-200 drop-shadow-md">
+                Generate encounters with mystical precision
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Generation Form */}
-          <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 shadow-mystical">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                <Scroll className="h-6 w-6 text-primary" />
-                Encounter Parameters
-              </CardTitle>
-              <CardDescription>
-                Configure the parameters for your encounter generation
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="environment">Environment *</Label>
-                  <Select value={params.environment} onValueChange={(value) => 
-                    setParams(prev => ({ ...prev, environment: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select environment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {environments.map(env => (
-                        <SelectItem key={env} value={env}>{env}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="xpThreshold">XP Threshold *</Label>
-                  <Input
-                    type="number"
-                    value={params.xpThreshold}
-                    onChange={(e) => setParams(prev => ({ 
-                      ...prev, 
-                      xpThreshold: parseInt(e.target.value) || 0 
-                    }))}
-                    placeholder="1000"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Max Monsters</Label>
-                  <Input
-                    type="number"
-                    value={params.maxMonsters}
-                    onChange={(e) => setParams(prev => ({ 
-                      ...prev, 
-                      maxMonsters: parseInt(e.target.value) || 6 
-                    }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Min CR</Label>
-                  <Input
-                    type="number"
-                    value={params.minCR}
-                    onChange={(e) => setParams(prev => ({ 
-                      ...prev, 
-                      minCR: parseInt(e.target.value) || 0 
-                    }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Max CR</Label>
-                  <Input
-                    type="number"
-                    value={params.maxCR}
-                    onChange={(e) => setParams(prev => ({ 
-                      ...prev, 
-                      maxCR: parseInt(e.target.value) || 20 
-                    }))}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Alignment Filter</Label>
-                  <Select value={params.alignment} onValueChange={(value) => 
-                    setParams(prev => ({ ...prev, alignment: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {alignments.map(align => (
-                        <SelectItem key={align} value={align}>{align}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Creature Type</Label>
-                  <Select value={params.creatureType} onValueChange={(value) => 
-                    setParams(prev => ({ ...prev, creatureType: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {creatureTypes.map(type => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Size Filter</Label>
-                  <Select value={params.size} onValueChange={(value) => 
-                    setParams(prev => ({ ...prev, size: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sizes.map(size => (
-                        <SelectItem key={size} value={size}>{size}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Button 
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="w-full bg-gradient-primary hover:shadow-glow transition-all duration-300"
-              >
-                {isGenerating ? (
-                  <>
-                    <Dice6 className="mr-2 h-4 w-4 animate-spin" />
-                    Rolling the Dice...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Generate Encounter
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-
+        <div className="container mx-auto px-6 py-8">
           {/* Results */}
           <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 shadow-mystical">
             <CardHeader>
@@ -320,7 +150,7 @@ const Index = () => {
                 Generated Encounter
               </CardTitle>
               <CardDescription>
-                {encounter ? "Your encounter has been forged!" : "Configure parameters and generate an encounter"}
+                {encounter ? "Your encounter has been forged!" : "Configure parameters in the sidebar and generate an encounter"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -372,15 +202,13 @@ const Index = () => {
                 <div className="text-center py-12">
                   <Dice6 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">
-                    No encounter generated yet. Configure your parameters and roll the dice!
+                    No encounter generated yet. Configure your parameters in the sidebar and roll the dice!
                   </p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
-
-
       </div>
     </div>
   );
