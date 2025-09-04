@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dice6, Sparkles, Scroll, Swords, Crown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { NotionDatabaseDiscovery } from '@/components/NotionDatabaseDiscovery';
+
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
 
 // Mock data matching your Notion schema
@@ -380,10 +380,6 @@ const Index = () => {
           </Card>
         </div>
 
-        {/* Notion Database Discovery Section */}
-        <div className="mt-8">
-          <NotionDatabaseDiscovery />
-        </div>
 
       </div>
     </div>
