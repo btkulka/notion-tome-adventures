@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dice6, Sparkles, Scroll, Swords, Crown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { NotionDatabaseDiscovery } from '@/components/NotionDatabaseDiscovery';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
 
 // Mock data matching your Notion schema
@@ -379,15 +380,20 @@ const Index = () => {
           </Card>
         </div>
 
+        {/* Notion Database Discovery Section */}
+        <div className="mt-8">
+          <NotionDatabaseDiscovery />
+        </div>
+
         {/* Backend Notice */}
         <Card className="mt-8 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
           <CardContent className="p-6">
             <div className="flex items-center gap-3">
               <Crown className="h-6 w-6 text-primary" />
               <div>
-                <h3 className="font-semibold text-lg mb-2">Ready for Notion Integration</h3>
+                <h3 className="font-semibold text-lg mb-2">Database Discovery & Integration</h3>
                 <p className="text-muted-foreground">
-                  This interface is ready to connect to your Notion backend. To enable database functionality with your Monsters, Environments, and other tables, we recommend connecting to Supabase for seamless data management.
+                  Use the discovery tool above to connect to your Notion databases. Once configured, the encounter generator will pull real creature data from your tables.
                 </p>
               </div>
             </div>
