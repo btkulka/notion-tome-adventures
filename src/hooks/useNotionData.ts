@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { NotionService, NotionCreature, NotionEnvironment, NotionEncounter } from '@/lib/notion';
+import { NotionService } from '@/lib/notion';
+import { CreatureDTO, EnvironmentDTO, EncounterDTO } from '@/types/notion-dtos';
 
 export const useNotionCreatures = () => {
-  const [creatures, setCreatures] = useState<NotionCreature[]>([]);
+  const [creatures, setCreatures] = useState<CreatureDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +29,7 @@ export const useNotionCreatures = () => {
 };
 
 export const useNotionEnvironments = () => {
-  const [environments, setEnvironments] = useState<NotionEnvironment[]>([]);
+  const [environments, setEnvironments] = useState<EnvironmentDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +55,7 @@ export const useNotionEnvironments = () => {
 };
 
 export const useNotionEncounters = () => {
-  const [encounters, setEncounters] = useState<NotionEncounter[]>([]);
+  const [encounters, setEncounters] = useState<EncounterDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,7 +77,7 @@ export const useNotionEncounters = () => {
     fetchEncounters();
   }, []);
 
-  const saveEncounter = async (encounter: NotionEncounter) => {
+  const saveEncounter = async (encounter: EncounterDTO) => {
     try {
       const id = await NotionService.saveEncounter(encounter);
       if (id) {

@@ -1,80 +1,54 @@
-import { Client } from '@notionhq/client';
+import { 
+  CreatureDTO, 
+  SpellDTO, 
+  ItemDTO, 
+  EnvironmentDTO, 
+  EncounterDTO 
+} from '@/types/notion-dtos';
 
-export interface NotionCreature {
-  id: string;
-  name: string;
-  type: string;
-  challenge_rating: number;
-  armor_class: number;
-  hit_points: number;
-  environment: string[];
-  alignment: string;
-  size: string;
-}
-
-export interface NotionEnvironment {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export interface NotionEncounter {
-  id?: string;
-  name: string;
-  environment: string;
-  total_xp: number;
-  creatures: Array<{
-    creature_name: string;
-    quantity: number;
-  }>;
-  generation_log: string[];
-  created_at: string;
-}
-
-// Mock data for now - you'll replace these with actual Notion API calls
+// Mock data service - replace with actual Notion API calls when databases are configured
 export class NotionService {
   // Fetch all creatures from Notion
-  static async getCreatures(): Promise<NotionCreature[]> {
-    // For now, return mock data until you set up your Notion databases
+  static async getCreatures(): Promise<CreatureDTO[]> {
+    // Mock data - replace with actual Notion API integration
     return [
       {
         id: '1',
         name: 'Goblin',
+        size: 'Small',
         type: 'humanoid',
-        challenge_rating: 0.25,
+        alignment: 'neutral evil',
         armor_class: 15,
         hit_points: 7,
+        hit_dice: '2d6',
+        speed: { walk: 30 },
+        ability_scores: {
+          strength: 8,
+          dexterity: 14,
+          constitution: 10,
+          intelligence: 10,
+          wisdom: 8,
+          charisma: 8,
+        },
+        challenge_rating: 0.25,
+        xp_value: 50,
+        proficiency_bonus: 2,
         environment: ['forest', 'mountain'],
-        alignment: 'neutral evil',
-        size: 'small',
+        source: 'Monster Manual',
+        page_number: 166,
+        created_time: new Date().toISOString(),
+        last_edited_time: new Date().toISOString(),
+        created_by: 'system',
+        last_edited_by: 'system',
+        parent: 'creatures-db',
+        archived: false,
+        url: 'https://notion.so/goblin',
       },
-      {
-        id: '2',
-        name: 'Orc',
-        type: 'humanoid',
-        challenge_rating: 0.5,
-        armor_class: 13,
-        hit_points: 15,
-        environment: ['mountain', 'underdark'],
-        alignment: 'chaotic evil',
-        size: 'medium',
-      },
-      {
-        id: '3',
-        name: 'Brown Bear',
-        type: 'beast',
-        challenge_rating: 1,
-        armor_class: 11,
-        hit_points: 34,
-        environment: ['forest'],
-        alignment: 'unaligned',
-        size: 'large',
-      },
-    ];
+    ] as CreatureDTO[];
   }
 
   // Fetch creatures by environment
-  static async getCreaturesByEnvironment(environment: string): Promise<NotionCreature[]> {
+  static async getCreaturesByEnvironment(environment: string): Promise<CreatureDTO[]> {
     const allCreatures = await this.getCreatures();
     return allCreatures.filter(creature => 
       creature.environment.includes(environment.toLowerCase())
@@ -82,18 +56,31 @@ export class NotionService {
   }
 
   // Fetch all environments
-  static async getEnvironments(): Promise<NotionEnvironment[]> {
+  static async getEnvironments(): Promise<EnvironmentDTO[]> {
     return [
-      { id: '1', name: 'Forest', description: 'Dense woodlands with tall trees and undergrowth' },
-      { id: '2', name: 'Mountain', description: 'Rocky peaks and highland terrain' },
-      { id: '3', name: 'Desert', description: 'Arid wasteland with sand dunes and sparse vegetation' },
-      { id: '4', name: 'Swamp', description: 'Marshy wetlands with murky water and thick vegetation' },
-      { id: '5', name: 'Underdark', description: 'Deep underground caverns and tunnels' },
-    ];
+      { 
+        id: '1', 
+        name: 'Forest', 
+        description: 'Dense woodlands with tall trees and undergrowth',
+        terrain_type: ['Forest'],
+        climate: 'Temperate',
+        common_creatures: ['Goblin', 'Wolf', 'Brown Bear'],
+        shelter_availability: 'Common',
+        water_availability: 'Common',
+        food_availability: 'Common',
+        created_time: new Date().toISOString(),
+        last_edited_time: new Date().toISOString(),
+        created_by: 'system',
+        last_edited_by: 'system',
+        parent: 'environments-db',
+        archived: false,
+        url: 'https://notion.so/forest',
+      },
+    ] as EnvironmentDTO[];
   }
 
   // Save an encounter to Notion
-  static async saveEncounter(encounter: NotionEncounter): Promise<string | null> {
+  static async saveEncounter(encounter: EncounterDTO): Promise<string | null> {
     // Mock implementation - log the encounter for now
     console.log('Saving encounter to Notion:', encounter);
     
@@ -102,9 +89,71 @@ export class NotionService {
   }
 
   // Fetch all encounters
-  static async getEncounters(): Promise<NotionEncounter[]> {
+  static async getEncounters(): Promise<EncounterDTO[]> {
     // Mock data for now
     return [];
+  }
+
+  // Fetch all spells
+  static async getSpells(): Promise<SpellDTO[]> {
+    return [
+      {
+        id: '1',
+        name: 'Fireball',
+        level: 3,
+        school: 'Evocation',
+        casting_time: '1 action',
+        range: '150 feet',
+        components: {
+          verbal: true,
+          somatic: true,
+          material: true,
+          material_description: 'a tiny ball of bat guano and sulfur',
+        },
+        duration: 'Instantaneous',
+        concentration: false,
+        ritual: false,
+        description: 'A bright streak flashes from your pointing finger...',
+        classes: ['Sorcerer', 'Wizard'],
+        source: 'Player\'s Handbook',
+        damage_type: 'Fire',
+        created_time: new Date().toISOString(),
+        last_edited_time: new Date().toISOString(),
+        created_by: 'system',
+        last_edited_by: 'system',
+        parent: 'spells-db',
+        archived: false,
+        url: 'https://notion.so/fireball',
+      },
+    ] as SpellDTO[];
+  }
+
+  // Fetch all items
+  static async getItems(): Promise<ItemDTO[]> {
+    return [
+      {
+        id: '1',
+        name: 'Longsword',
+        type: 'Weapon',
+        subtype: 'Sword',
+        rarity: 'Common',
+        description: 'A versatile martial weapon.',
+        weight: 3,
+        cost: { quantity: 15, unit: 'gp' },
+        source: 'Player\'s Handbook',
+        damage: { dice: '1d8', type: 'slashing' },
+        properties: ['Versatile'],
+        weapon_category: 'Martial',
+        weapon_type: 'Melee',
+        created_time: new Date().toISOString(),
+        last_edited_time: new Date().toISOString(),
+        created_by: 'system',
+        last_edited_by: 'system',
+        parent: 'items-db',
+        archived: false,
+        url: 'https://notion.so/longsword',
+      },
+    ] as ItemDTO[];
   }
 }
 
@@ -112,30 +161,14 @@ export class NotionService {
 /*
 To connect to your actual Notion databases:
 
-1. Create three databases in Notion:
-   - Creatures Database with properties:
-     * Name (title)
-     * Type (select)
-     * ChallengeRating (number)
-     * ArmorClass (number)
-     * HitPoints (number)
-     * Environment (multi-select)
-     * Alignment (select)
-     * Size (select)
-   
-   - Environments Database with properties:
-     * Name (title)
-     * Description (rich text)
-   
-   - Encounters Database with properties:
-     * Name (title)
-     * Environment (select)
-     * TotalXP (number)
-     * Creatures (rich text)
-     * GenerationLog (rich text)
-     * CreatedAt (date)
+1. Create databases in Notion with the properties defined in the DTOs:
+   - Creatures Database 
+   - Spells Database
+   - Items Database
+   - Environments Database
+   - Encounters Database
 
 2. Get your database IDs from the URLs
 3. Replace the mock implementations above with actual Notion API calls
-4. Initialize the Notion client with your API key from environment variables
+4. Use the NotionDTOMapper to convert raw Notion data to typed DTOs
 */
