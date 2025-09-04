@@ -385,20 +385,6 @@ const Index = () => {
           <NotionDatabaseDiscovery />
         </div>
 
-        {/* Backend Notice */}
-        <Card className="mt-8 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <Crown className="h-6 w-6 text-primary" />
-              <div>
-                <h3 className="font-semibold text-lg mb-2">Database Discovery & Integration</h3>
-                <p className="text-muted-foreground">
-                  Use the discovery tool above to connect to your Notion databases. Once configured, the encounter generator will pull real creature data from your tables.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
