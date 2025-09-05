@@ -5,8 +5,8 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dice6, Swords } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
-import { useSidebar } from '@/components/ui/sidebar';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
 
 interface EncounterParams {
@@ -114,103 +114,114 @@ const Index = () => {
   };
 
   return (
-    <div className="flex w-full">
-      <AppSidebar 
-        params={params}
-        setParams={setParams}
-        onGenerate={handleGenerate}
-        isGenerating={isGenerating}
-      />
-      
-      <div className="flex-1">
-        {/* Hero Section */}
-        <div 
-          className="relative h-64 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroBanner})` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/80" />
-          <div className="relative z-10 flex items-center justify-center h-full">
-            <div className="text-center">
-              <h1 className="text-5xl font-bold text-white mb-4 drop-shadow-lg">
-                Forge Legendary Battles
-              </h1>
-              <p className="text-xl text-gold-200 drop-shadow-md">
-                Generate encounters with mystical precision
-              </p>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-gradient-to-b from-background to-muted">
+        <AppSidebar 
+          params={params}
+          setParams={setParams}
+          onGenerate={handleGenerate}
+          isGenerating={isGenerating}
+        />
+        
+        <div className="flex-1 flex flex-col">
+          {/* Header with sidebar trigger */}
+          <header className="h-14 flex items-center border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <SidebarTrigger className="ml-4" />
+            <h1 className="ml-4 text-lg font-semibold">D&D Encounter Generator</h1>
+          </header>
+
+          {/* Main content */}
+          <main className="flex-1 overflow-auto">
+            {/* Hero Section */}
+            <div 
+              className="relative h-64 bg-cover bg-center"
+              style={{ backgroundImage: `url(${heroBanner})` }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/80" />
+              <div className="relative z-10 flex items-center justify-center h-full">
+                <div className="text-center">
+                  <h1 className="text-5xl font-bold text-white mb-4 drop-shadow-lg">
+                    Forge Legendary Battles
+                  </h1>
+                  <p className="text-xl text-gold-200 drop-shadow-md">
+                    Generate encounters with mystical precision
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="container mx-auto px-6 py-8">
-          {/* Results */}
-          <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 shadow-mystical">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                <Swords className="h-6 w-6 text-accent" />
-                Generated Encounter
-              </CardTitle>
-              <CardDescription>
-                {encounter ? "Your encounter has been forged!" : "Configure parameters in the sidebar and generate an encounter"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {encounter ? (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="text-lg px-4 py-2">
-                      {encounter.environment}
-                    </Badge>
-                    <Badge variant="outline" className="text-lg px-4 py-2">
-                      {encounter.totalXP} XP
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-semibold text-accent">Monsters</h3>
-                    {encounter.monsters.map((monster, index) => (
-                      <div key={index} className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-lg">{monster.name}</h4>
-                          <Badge variant="outline">CR {monster.cr}</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <div>Quantity: {monster.quantity}</div>
-                          <div>XP Each: {monster.xp} (Total: {monster.quantity * monster.xp})</div>
-                          <div>Type: {monster.type} • Size: {monster.size}</div>
-                          <div>Alignment: {monster.alignment}</div>
-                        </div>
+            <div className="container mx-auto px-6 py-8">
+              {/* Results */}
+              <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 shadow-mystical">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-2xl">
+                    <Swords className="h-6 w-6 text-accent" />
+                    Generated Encounter
+                  </CardTitle>
+                  <CardDescription>
+                    {encounter ? "Your encounter has been forged!" : "Configure parameters in the sidebar and generate an encounter"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {encounter ? (
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="secondary" className="text-lg px-4 py-2">
+                          {encounter.environment}
+                        </Badge>
+                        <Badge variant="outline" className="text-lg px-4 py-2">
+                          {encounter.totalXP} XP
+                        </Badge>
                       </div>
-                    ))}
-                  </div>
 
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-semibold text-accent">Generation Log</h3>
-                    <ScrollArea className="h-48 p-4 bg-muted/50 rounded-lg border border-border/50">
-                      <div className="space-y-2 font-mono text-sm">
-                        {encounter.generationLog.map((log, index) => (
-                          <div key={index} className="text-muted-foreground">
-                            {log}
+                      <div className="space-y-4">
+                        <h3 className="text-xl font-semibold text-accent">Monsters</h3>
+                        {encounter.monsters.map((monster, index) => (
+                          <div key={index} className="p-4 bg-muted/50 rounded-lg border border-border/50">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-semibold text-lg">{monster.name}</h4>
+                              <Badge variant="outline">CR {monster.cr}</Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <div>Quantity: {monster.quantity}</div>
+                              <div>XP Each: {monster.xp} (Total: {monster.quantity * monster.xp})</div>
+                              <div>Type: {monster.type} • Size: {monster.size}</div>
+                              <div>Alignment: {monster.alignment}</div>
+                            </div>
                           </div>
                         ))}
                       </div>
-                    </ScrollArea>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Dice6 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    No encounter generated yet. Configure your parameters in the sidebar and roll the dice!
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+
+                      <Separator />
+
+                      <div className="space-y-4">
+                        <h3 className="text-xl font-semibold text-accent">Generation Log</h3>
+                        <ScrollArea className="h-48 p-4 bg-muted/50 rounded-lg border border-border/50">
+                          <div className="space-y-2 font-mono text-sm">
+                            {encounter.generationLog.map((log, index) => (
+                              <div key={index} className="text-muted-foreground">
+                                {log}
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Dice6 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">
+                        No encounter generated yet. Configure your parameters in the sidebar and roll the dice!
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </main>
         </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
