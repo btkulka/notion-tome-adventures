@@ -59,8 +59,9 @@ export function AppSidebar({ params, setParams, onGenerate, isGenerating }: AppS
   return (
     <Sidebar
       className={open ? "w-80" : "w-14"}
+      collapsible="icon"
     >
-      <SidebarContent className="bg-gradient-to-br from-card to-card/80">
+      <SidebarContent className="border-r bg-gradient-to-br from-card to-card/80">
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-2 text-lg font-semibold px-4 py-3">
             <Scroll className="h-5 w-5 text-primary" />
