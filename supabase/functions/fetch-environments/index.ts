@@ -16,12 +16,33 @@ serve(async (req) => {
       auth: Deno.env.get('NOTION_API_KEY'),
     })
 
-    // You'll need to replace this with your actual environments database ID
-    const ENVIRONMENTS_DATABASE_ID = Deno.env.get('ENVIRONMENTS_DATABASE_ID')
+    // Discover the environments database automatically
+    const discoveryResponse = await notion.search({
+      filter: {
+        property: 'object',
+        value: 'database'
+      }
+    })
     
-    if (!ENVIRONMENTS_DATABASE_ID) {
-      throw new Error('ENVIRONMENTS_DATABASE_ID not configured')
+    const databases = discoveryResponse.results
+      .filter((result: any) => result.object === 'database')
+      .map((db: any) => ({
+        id: db.id,
+        title: db.title?.[0]?.plain_text || 'Untitled Database',
+      }))
+
+    const environmentsAliases = ['environments', 'environment', 'terrain', 'locations']
+    const environmentsDb = databases.find((db: any) => 
+      environmentsAliases.some(alias => 
+        db.title.toLowerCase().includes(alias.toLowerCase())
+      )
+    )
+
+    if (!environmentsDb) {
+      throw new Error('Environments database not found. Please ensure you have a Notion database with "environments" or "terrain" in the title.')
     }
+
+    const ENVIRONMENTS_DATABASE_ID = environmentsDb.id
 
     const response = await notion.databases.query({
       database_id: ENVIRONMENTS_DATABASE_ID,

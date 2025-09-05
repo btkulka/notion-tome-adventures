@@ -18,12 +18,33 @@ serve(async (req) => {
 
     const { environment, minCR, maxCR, creatureType, alignment, size } = await req.json()
 
-    // You'll need to replace this with your actual creatures database ID
-    const CREATURES_DATABASE_ID = Deno.env.get('CREATURES_DATABASE_ID')
+    // Discover the creatures database automatically
+    const discoveryResponse = await notion.search({
+      filter: {
+        property: 'object',
+        value: 'database'
+      }
+    })
     
-    if (!CREATURES_DATABASE_ID) {
-      throw new Error('CREATURES_DATABASE_ID not configured')
+    const databases = discoveryResponse.results
+      .filter((result: any) => result.object === 'database')
+      .map((db: any) => ({
+        id: db.id,
+        title: db.title?.[0]?.plain_text || 'Untitled Database',
+      }))
+
+    const creaturesAliases = ['creatures', 'monsters', 'creature', 'monster']
+    const creaturesDb = databases.find((db: any) => 
+      creaturesAliases.some(alias => 
+        db.title.toLowerCase().includes(alias.toLowerCase())
+      )
+    )
+
+    if (!creaturesDb) {
+      throw new Error('Creatures database not found. Please ensure you have a Notion database with "creatures" or "monsters" in the title.')
     }
+
+    const CREATURES_DATABASE_ID = creaturesDb.id
 
     // Build filter based on parameters
     const filters: any[] = []
