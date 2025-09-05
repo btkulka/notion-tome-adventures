@@ -13,57 +13,31 @@ serve(async (req) => {
 
   try {
     const notionApiKey = Deno.env.get('NOTION_API_KEY');
+    const environmentsDbId = Deno.env.get('ENVIRONMENTS_DATABASE_ID');
     
     if (!notionApiKey) {
       console.error('NOTION_API_KEY environment variable is not set');
       throw new Error('NOTION_API_KEY environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
     }
     
+    if (!environmentsDbId) {
+      console.error('ENVIRONMENTS_DATABASE_ID environment variable is not set');
+      throw new Error('ENVIRONMENTS_DATABASE_ID environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
+    }
+    
     console.log('Initializing Notion client with API key length:', notionApiKey.length);
+    console.log('Using environments database ID:', environmentsDbId);
+    
     const notion = new Client({
       auth: notionApiKey,
     });
     
     console.log('Notion client initialized successfully');
 
-    // Discover the environments database automatically
-    console.log('Searching for databases...');
-    const discoveryResponse = await notion.search({
-      filter: {
-        property: 'object',
-        value: 'database'
-      }
-    })
-    
-    console.log(`Found ${discoveryResponse.results.length} total results`);
-    
-    const databases = discoveryResponse.results
-      .filter((result: any) => result.object === 'database')
-      .map((db: any) => ({
-        id: db.id,
-        title: db.title?.[0]?.plain_text || 'Untitled Database',
-      }))
-
-    console.log('Available databases:', databases.map(db => db.title));
-
-    const environmentsAliases = ['environments', 'environment', 'terrain', 'locations']
-    const environmentsDb = databases.find((db: any) => 
-      environmentsAliases.some(alias => 
-        db.title.toLowerCase().includes(alias.toLowerCase())
-      )
-    )
-
-    if (!environmentsDb) {
-      const availableTitles = databases.map(db => `"${db.title}"`).join(', ');
-      throw new Error(`Environments database not found. Available databases: ${availableTitles}. Please ensure you have a Notion database with "environments" or "terrain" in the title.`);
-    }
-    
-    console.log(`Using environments database: "${environmentsDb.title}" (${environmentsDb.id})`)
-
-    const ENVIRONMENTS_DATABASE_ID = environmentsDb.id
+    console.log('Querying environments database...');
 
     const response = await notion.databases.query({
-      database_id: ENVIRONMENTS_DATABASE_ID,
+      database_id: environmentsDbId,
     })
 
     const environments = response.results.map((page: any) => ({

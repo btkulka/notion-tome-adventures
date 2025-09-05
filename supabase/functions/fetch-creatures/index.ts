@@ -12,58 +12,31 @@ serve(async (req) => {
   }
 
   try {
+    const { environment, minCR, maxCR, creatureType, alignment, size } = await req.json()
+    console.log('Received filters:', { environment, minCR, maxCR, creatureType, alignment, size });
+
     const notionApiKey = Deno.env.get('NOTION_API_KEY');
+    const creaturesDbId = Deno.env.get('CREATURES_DATABASE_ID');
     
     if (!notionApiKey) {
       console.error('NOTION_API_KEY environment variable is not set');
       throw new Error('NOTION_API_KEY environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
     }
     
+    if (!creaturesDbId) {
+      console.error('CREATURES_DATABASE_ID environment variable is not set');
+      throw new Error('CREATURES_DATABASE_ID environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
+    }
+    
     console.log('Initializing Notion client with API key length:', notionApiKey.length);
+    console.log('Using creatures database ID:', creaturesDbId);
+    
     const notion = new Client({
       auth: notionApiKey,
     });
     
     console.log('Notion client initialized successfully');
-
-    const { environment, minCR, maxCR, creatureType, alignment, size } = await req.json()
-    console.log('Received filters:', { environment, minCR, maxCR, creatureType, alignment, size });
-
-    // Discover the creatures database automatically
-    console.log('Searching for databases...');
-    const discoveryResponse = await notion.search({
-      filter: {
-        property: 'object',
-        value: 'database'
-      }
-    })
-    
-    console.log(`Found ${discoveryResponse.results.length} total results`);
-    
-    const databases = discoveryResponse.results
-      .filter((result: any) => result.object === 'database')
-      .map((db: any) => ({
-        id: db.id,
-        title: db.title?.[0]?.plain_text || 'Untitled Database',
-      }))
-
-    console.log('Available databases:', databases.map(db => db.title));
-
-    const creaturesAliases = ['creatures', 'monsters', 'creature', 'monster']
-    const creaturesDb = databases.find((db: any) => 
-      creaturesAliases.some(alias => 
-        db.title.toLowerCase().includes(alias.toLowerCase())
-      )
-    )
-
-    if (!creaturesDb) {
-      const availableTitles = databases.map(db => `"${db.title}"`).join(', ');
-      throw new Error(`Creatures database not found. Available databases: ${availableTitles}. Please ensure you have a Notion database with "creatures" or "monsters" in the title.`);
-    }
-    
-    console.log(`Using creatures database: "${creaturesDb.title}" (${creaturesDb.id})`)
-
-    const CREATURES_DATABASE_ID = creaturesDb.id
+    console.log('Querying creatures database...');
 
     // Build filter based on parameters
     const filters: any[] = []
@@ -123,7 +96,7 @@ serve(async (req) => {
     }
 
     const query: any = {
-      database_id: CREATURES_DATABASE_ID,
+      database_id: creaturesDbId,
     }
 
     if (filters.length > 0) {
