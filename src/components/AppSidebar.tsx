@@ -14,11 +14,9 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-// Mock data matching the original
-const environments = [
-  'Any', 'Forest', 'Mountain', 'Desert', 'Swamp', 'Cave', 'Ocean', 'City', 'Dungeon', 'Plains'
-];
+import { useNotionEnvironments } from '@/hooks/useNotionData';
 
+// Static data for filters
 const alignments = [
   'Any', 'Lawful Good', 'Neutral Good', 'Chaotic Good', 
   'Lawful Neutral', 'True Neutral', 'Chaotic Neutral',
@@ -53,6 +51,10 @@ interface AppSidebarProps {
 
 export function AppSidebar({ params, setParams, onGenerate, isGenerating }: AppSidebarProps) {
   const { open } = useSidebar();
+  const { environments, loading: environmentsLoading } = useNotionEnvironments();
+
+  // Create environments list with 'Any' option and real data from Notion
+  const environmentOptions = ['Any', ...environments.map(env => env.name)];
 
   return (
     <Sidebar
@@ -70,14 +72,16 @@ export function AppSidebar({ params, setParams, onGenerate, isGenerating }: AppS
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="environment">Environment *</Label>
-                  <Select value={params.environment} onValueChange={(value) => 
-                    setParams(prev => ({ ...prev, environment: value }))
-                  }>
+                  <Select 
+                    value={params.environment} 
+                    onValueChange={(value) => setParams(prev => ({ ...prev, environment: value }))}
+                    disabled={environmentsLoading}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select environment" />
+                      <SelectValue placeholder={environmentsLoading ? "Loading environments..." : "Select environment"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {environments.map(env => (
+                      {environmentOptions.map(env => (
                         <SelectItem key={env} value={env}>{env}</SelectItem>
                       ))}
                     </SelectContent>

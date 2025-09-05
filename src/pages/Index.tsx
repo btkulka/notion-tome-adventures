@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dice6, Swords } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useEncounterGeneration } from '@/hooks/useNotionData';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
@@ -24,20 +25,26 @@ interface GeneratedEncounter {
   id: string;
   environment: string;
   totalXP: number;
+  baseXP: number;
+  difficulty: string;
   monsters: Array<{
     name: string;
     quantity: number;
     cr: number;
     xp: number;
+    total_xp: number;
     type: string;
     alignment: string;
     size: string;
   }>;
   generationLog: string[];
+  parameters: any;
 }
 
 const Index = () => {
   const { toast } = useToast();
+  const { generateEncounter, loading: generatingEncounter, error: generationError } = useEncounterGeneration();
+  
   const [params, setParams] = useState<EncounterParams>({
     environment: '',
     xpThreshold: 1000,
@@ -64,53 +71,27 @@ const Index = () => {
 
     setIsGenerating(true);
     
-    // Simulate encounter generation with your business logic
-    setTimeout(() => {
-      const mockEncounter: GeneratedEncounter = {
-        id: `enc_${Date.now()}`,
-        environment: params.environment,
-        totalXP: Math.floor(params.xpThreshold * 0.8 + Math.random() * params.xpThreshold * 0.4),
-        monsters: [
-          {
-            name: "Dire Wolf",
-            quantity: 2,
-            cr: 1,
-            xp: 200,
-            type: "Beast",
-            alignment: "Neutral",
-            size: "Large"
-          },
-          {
-            name: "Orc Warrior",
-            quantity: 3,
-            cr: 0.5,
-            xp: 100,
-            type: "Humanoid",
-            alignment: "Chaotic Evil",
-            size: "Medium"
-          }
-        ],
-        generationLog: [
-          `🎲 Rolling for encounter in ${params.environment}...`,
-          `⚔️ Applied filters: ${params.alignment || 'Any'} alignment, ${params.creatureType || 'Any'} type`,
-          `🎯 XP Budget: ${params.xpThreshold}`,
-          `🎲 Rolled 1d4 = 3, selecting 3 monsters`,
-          `✨ Selected Dire Wolf (CR 1, 200 XP each) x2 = 400 XP`,
-          `🎲 Rolled 1d4 = 2, selecting 2 more monsters`,
-          `✨ Selected Orc Warrior (CR 0.5, 100 XP each) x3 = 300 XP`,
-          `🏁 Total encounter XP: 700/${params.xpThreshold}`,
-          `📜 Encounter generation complete!`
-        ]
-      };
+    try {
+      const result = await generateEncounter(params);
       
-      setEncounter(mockEncounter);
-      setIsGenerating(false);
-      
+      if (result) {
+        setEncounter(result);
+        toast({
+          title: "Encounter Generated!",
+          description: `Generated a ${result.difficulty} encounter with ${result.totalXP} XP.`,
+        });
+      } else {
+        throw new Error("Failed to generate encounter");
+      }
+    } catch (error: any) {
       toast({
-        title: "Encounter Generated!",
-        description: "Your legendary encounter awaits the party.",
+        title: "Generation Failed",
+        description: error.message || "Failed to generate encounter. Check your Notion configuration.",
+        variant: "destructive"
       });
-    }, 2000);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -165,14 +146,24 @@ const Index = () => {
                 <CardContent>
                   {encounter ? (
                     <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="text-lg px-4 py-2">
-                          {encounter.environment}
-                        </Badge>
-                        <Badge variant="outline" className="text-lg px-4 py-2">
-                          {encounter.totalXP} XP
-                        </Badge>
-                      </div>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="text-lg px-4 py-2">
+                      {encounter.environment}
+                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="text-lg px-4 py-2">
+                        {encounter.totalXP} XP
+                      </Badge>
+                      <Badge variant={
+                        encounter.difficulty === 'Easy' ? 'secondary' :
+                        encounter.difficulty === 'Medium' ? 'default' :
+                        encounter.difficulty === 'Hard' ? 'destructive' :
+                        'destructive'
+                      } className="text-lg px-4 py-2">
+                        {encounter.difficulty}
+                      </Badge>
+                    </div>
+                  </div>
 
                       <div className="space-y-4">
                         <h3 className="text-xl font-semibold text-accent">Monsters</h3>
@@ -183,9 +174,9 @@ const Index = () => {
                               <Badge variant="outline">CR {monster.cr}</Badge>
                             </div>
                             <div className="text-sm text-muted-foreground space-y-1">
-                              <div>Quantity: {monster.quantity}</div>
-                              <div>XP Each: {monster.xp} (Total: {monster.quantity * monster.xp})</div>
-                              <div>Type: {monster.type} • Size: {monster.size}</div>
+                            <div>Quantity: {monster.quantity}</div>
+                            <div>XP Each: {monster.xp} (Total: {monster.total_xp})</div>
+                            <div>Type: {monster.type} • Size: {monster.size}</div>
                               <div>Alignment: {monster.alignment}</div>
                             </div>
                           </div>
