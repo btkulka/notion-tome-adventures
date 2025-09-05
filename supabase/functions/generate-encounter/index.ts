@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Client } from 'https://esm.sh/@notionhq/client@2.2.15'
+import { Client } from 'https://esm.sh/@notionhq/client@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
