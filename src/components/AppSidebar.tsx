@@ -51,7 +51,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ params, setParams, onGenerate, isGenerating }: AppSidebarProps) {
   const { open } = useSidebar();
-  const { environments, loading: environmentsLoading } = useNotionEnvironments();
+  const { environments, loading: environmentsLoading, error: environmentsError } = useNotionEnvironments();
 
   // Create environments list with 'Any' option and real data from Notion
   const environmentOptions = ['Any', ...environments.map(env => env.name)];
@@ -75,10 +75,14 @@ export function AppSidebar({ params, setParams, onGenerate, isGenerating }: AppS
                   <Select 
                     value={params.environment} 
                     onValueChange={(value) => setParams(prev => ({ ...prev, environment: value }))}
-                    disabled={environmentsLoading}
+                    disabled={environmentsLoading || !!environmentsError}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={environmentsLoading ? "Loading environments..." : "Select environment"} />
+                      <SelectValue placeholder={
+                        environmentsLoading ? "Loading environments..." : 
+                        environmentsError ? "Error loading environments" :
+                        "Select environment"
+                      } />
                     </SelectTrigger>
                     <SelectContent>
                       {environmentOptions.map(env => (
@@ -86,6 +90,11 @@ export function AppSidebar({ params, setParams, onGenerate, isGenerating }: AppS
                       ))}
                     </SelectContent>
                   </Select>
+                  {environmentsError && (
+                    <p className="text-sm text-destructive">
+                      Failed to load environments. Please check your Notion setup.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">

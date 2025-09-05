@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Client } from 'https://esm.sh/@notionhq/client@2'
+import { Client } from 'https://esm.sh/@notionhq/client@2.3.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,13 +12,22 @@ serve(async (req) => {
   }
 
   try {
+    const notionApiKey = Deno.env.get('NOTION_API_KEY');
+    
+    if (!notionApiKey) {
+      throw new Error('NOTION_API_KEY environment variable is not set');
+    }
+    
+    console.log('Initializing Notion client...');
     const notion = new Client({
-      auth: Deno.env.get('NOTION_API_KEY'),
+      auth: notionApiKey,
     })
 
     const { environment, minCR, maxCR, creatureType, alignment, size } = await req.json()
+    console.log('Received filters:', { environment, minCR, maxCR, creatureType, alignment, size });
 
     // Discover the creatures database automatically
+    console.log('Searching for databases...');
     const discoveryResponse = await notion.search({
       filter: {
         property: 'object',
@@ -26,12 +35,16 @@ serve(async (req) => {
       }
     })
     
+    console.log(`Found ${discoveryResponse.results.length} total results`);
+    
     const databases = discoveryResponse.results
       .filter((result: any) => result.object === 'database')
       .map((db: any) => ({
         id: db.id,
         title: db.title?.[0]?.plain_text || 'Untitled Database',
       }))
+
+    console.log('Available databases:', databases.map(db => db.title));
 
     const creaturesAliases = ['creatures', 'monsters', 'creature', 'monster']
     const creaturesDb = databases.find((db: any) => 
@@ -41,8 +54,11 @@ serve(async (req) => {
     )
 
     if (!creaturesDb) {
-      throw new Error('Creatures database not found. Please ensure you have a Notion database with "creatures" or "monsters" in the title.')
+      const availableTitles = databases.map(db => `"${db.title}"`).join(', ');
+      throw new Error(`Creatures database not found. Available databases: ${availableTitles}. Please ensure you have a Notion database with "creatures" or "monsters" in the title.`);
     }
+    
+    console.log(`Using creatures database: "${creaturesDb.title}" (${creaturesDb.id})`)
 
     const CREATURES_DATABASE_ID = creaturesDb.id
 

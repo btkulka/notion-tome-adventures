@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Client } from 'https://esm.sh/@notionhq/client@2'
+import { Client } from 'https://esm.sh/@notionhq/client@2.3.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -136,8 +136,15 @@ serve(async (req) => {
   }
 
   try {
+    const notionApiKey = Deno.env.get('NOTION_API_KEY');
+    
+    if (!notionApiKey) {
+      throw new Error('NOTION_API_KEY environment variable is not set');
+    }
+    
+    console.log('Initializing Notion client...');
     const notion = new Client({
-      auth: Deno.env.get('NOTION_API_KEY'),
+      auth: notionApiKey,
     })
 
     const params = await req.json()
@@ -155,8 +162,9 @@ serve(async (req) => {
     console.log('Generating encounter with params:', params)
 
     // First, fetch matching creatures
+    console.log('Fetching creatures...');
     const creaturesResponse = await fetch(
-      `${Deno.env.get('SUPABASE_URL')}/functions/v1/fetch-creatures`,
+      `https://xhrobkdzjabllhftksvt.supabase.co/functions/v1/fetch-creatures`,
       {
         method: 'POST',
         headers: {

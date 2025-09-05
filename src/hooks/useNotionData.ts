@@ -53,16 +53,28 @@ export const useNotionCreatures = () => {
       setLoading(true);
       setError(null);
       
+      console.log('Fetching creatures with filters:', filters);
+      
       const { data, error } = await supabase.functions.invoke('fetch-creatures', {
         body: filters,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to fetch creatures from Notion');
+      }
       
-      setCreatures(data.creatures || []);
+      if (!data || !data.creatures) {
+        throw new Error('Invalid response format from creatures endpoint');
+      }
+      
+      console.log(`Successfully fetched ${data.creatures.length} creatures`);
+      setCreatures(data.creatures);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch creatures');
+      const errorMessage = err.message || 'Failed to fetch creatures. Please check your Notion configuration.';
+      setError(errorMessage);
       console.error('Error fetching creatures:', err);
+      setCreatures([]);
     } finally {
       setLoading(false);
     }
@@ -83,14 +95,26 @@ export const useNotionEnvironments = () => {
         setLoading(true);
         setError(null);
         
+        console.log('Fetching environments from Notion...');
+        
         const { data, error } = await supabase.functions.invoke('fetch-environments');
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase function error:', error);
+          throw new Error(error.message || 'Failed to fetch environments from Notion');
+        }
         
-        setEnvironments(data.environments || []);
+        if (!data || !data.environments) {
+          throw new Error('Invalid response format from environments endpoint');
+        }
+        
+        console.log(`Successfully fetched ${data.environments.length} environments`);
+        setEnvironments(data.environments);
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch environments');
+        const errorMessage = err.message || 'Failed to fetch environments. Please check your Notion configuration.';
+        setError(errorMessage);
         console.error('Error fetching environments:', err);
+        setEnvironments([]);
       } finally {
         setLoading(false);
       }
@@ -112,15 +136,26 @@ export const useEncounterGeneration = () => {
       setLoading(true);
       setError(null);
       
+      console.log('Generating encounter with params:', params);
+      
       const { data, error } = await supabase.functions.invoke('generate-encounter', {
         body: params,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to generate encounter');
+      }
       
+      if (!data || !data.encounter) {
+        throw new Error('Invalid response format from encounter generation endpoint');
+      }
+      
+      console.log('Successfully generated encounter:', data.encounter);
       return data.encounter;
     } catch (err: any) {
-      setError(err.message || 'Failed to generate encounter');
+      const errorMessage = err.message || 'Failed to generate encounter. Please check your Notion configuration.';
+      setError(errorMessage);
       console.error('Error generating encounter:', err);
       return null;
     } finally {
