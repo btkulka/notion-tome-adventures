@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Client } from 'https://esm.sh/@notionhq/client@2.3.0'
+import { Client } from 'https://esm.sh/@notionhq/client@2.2.15'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -139,13 +139,16 @@ serve(async (req) => {
     const notionApiKey = Deno.env.get('NOTION_API_KEY');
     
     if (!notionApiKey) {
-      throw new Error('NOTION_API_KEY environment variable is not set');
+      console.error('NOTION_API_KEY environment variable is not set');
+      throw new Error('NOTION_API_KEY environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
     }
     
-    console.log('Initializing Notion client...');
+    console.log('Initializing Notion client with API key length:', notionApiKey.length);
     const notion = new Client({
       auth: notionApiKey,
-    })
+    });
+    
+    console.log('Notion client initialized successfully');
 
     const params = await req.json()
     const {

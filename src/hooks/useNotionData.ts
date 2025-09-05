@@ -110,14 +110,23 @@ export const useNotionEnvironments = () => {
         
         console.log(`Successfully fetched ${data.environments.length} environments`);
         setEnvironments(data.environments);
-      } catch (err: any) {
-        const errorMessage = err.message || 'Failed to fetch environments. Please check your Notion configuration.';
-        setError(errorMessage);
-        console.error('Error fetching environments:', err);
-        setEnvironments([]);
-      } finally {
-        setLoading(false);
+    } catch (err: any) {
+      let errorMessage = 'Failed to fetch environments. Please check your Notion configuration.';
+      
+      if (err.message?.includes('NOTION_API_KEY')) {
+        errorMessage = 'Notion API key is not configured. Please set up your Notion integration.';
+      } else if (err.message?.includes('database not found')) {
+        errorMessage = 'Environments database not found in Notion. Please create a database with "environments" or "terrain" in the title.';
+      } else if (err.message?.includes('Cannot read properties')) {
+        errorMessage = 'Notion client initialization failed. Please check your API configuration.';
       }
+      
+      setError(errorMessage);
+      console.error('Error fetching environments:', err);
+      setEnvironments([]);
+    } finally {
+      setLoading(false);
+    }
     };
 
     fetchEnvironments();
