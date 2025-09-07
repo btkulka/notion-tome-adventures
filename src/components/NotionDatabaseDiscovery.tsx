@@ -3,11 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useNotionDiscovery, type DatabaseMatch, type DatabaseSchema } from '@/hooks/useNotionDiscovery';
+import { useNotionDiscovery, type DatabaseMatch, type DatabaseSchema, type NotionDatabase } from '@/hooks/useNotionDiscovery';
 import { useToast } from '@/hooks/use-toast';
 
 export const NotionDatabaseDiscovery = () => {
-  const [discoveryResult, setDiscoveryResult] = useState<{ allDatabases: any[]; matches: DatabaseMatch[] } | null>(null);
+  const [discoveryResult, setDiscoveryResult] = useState<{ allDatabases: NotionDatabase[]; matches: DatabaseMatch[] } | null>(null);
   const [schemas, setSchemas] = useState<Record<string, DatabaseSchema>>({});
   const { discoverDatabases, getSchema, loading, error } = useNotionDiscovery();
   const { toast } = useToast();

@@ -150,8 +150,6 @@ export interface EnvironmentDTO extends NotionPageBase {
 export interface EncounterDTO extends NotionPageBase {
   encounter_name: string;
   environment: string;
-  party_level: number;
-  party_size: number;
   difficulty: 'Easy' | 'Medium' | 'Hard' | 'Deadly';
   total_xp: number;
   adjusted_xp?: number;

@@ -1,4 +1,19 @@
-# Welcome to your Lovable project
+# D&D Notion Tome Adventures
+
+A React webapp for managing D&D adventures, creatures, and encounters through Notion integration.
+
+## Project Structure
+
+```
+├── docs/                          # Documentation and project notes
+├── scripts/                       # Utility scripts for debugging and setup
+│   ├── debug/                     # Debug and testing scripts
+│   └── setup/                     # Setup and installation scripts
+├── src/                           # React application source code
+├── supabase/                      # Backend Edge Functions
+├── public/                        # Static assets
+└── [config files]                # Configuration files (package.json, etc.)
+```
 
 ## Project info
 
@@ -54,11 +69,22 @@ npm run dev
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Frontend
+- **Vite** - Build tool and dev server
+- **TypeScript** - Type-safe JavaScript
+- **React** - UI framework
+- **shadcn-ui** - Component library
+- **Tailwind CSS** - Utility-first CSS framework
+
+### Backend
+- **Supabase** - Backend as a Service
+- **Edge Functions** - Serverless TypeScript functions
+- **Notion API** - Database integration
+
+### D&D Integration
+- **Creature Management** - Automated creature type and alignment fixes
+- **Encounter Generation** - Dynamic encounter creation
+- **Database Discovery** - Automatic Notion database schema detection
 
 ## How can I deploy this project?
 

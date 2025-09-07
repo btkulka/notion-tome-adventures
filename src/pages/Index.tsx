@@ -5,62 +5,32 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dice6, Swords } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useNotionService, type EncounterParams as NotionEncounterParams, type GeneratedEncounter as NotionGeneratedEncounter } from '@/hooks/useNotionService';
+import { useNotionService } from '@/hooks/useNotionService';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
+import { EncounterParams, NotionEncounterParams, GeneratedEncounter } from '@/types/encounter';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
-
-interface EncounterParams {
-  environment: string;
-  xpThreshold: number;
-  maxMonsters: number;
-  alignment: string;
-  creatureType: string;
-  size: string;
-  minCR: number;
-  maxCR: number;
-}
-
-interface GeneratedEncounter {
-  id: string;
-  environment: string;
-  totalXP: number;
-  baseXP: number;
-  difficulty: string;
-  monsters: Array<{
-    name: string;
-    quantity: number;
-    cr: number;
-    xp: number;
-    total_xp: number;
-    type: string;
-    alignment: string;
-    size: string;
-  }>;
-  generationLog: string[];
-  parameters: any;
-}
 
 const Index = () => {
   const { toast } = useToast();
-  const { generateEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
+  const { generateEncounter, testCreaturesStructure, loading: generatingEncounter, error: generationError } = useNotionService();
   
   const [params, setParams] = useState<EncounterParams>({
-    environment: '',
+    environment: 'Any',
     xpThreshold: 1000,
     maxMonsters: 6,
-    alignment: '',
-    creatureType: '',
-    size: '',
+    alignment: 'Any',
+    creatureType: 'Any',
+    size: 'Any',
     minCR: 0,
     maxCR: 20
   });
   
-  const [encounter, setEncounter] = useState<NotionGeneratedEncounter | null>(null);
+  const [encounter, setEncounter] = useState<GeneratedEncounter | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async () => {
-    if (!params.environment || params.xpThreshold <= 0) {
+    if (!params.environment || params.environment === '' || params.xpThreshold <= 0) {
       toast({
         title: "Missing Parameters",
         description: "Please select an environment and set a valid XP threshold.",
@@ -72,15 +42,23 @@ const Index = () => {
     setIsGenerating(true);
     
     try {
+      console.log('🎲 Starting encounter generation with params:', params);
+      
       const notionParams: NotionEncounterParams = {
-        environment: params.environment,
-        partyLevel: 5, // Default level
-        partySize: 4, // Default party size
+        environment: params.environment === 'Any' ? '' : params.environment,
         difficulty: 'medium', // Default difficulty
         minCR: params.minCR.toString(),
         maxCR: params.maxCR.toString(),
+        xpThreshold: params.xpThreshold,
+        maxMonsters: params.maxMonsters,
+        alignment: params.alignment === 'Any' ? undefined : params.alignment,
+        creatureType: params.creatureType === 'Any' ? undefined : params.creatureType,
+        size: params.size === 'Any' ? undefined : params.size,
       };
+      
+      console.log('🔮 Calling generateEncounter with:', notionParams);
       const result = await generateEncounter(notionParams);
+      console.log('✅ Encounter generation result:', result);
       
       if (result) {
         setEncounter(result);
@@ -89,16 +67,39 @@ const Index = () => {
           description: `Generated a ${result.difficulty} encounter with ${result.total_xp} XP.`,
         });
       } else {
-        throw new Error("Failed to generate encounter");
+        throw new Error("Failed to generate encounter - no result returned");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error('❌ Encounter generation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate encounter. Check your Notion configuration.";
+      
       toast({
         title: "Generation Failed",
-        description: error.message || "Failed to generate encounter. Check your Notion configuration.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleTestCreatures = async () => {
+    try {
+      console.log('🔍 Testing creatures database structure...');
+      const result = await testCreaturesStructure();
+      console.log('✅ Creatures test result:', result);
+      
+      toast({
+        title: "Creatures Test Complete",
+        description: "Check the console for detailed database structure information",
+      });
+    } catch (error) {
+      console.error('❌ Creatures test failed:', error);
+      toast({
+        title: "Creatures Test Failed", 
+        description: error instanceof Error ? error.message : "Failed to test creatures structure",
+        variant: "destructive",
+      });
     }
   };
 
@@ -110,6 +111,7 @@ const Index = () => {
           setParams={setParams}
           onGenerate={handleGenerate}
           isGenerating={isGenerating}
+          onTestCreatures={handleTestCreatures}
         />
         
         <div className="flex-1 flex flex-col">
@@ -148,7 +150,7 @@ const Index = () => {
                     Generated Encounter
                   </CardTitle>
                   <CardDescription>
-                    {encounter ? "Your encounter has been forged!" : "Configure parameters in the sidebar and generate an encounter"}
+                    {encounter ? "Your encounter has been forged!" : "Configure parameters in the sidebar and generate an encounter from your Notion databases"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -207,8 +209,11 @@ const Index = () => {
                   ) : (
                     <div className="text-center py-12">
                       <Dice6 className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">
-                        No encounter generated yet. Configure your parameters in the sidebar and roll the dice!
+                      <p className="text-muted-foreground mb-2">
+                        No encounter generated yet.
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Configure your Notion integration and databases, then set your parameters and roll the dice!
                       </p>
                     </div>
                   )}
