@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dice6, Swords } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useEncounterGeneration } from '@/hooks/useNotionData';
+import { useNotionService, type EncounterParams as NotionEncounterParams, type GeneratedEncounter as NotionGeneratedEncounter } from '@/hooks/useNotionService';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
@@ -43,7 +43,7 @@ interface GeneratedEncounter {
 
 const Index = () => {
   const { toast } = useToast();
-  const { generateEncounter, loading: generatingEncounter, error: generationError } = useEncounterGeneration();
+  const { generateEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
   
   const [params, setParams] = useState<EncounterParams>({
     environment: '',
@@ -56,7 +56,7 @@ const Index = () => {
     maxCR: 20
   });
   
-  const [encounter, setEncounter] = useState<GeneratedEncounter | null>(null);
+  const [encounter, setEncounter] = useState<NotionGeneratedEncounter | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async () => {
@@ -72,13 +72,21 @@ const Index = () => {
     setIsGenerating(true);
     
     try {
-      const result = await generateEncounter(params);
+      const notionParams: NotionEncounterParams = {
+        environment: params.environment,
+        partyLevel: 5, // Default level
+        partySize: 4, // Default party size
+        difficulty: 'medium', // Default difficulty
+        minCR: params.minCR.toString(),
+        maxCR: params.maxCR.toString(),
+      };
+      const result = await generateEncounter(notionParams);
       
       if (result) {
         setEncounter(result);
         toast({
           title: "Encounter Generated!",
-          description: `Generated a ${result.difficulty} encounter with ${result.totalXP} XP.`,
+          description: `Generated a ${result.difficulty} encounter with ${result.total_xp} XP.`,
         });
       } else {
         throw new Error("Failed to generate encounter");
@@ -152,7 +160,7 @@ const Index = () => {
                     </Badge>
                     <div className="flex gap-2">
                       <Badge variant="outline" className="text-lg px-4 py-2">
-                        {encounter.totalXP} XP
+                        {encounter.total_xp} XP
                       </Badge>
                       <Badge variant={
                         encounter.difficulty === 'Easy' ? 'secondary' :
@@ -167,17 +175,15 @@ const Index = () => {
 
                       <div className="space-y-4">
                         <h3 className="text-xl font-semibold text-accent">Monsters</h3>
-                        {encounter.monsters.map((monster, index) => (
+                        {encounter.creatures.map((creature, index) => (
                           <div key={index} className="p-4 bg-muted/50 rounded-lg border border-border/50">
                             <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-semibold text-lg">{monster.name}</h4>
-                              <Badge variant="outline">CR {monster.cr}</Badge>
+                              <h4 className="font-semibold text-lg">{creature.name}</h4>
+                              <Badge variant="outline">CR {creature.challenge_rating}</Badge>
                             </div>
                             <div className="text-sm text-muted-foreground space-y-1">
-                            <div>Quantity: {monster.quantity}</div>
-                            <div>XP Each: {monster.xp} (Total: {monster.total_xp})</div>
-                            <div>Type: {monster.type} • Size: {monster.size}</div>
-                              <div>Alignment: {monster.alignment}</div>
+                            <div>Quantity: {creature.quantity}</div>
+                            <div>XP Value: {creature.xp_value}</div>
                             </div>
                           </div>
                         ))}
@@ -189,9 +195,9 @@ const Index = () => {
                         <h3 className="text-xl font-semibold text-accent">Generation Log</h3>
                         <ScrollArea className="h-48 p-4 bg-muted/50 rounded-lg border border-border/50">
                           <div className="space-y-2 font-mono text-sm">
-                            {encounter.generationLog.map((log, index) => (
+                            {encounter.generation_notes.split('\n').map((note, index) => (
                               <div key={index} className="text-muted-foreground">
-                                {log}
+                                {note}
                               </div>
                             ))}
                           </div>

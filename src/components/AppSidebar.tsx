@@ -14,7 +14,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-import { useNotionEnvironments } from '@/hooks/useNotionData';
+import { useNotionService } from '@/hooks/useNotionService';
 
 // Static data for filters
 const alignments = [
@@ -51,7 +51,20 @@ interface AppSidebarProps {
 
 export function AppSidebar({ params, setParams, onGenerate, isGenerating }: AppSidebarProps) {
   const { open } = useSidebar();
-  const { environments, loading: environmentsLoading, error: environmentsError } = useNotionEnvironments();
+  const { fetchEnvironments, loading: environmentsLoading, error: environmentsError } = useNotionService();
+  const [environments, setEnvironments] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const loadEnvironments = async () => {
+      try {
+        const result = await fetchEnvironments();
+        setEnvironments(result.environments);
+      } catch (err) {
+        console.error('Failed to load environments:', err);
+      }
+    };
+    loadEnvironments();
+  }, [fetchEnvironments]);
 
   // Create environments list with 'Any' option and real data from Notion
   const environmentOptions = ['Any', ...environments.map(env => env.name)];
