@@ -9,7 +9,9 @@ import {
   SidebarGroupLabel,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { SelectField, NumberField, FormSection, FormGrid } from '@/components/ui/form-fields';
+import { SelectField, FormSection, FormGrid } from '@/components/ui/form-fields';
+import { NumberInput } from '@/components/ui/number-input';
+import { CRSelect } from '@/components/ui/cr-select';
 import { 
   getEnvironmentIcon, 
   getAlignmentIcon, 
@@ -19,6 +21,7 @@ import {
 
 import { useNotionService } from '@/hooks/useNotionService';
 import { EncounterParams } from '@/types/encounter';
+import heroBanner from '@/assets/dnd-hero-banner.jpg';
 
 // Static data for filters
 const alignments = [
@@ -58,28 +61,13 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
           console.log('📋 Environment data:', result.environments);
           setEnvironments(result.environments);
         } else {
-          console.log('⚠️ No environments returned from Notion, using defaults');
-          setDefaultEnvironments();
+          console.error('❌ No environments returned from Notion database');
+          setEnvironments([]);
         }
       } catch (err) {
-        console.log('🏔️ Notion integration not available, using default environments');
-        setDefaultEnvironments();
+        console.error('❌ Failed to load environments fromC Notion:', err);
+        setEnvironments([]);
       }
-    };
-
-    const setDefaultEnvironments = () => {
-      const defaultEnvs = [
-        { id: '1', name: 'Forest' },
-        { id: '2', name: 'Dungeon' },
-        { id: '3', name: 'Mountains' },
-        { id: '4', name: 'Desert' },
-        { id: '5', name: 'Swamp' },
-        { id: '6', name: 'City' },
-        { id: '7', name: 'Ruins' },
-        { id: '8', name: 'Cave' }
-      ];
-      setEnvironments(defaultEnvs);
-      console.log('🎲 Using', defaultEnvs.length, 'default D&D environments');
     };
 
     loadEnvironments();
@@ -123,12 +111,24 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
       collapsible="icon"
     >
       <SidebarContent className="border-r border-border bg-background">
+        {/* Hero Section */}
+        {open && (
+          <div 
+            className="relative h-32 bg-cover bg-center border-b border-border"
+            style={{ backgroundImage: `url(${heroBanner})` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/70" />
+            <div className="relative z-10 flex items-center justify-center h-full p-4">
+              <div className="text-center">
+                <h2 className="text-lg font-bold text-white drop-shadow-lg">
+                  Encounter Generator
+                </h2>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2 text-lg font-semibold px-6 py-4 border-b border-border">
-            <Scroll className="h-5 w-5 text-primary" />
-            {open && "Encounter Parameters"}
-          </SidebarGroupLabel>
-          
           {open && (
             <SidebarGroupContent className="px-6 py-6">
               <div className="space-y-8">
@@ -154,34 +154,35 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                 {/* Encounter Settings Section */}
                 <FormSection title="Encounter Settings">
                   <FormGrid columns={2}>
-                    <NumberField
+                    <NumberInput
                       label="XP Threshold"
                       value={params.xpThreshold}
                       onChange={(value) => setParams(prev => ({ ...prev, xpThreshold: value }))}
                       placeholder="1000"
+                      step={100}
+                      max={50000}
                     />
 
-                    <NumberField
+                    <NumberInput
                       label="Max Monsters"
                       value={params.maxMonsters}
                       onChange={(value) => setParams(prev => ({ ...prev, maxMonsters: value }))}
+                      min={1}
+                      max={20}
                     />
                   </FormGrid>
 
                   <FormGrid columns={2}>
-                    <NumberField
+                    <CRSelect
                       label="Min CR"
                       value={params.minCR}
-                      onChange={(value) => setParams(prev => ({ ...prev, minCR: value }))}
-                      min={0}
+                      onValueChange={(value) => setParams(prev => ({ ...prev, minCR: value }))}
                     />
 
-                    <NumberField
+                    <CRSelect
                       label="Max CR"
                       value={params.maxCR}
-                      onChange={(value) => setParams(prev => ({ ...prev, maxCR: value }))}
-                      min={0}
-                      max={30}
+                      onValueChange={(value) => setParams(prev => ({ ...prev, maxCR: value }))}
                     />
                   </FormGrid>
                 </FormSection>
@@ -220,7 +221,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                     <div className="space-y-3">
                       <Button 
                         disabled
-                        className="w-full bg-primary hover:bg-primary/90 transition-colors duration-200"
+                        className="w-full btn-mystical text-primary-foreground font-semibold tracking-wide opacity-70"
                       >
                         <Dice6 className="mr-2 h-4 w-4 animate-spin" />
                         Rolling the Dice...
@@ -228,7 +229,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                       <Button 
                         onClick={onCancel}
                         variant="outline"
-                        className="w-full hover:bg-destructive hover:text-destructive-foreground transition-colors duration-200"
+                        className="w-full border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-200 hover:shadow-lg hover:shadow-destructive/20"
                       >
                         <X className="mr-2 h-4 w-4" />
                         Cancel Generation
@@ -237,7 +238,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                   ) : (
                     <Button 
                       onClick={onGenerate}
-                      className="w-full bg-primary hover:bg-primary/90 transition-colors duration-200"
+                      className="w-full btn-mystical text-primary-foreground font-semibold tracking-wide"
                     >
                       <Sparkles className="mr-2 h-4 w-4" />
                       Generate Encounter

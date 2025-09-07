@@ -141,6 +141,13 @@ export const useNotionService = () => {
     )
   }
 
+  const saveEncounter = async (encounter: GeneratedEncounter): Promise<{ pageId: string; pageUrl: string; message: string }> => {
+    return executeWithErrorHandling(
+      () => callEdgeFunction('save-encounter', encounter),
+      'save encounter to Notion'
+    )
+  }
+
   return {
     // Discovery
     discoverDatabases,
@@ -150,6 +157,7 @@ export const useNotionService = () => {
     fetchCreatures,
     fetchEnvironments,
     generateEncounter,
+    saveEncounter,
     
     // State
     loading,

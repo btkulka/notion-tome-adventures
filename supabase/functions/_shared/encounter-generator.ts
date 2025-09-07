@@ -3,7 +3,7 @@
  * Handles creature selection, balancing, and encounter creation
  */
 
-import { XP_BY_CR, ENCOUNTER_MULTIPLIERS } from './notion-utils.ts';
+import { XP_BY_CR } from './notion-utils.ts';
 
 // Helper to calculate XP from CR
 function calculateXPFromCR(cr: number | string): number {
@@ -11,20 +11,8 @@ function calculateXPFromCR(cr: number | string): number {
   return XP_BY_CR[crString] || 0;
 }
 
-// Calculate encounter multiplier based on number of monsters
-function getEncounterMultiplier(numMonsters: number): number {
-  if (numMonsters <= 1) return 1;
-  if (numMonsters === 2) return 1.5;
-  if (numMonsters >= 3 && numMonsters <= 6) return 2;
-  if (numMonsters >= 7 && numMonsters <= 10) return 2.5;
-  if (numMonsters >= 11 && numMonsters <= 14) return 3;
-  if (numMonsters >= 15) return 4;
-  return 1;
-}
-
 export interface EncounterParams {
   environment?: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Deadly';
   xpThreshold: number;
   maxMonsters: number;
   minCR: number;
@@ -41,16 +29,17 @@ export interface CreatureInstance {
   xp_value: number;
   quantity: number;
   total_xp: number;
+  image_url?: string;
+  creature_type?: string;
+  size?: string;
+  alignment?: string;
 }
 
 export interface GeneratedEncounter {
   environment: string;
-  difficulty: string;
   total_xp: number;
-  adjusted_xp: number;
   creatures: CreatureInstance[];
   generation_notes: string;
-  multiplier_used: number;
 }
 
 export class EncounterGenerator {
@@ -67,295 +56,221 @@ export class EncounterGenerator {
     this.generationLog.push(message);
   }
 
-  // Filter creatures based on parameters
-  private filterCreatures(params: EncounterParams): any[] {
-    this.log(`Filtering ${this.creatures.length} available creatures`);
-    
-    let filtered = this.creatures.filter(creature => {
-      // CR range filter
-      const cr = parseFloat(creature.challenge_rating.toString());
-      if (cr < params.minCR || cr > params.maxCR) {
-        return false;
-      }
-
-      // Environment filter
-      if (params.environment && params.environment !== 'Any') {
-        if (!creature.environment || !creature.environment.includes(params.environment)) {
-          return false;
-        }
-      }
-
-      // Alignment filter
-      if (params.alignment && params.alignment !== 'Any') {
-        if (!creature.alignment || creature.alignment !== params.alignment) {
-          return false;
-        }
-      }
-
-      // Creature type filter
-      if (params.creatureType && params.creatureType !== 'Any') {
-        if (!creature.type || creature.type !== params.creatureType) {
-          return false;
-        }
-      }
-
-      // Size filter
-      if (params.size && params.size !== 'Any') {
-        if (!creature.size || creature.size !== params.size) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    this.log(`After filtering: ${filtered.length} creatures remain`);
-    
-    if (filtered.length === 0) {
-      this.log('No creatures match the specified criteria, using fallback selection');
-      // Fallback: use creatures within CR range only
-      filtered = this.creatures.filter(creature => {
-        const cr = parseFloat(creature.challenge_rating.toString());
-        return cr >= params.minCR && cr <= params.maxCR;
-      });
-      this.log(`Fallback selection: ${filtered.length} creatures`);
-    }
-
-    return filtered;
+  // Helper function to roll 1d4
+  private rollD4(): number {
+    return Math.floor(Math.random() * 4) + 1;
   }
 
-  // Calculate encounter multiplier based on number of monsters
-  private getEncounterMultiplier(numMonsters: number): number {
-    if (numMonsters <= 0) return 1;
-    if (numMonsters === 1) return 1;
-    if (numMonsters === 2) return 1.5;
-    if (numMonsters >= 3 && numMonsters <= 6) return 2;
-    if (numMonsters >= 7 && numMonsters <= 10) return 2.5;
-    if (numMonsters >= 11 && numMonsters <= 14) return 3;
-    if (numMonsters >= 15) return 4;
-    return 1;
+  // Helper function to select random monster from candidates
+  private selectRandomMonster(candidates: any[]): any {
+    if (candidates.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * candidates.length);
+    return candidates[randomIndex];
   }
 
-  // Try to build an encounter with the given parameters
-  private buildEncounter(availableCreatures: any[], params: EncounterParams): GeneratedEncounter | null {
-    const targetXP = params.xpThreshold;
-    const maxCreatures = Math.min(params.maxMonsters, 6); // Cap at 6 for complexity
-    
-    this.log(`Building encounter for ${targetXP} XP with max ${maxCreatures} creatures`);
-
-    // Sort creatures by XP value for better selection
-    const sortedCreatures = [...availableCreatures].sort((a, b) => (a.xp_value || 0) - (b.xp_value || 0));
-    
-    // Try different combinations
-    const attempts = [
-      () => this.trySimpleEncounter(sortedCreatures, targetXP),
-      () => this.tryMultipleCreatures(sortedCreatures, targetXP, 2),
-      () => this.tryMultipleCreatures(sortedCreatures, targetXP, 3),
-      () => this.tryMultipleCreatures(sortedCreatures, targetXP, 4),
-      () => this.tryMixedEncounter(sortedCreatures, targetXP, maxCreatures)
-    ];
-
-    for (const attempt of attempts) {
-      const result = attempt();
-      if (result && result.total_xp > 0) {
-        const multiplier = this.getEncounterMultiplier(result.creatures.reduce((sum, c) => sum + c.quantity, 0));
-        result.adjusted_xp = Math.round(result.total_xp * multiplier);
-        result.multiplier_used = multiplier;
-        
-        // Determine difficulty
-        const adjustedXP = result.adjusted_xp;
-        if (adjustedXP <= targetXP * 0.5) {
-          result.difficulty = 'Easy';
-        } else if (adjustedXP <= targetXP) {
-          result.difficulty = 'Medium';
-        } else if (adjustedXP <= targetXP * 1.5) {
-          result.difficulty = 'Hard';
-        } else {
-          result.difficulty = 'Deadly';
-        }
-
-        this.log(`Successfully built ${result.difficulty} encounter: ${result.total_xp} base XP (${result.adjusted_xp} adjusted)`);
-        return result;
-      }
-    }
-
-    return null;
+  // Filter creatures by remaining XP budget
+  private filterByXPBudget(creatures: any[], remainingXP: number): any[] {
+    return creatures.filter(creature => (creature.xp_value || 0) <= remainingXP);
   }
 
-  // Try single creature encounter
-  private trySimpleEncounter(creatures: any[], targetXP: number): GeneratedEncounter | null {
-    this.log('Attempting single creature encounter');
-    
-    // Find creature closest to target XP
-    let bestCreature: any = null;
-    let bestDifference = Infinity;
-
-    for (const creature of creatures) {
-      const xp = creature.xp_value || 0;
-      if (xp > 0) {
-        const difference = Math.abs(targetXP - xp);
-        if (difference < bestDifference) {
-          bestDifference = difference;
-          bestCreature = creature;
-        }
-      }
-    }
-
-    if (!bestCreature) return null;
-
-    this.log(`Selected single creature: ${bestCreature.name} (${bestCreature.xp_value} XP)`);
-
-    return {
-      environment: '',
-      difficulty: 'Medium',
-      total_xp: bestCreature.xp_value,
-      adjusted_xp: bestCreature.xp_value,
-      multiplier_used: 1,
-      creatures: [{
-        id: bestCreature.id,
-        name: bestCreature.name,
-        challenge_rating: bestCreature.challenge_rating,
-        xp_value: bestCreature.xp_value,
-        quantity: 1,
-        total_xp: bestCreature.xp_value
-      }],
-      generation_notes: this.generationLog.join('\n')
-    };
-  }
-
-  // Try multiple instances of same creature
-  private tryMultipleCreatures(creatures: any[], targetXP: number, maxQuantity: number): GeneratedEncounter | null {
-    this.log(`Attempting ${maxQuantity} identical creatures encounter`);
-
-    for (const creature of creatures) {
-      const xp = creature.xp_value || 0;
-      if (xp <= 0) continue;
-
-      for (let quantity = 2; quantity <= maxQuantity; quantity++) {
-        const totalXP = xp * quantity;
-        const multiplier = this.getEncounterMultiplier(quantity);
-        const adjustedXP = totalXP * multiplier;
-
-        if (adjustedXP >= targetXP * 0.5 && adjustedXP <= targetXP * 2) {
-          this.log(`Selected ${quantity}x ${creature.name} (${totalXP} total XP)`);
-          
-          return {
-            environment: '',
-            difficulty: 'Medium',
-            total_xp: totalXP,
-            adjusted_xp: Math.round(adjustedXP),
-            multiplier_used: multiplier,
-            creatures: [{
-              id: creature.id,
-              name: creature.name,
-              challenge_rating: creature.challenge_rating,
-              xp_value: xp,
-              quantity: quantity,
-              total_xp: totalXP
-            }],
-            generation_notes: this.generationLog.join('\n')
-          };
-        }
-      }
-    }
-
-    return null;
-  }
-
-  // Try mixed creature encounter
-  private tryMixedEncounter(creatures: any[], targetXP: number, maxCreatures: number): GeneratedEncounter | null {
-    this.log(`Attempting mixed encounter with max ${maxCreatures} creature types`);
-
-    // Simple greedy algorithm: add creatures until we approach target
-    const selected: { creature: any; quantity: number }[] = [];
-    let currentXP = 0;
-    const availableCreatures = [...creatures];
-
-    while (selected.length < maxCreatures && currentXP < targetXP) {
-      // Find creature that gets us closest to target without going too far over
-      let bestCreature: any = null;
-      let bestScore = -1;
-
-      for (const creature of availableCreatures) {
-        const xp = creature.xp_value || 0;
-        if (xp <= 0) continue;
-
-        const newTotal = currentXP + xp;
-        const remainingXP = targetXP - newTotal;
-        
-        // Score based on how close we get to target (prefer not going over)
-        let score;
-        if (remainingXP >= 0) {
-          score = 1000 - remainingXP; // Closer to target is better
-        } else {
-          score = 500 + remainingXP; // Penalty for going over, but still possible
-        }
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestCreature = creature;
-        }
-      }
-
-      if (!bestCreature) break;
-
-      // Add this creature
-      selected.push({ creature: bestCreature, quantity: 1 });
-      currentXP += bestCreature.xp_value || 0;
-      
-      // Remove from available to avoid duplicates
-      const index = availableCreatures.indexOf(bestCreature);
-      if (index > -1) {
-        availableCreatures.splice(index, 1);
-      }
-
-      this.log(`Added ${bestCreature.name} (${bestCreature.xp_value} XP), total: ${currentXP} XP`);
-    }
-
-    if (selected.length === 0) return null;
-
-    const totalCreatures = selected.reduce((sum, s) => sum + s.quantity, 0);
-    const multiplier = this.getEncounterMultiplier(totalCreatures);
-
-    return {
-      environment: '',
-      difficulty: 'Medium',
-      total_xp: currentXP,
-      adjusted_xp: Math.round(currentXP * multiplier),
-      multiplier_used: multiplier,
-      creatures: selected.map(s => ({
-        id: s.creature.id,
-        name: s.creature.name,
-        challenge_rating: s.creature.challenge_rating,
-        xp_value: s.creature.xp_value || 0,
-        quantity: s.quantity,
-        total_xp: (s.creature.xp_value || 0) * s.quantity
-      })),
-      generation_notes: this.generationLog.join('\n')
-    };
-  }
-
-  // Main generation method
+  // Main generation method following the specified algorithm
   generate(params: EncounterParams): GeneratedEncounter | null {
     this.generationLog = [];
-    this.log('Starting encounter generation');
+    this.log('Starting encounter generation with dice-based algorithm');
     this.log(`Parameters: ${JSON.stringify(params)}`);
 
-    // Filter creatures based on criteria
-    const availableCreatures = this.filterCreatures(params);
-    
-    if (availableCreatures.length === 0) {
-      this.log('No creatures available for encounter generation');
-      return null;
+    // Step 1: Filter by environment (if not "Any", all monsters on table)
+    let availableCreatures = this.creatures;
+    if (params.environment && params.environment !== 'Any') {
+      this.log(`Filtering by environment: "${params.environment}"`);
+      
+      // Debug: Show sample creatures and their environments before filtering
+      const sampleBefore = this.creatures.slice(0, 5);
+      this.log(`Sample creatures before environment filter: ${sampleBefore.map(c => 
+        `${c.name} (Envs: ${Array.isArray(c.environment) ? c.environment.join(', ') : c.environment || 'none'})`
+      ).join(' | ')}`);
+      
+      // Check if environments are relations (placeholder values) and skip filtering if so
+      const hasRelationEnvironments = this.creatures.some(c => 
+        Array.isArray(c.environment) && c.environment.includes('Unknown')
+      );
+      
+      if (hasRelationEnvironments) {
+        this.log(`⚠️ Detected relation-based environments, skipping environment filter temporarily`);
+        this.log(`All ${this.creatures.length} creatures available (relation resolution not yet implemented)`);
+      } else {
+        availableCreatures = this.creatures.filter(creature => 
+          creature.environment && Array.isArray(creature.environment) && creature.environment.includes(params.environment)
+        );
+        this.log(`Environment filter (${params.environment}): ${availableCreatures.length} creatures`);
+        
+        // Debug: Show what creatures passed the environment filter
+        if (availableCreatures.length > 0) {
+          const sampleAfter = availableCreatures.slice(0, 3);
+          this.log(`Sample creatures after environment filter: ${sampleAfter.map(c => 
+            `${c.name} (Envs: ${c.environment.join(', ')})`
+          ).join(' | ')}`);
+        } else {
+          this.log(`⚠️ No creatures found for environment "${params.environment}"`);
+          // Show all unique environments available
+          const allEnvironments = new Set();
+          this.creatures.forEach(creature => {
+            if (creature.environment && Array.isArray(creature.environment)) {
+              creature.environment.forEach(env => allEnvironments.add(env));
+            }
+          });
+          this.log(`Available environments in database: ${Array.from(allEnvironments).join(', ')}`);
+        }
+      }
+    } else {
+      this.log(`Environment "Any": ${availableCreatures.length} creatures available`);
     }
 
-    // Build the encounter
-    const encounter = this.buildEncounter(availableCreatures, params);
-    
-    if (encounter) {
-      encounter.environment = params.environment || 'Unknown';
-      encounter.generation_notes = this.generationLog.join('\n');
+    // Step 2: Filter monsters above XP threshold immediately
+    availableCreatures = availableCreatures.filter(creature => 
+      (creature.xp_value || 0) <= params.xpThreshold
+    );
+    this.log(`XP threshold filter (≤${params.xpThreshold}): ${availableCreatures.length} creatures`);
+
+    // Step 3: Apply additional filters (CR range, creature type, size)
+    availableCreatures = availableCreatures.filter(creature => {
+      const cr = parseFloat(creature.challenge_rating.toString());
+      if (cr < params.minCR || cr > params.maxCR) return false;
+      
+      if (params.creatureType && params.creatureType !== 'Any') {
+        if (!creature.creature_type || creature.creature_type !== params.creatureType) return false;
+      }
+      
+      if (params.size && params.size !== 'Any') {
+        if (!creature.size || creature.size !== params.size) return false;
+      }
+      
+      return true;
+    });
+    this.log(`After all filters: ${availableCreatures.length} creatures available`);
+
+    // Step 4: Check if we have monsters to pull from
+    if (availableCreatures.length === 0) {
+      throw new Error('No monsters available after filtering. Please adjust your criteria.');
     }
+
+    // Step 5: Create encounter record
+    const encounter: GeneratedEncounter = {
+      environment: params.environment || 'Unknown',
+      total_xp: 0,
+      creatures: [],
+      generation_notes: ''
+    };
+
+    let remainingXPBudget = params.xpThreshold;
+    let totalMonstersAdded = 0;
+    let encounterAlignment: string | null = null;
+    let currentCandidates = [...availableCreatures];
+
+    // Step 6-12: Generation loop
+    while (totalMonstersAdded < params.maxMonsters && remainingXPBudget > 0) {
+      this.log(`\n--- Generation Round ${totalMonstersAdded + 1} ---`);
+      this.log(`Remaining XP budget: ${remainingXPBudget}`);
+      this.log(`Available candidates: ${currentCandidates.length}`);
+
+      // Filter candidates by remaining XP budget
+      const affordableCandidates = this.filterByXPBudget(currentCandidates, remainingXPBudget);
+      if (affordableCandidates.length === 0) {
+        this.log('No affordable monsters remaining, ending generation');
+        break;
+      }
+
+      // Step 6: Roll 1d4 to determine quantity
+      const diceRoll = this.rollD4();
+      this.log(`Rolled 1d${4}: ${diceRoll}`);
+
+      // Select a monster at random
+      const selectedMonster = this.selectRandomMonster(affordableCandidates);
+      if (!selectedMonster) {
+        this.log('No monster selected, ending generation');
+        break;
+      }
+
+      this.log(`Selected monster: ${selectedMonster.name} (${selectedMonster.xp_value} XP each)`);
+
+      // Step 8: Set alignment from first monster (alignment inheritance)
+      if (encounterAlignment === null && selectedMonster.alignment) {
+        encounterAlignment = selectedMonster.alignment;
+        this.log(`Setting encounter alignment to: ${encounterAlignment}`);
+        
+        // Filter future candidates by this alignment if alignment filter not already set
+        if (!params.alignment || params.alignment === 'Any') {
+          currentCandidates = currentCandidates.filter(creature => 
+            !creature.alignment || creature.alignment === encounterAlignment
+          );
+          this.log(`Filtered candidates by alignment: ${currentCandidates.length} remaining`);
+        }
+      }
+
+      // Step 7 & 10: Determine how many of this monster we can afford
+      const monsterXP = selectedMonster.xp_value || 0;
+      const maxAffordable = Math.floor(remainingXPBudget / monsterXP);
+      const quantityToAdd = Math.min(diceRoll, maxAffordable, params.maxMonsters - totalMonstersAdded);
+
+      if (quantityToAdd <= 0) {
+        this.log('Cannot afford any of this monster, trying different selection');
+        // Remove this monster from candidates and try again
+        currentCandidates = currentCandidates.filter(c => c.id !== selectedMonster.id);
+        continue;
+      }
+
+      // Step 9: Add monster instances to encounter
+      let existingCreature = encounter.creatures.find(c => c.id === selectedMonster.id);
+      if (existingCreature) {
+        existingCreature.quantity += quantityToAdd;
+        existingCreature.total_xp += monsterXP * quantityToAdd;
+      } else {
+        encounter.creatures.push({
+          id: selectedMonster.id,
+          name: selectedMonster.name,
+          challenge_rating: selectedMonster.challenge_rating,
+          xp_value: monsterXP,
+          quantity: quantityToAdd,
+          total_xp: monsterXP * quantityToAdd,
+          image_url: selectedMonster.image_url,
+          creature_type: selectedMonster.creature_type,
+          size: selectedMonster.size,
+          alignment: selectedMonster.alignment
+        });
+      }
+
+      const addedXP = monsterXP * quantityToAdd;
+      encounter.total_xp += addedXP;
+      remainingXPBudget -= addedXP;
+      totalMonstersAdded += quantityToAdd;
+
+      this.log(`Added ${quantityToAdd}x ${selectedMonster.name} for ${addedXP} XP`);
+      this.log(`Total encounter XP: ${encounter.total_xp}, Monsters: ${totalMonstersAdded}/${params.maxMonsters}`);
+
+      // Step 11: Check if we've reached limits
+      if (totalMonstersAdded >= params.maxMonsters) {
+        this.log('Reached maximum monster limit');
+        break;
+      }
+
+      if (remainingXPBudget <= 0) {
+        this.log('XP budget exhausted');
+        break;
+      }
+    }
+
+    // Calculate final encounter statistics
+    const totalCreatureCount = encounter.creatures.reduce((sum, c) => sum + c.quantity, 0);
+
+    encounter.generation_notes = this.generationLog.join('\n');
+    
+    this.log(`\n=== FINAL ENCOUNTER ===`);
+    this.log(`Total XP: ${encounter.total_xp}`);
+    this.log(`Creatures: ${totalCreatureCount}`);
+    
+    // TODO: Stub for future loot generation
+    this.log('\n--- Loot Generation (TODO) ---');
+    this.log('Loot generation will be implemented in future iteration');
 
     return encounter;
   }

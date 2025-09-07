@@ -65,6 +65,30 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## Development Configuration
+
+### Local Development
+- **Default Port**: 8081
+- **Supabase Local**: http://localhost:54321
+- **Frontend Dev**: `npm run dev -- --port 8081`
+
+### Common Commands
+```sh
+# Start development server on port 8081
+npm run dev -- --port 8081
+
+# Run debug scripts
+node scripts/debug/debug-simple.js
+
+# Setup creature fixes
+node scripts/setup/setup-creature-fix.js
+```
+
+### Environment Notes
+- Always develop locally on port 8081
+- Supabase functions are in `/supabase/functions/`
+- Debug scripts are in `/scripts/debug/`
+
 ## What technologies are used for this project?
 
 This project is built with:

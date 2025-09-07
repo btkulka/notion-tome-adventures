@@ -112,16 +112,18 @@ export function NumberField({
         {label}
       </Label>
       
-      <Input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-        placeholder={placeholder}
-        min={min}
-        max={max}
-        disabled={disabled}
-        className="bg-transparent border-0 border-b-2 border-border rounded-none px-0 py-3 text-foreground focus:border-primary focus:ring-0 focus:outline-none hover:bg-primary/5 focus:bg-primary/10 transition-all duration-200"
-      />
+      <div className="number-input-container">
+        <Input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+          placeholder={placeholder}
+          min={min}
+          max={max}
+          disabled={disabled}
+          className="bg-transparent border-0 border-b-2 border-border rounded-none px-0 py-3 pr-8 text-foreground focus:border-primary focus:ring-0 focus:outline-none hover:bg-primary/5 focus:bg-primary/10 transition-all duration-200"
+        />
+      </div>
     </div>
   );
 }
@@ -136,7 +138,7 @@ interface FormSectionProps {
 export function FormSection({ title, children, className = "" }: FormSectionProps) {
   return (
     <div className={cn("space-y-4", className)}>
-      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide border-b border-border pb-2">
+      <h3 className="text-sm font-bold text-white uppercase tracking-wide border-b border-border pb-2">
         {title}
       </h3>
       {children}

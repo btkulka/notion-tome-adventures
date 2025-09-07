@@ -115,4 +115,214 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Custom Scrollbar Styling - Dark with Purple/Gold Accents */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(280 85% 35%) hsl(240 15% 12%);
+  }
+
+  /* Webkit Scrollbars */
+  *::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: hsl(240 15% 10%);
+    border-radius: 6px;
+    border: 1px solid hsl(240 25% 20%);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
+    border-radius: 6px;
+    border: 1px solid hsl(280 85% 25%);
+    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.3);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(280 75% 55%));
+    box-shadow: 0 2px 12px hsl(280 85% 35% / 0.5);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(135deg, hsl(280 85% 55%), hsl(45 85% 55%));
+    box-shadow: 0 2px 16px hsl(45 85% 55% / 0.4);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: hsl(240 15% 10%);
+  }
+
+  /* Custom Number Input Styling */
+  input[type="number"] {
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+    position: relative;
+  }
+
+  /* Hide default number input arrows */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Custom number input container */
+  .number-input-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  /* Custom increment/decrement buttons */
+  .number-input-container::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 20px;
+    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0.8;
+    transition: all 0.2s ease;
+  }
+
+  .number-input-container:hover::after {
+    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
+    opacity: 1;
+    box-shadow: 0 2px 8px hsl(280 85% 35% / 0.4);
+  }
+
+  /* Style for focused number inputs */
+  input[type="number"]:focus {
+    outline: none;
+    border-color: hsl(280 85% 45%);
+    box-shadow: 0 0 0 2px hsl(280 85% 45% / 0.2), 0 2px 12px hsl(280 85% 35% / 0.3);
+  }
+
+  /* Range/Slider Styling */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-track {
+    background: hsl(240 15% 12%);
+    height: 6px;
+    border-radius: 3px;
+    border: 1px solid hsl(240 25% 20%);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
+    border: 2px solid hsl(280 85% 25%);
+    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.4);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
+    box-shadow: 0 2px 12px hsl(280 85% 35% / 0.6);
+    transform: scale(1.1);
+  }
+
+  input[type="range"]::-moz-range-track {
+    background: hsl(240 15% 12%);
+    height: 6px;
+    border-radius: 3px;
+    border: 1px solid hsl(240 25% 20%);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
+    border: 2px solid hsl(280 85% 25%);
+    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.4);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  input[type="range"]::-moz-range-thumb:hover {
+    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
+    box-shadow: 0 2px 12px hsl(280 85% 35% / 0.6);
+    transform: scale(1.1);
+  }
+
+  /* Custom Select Dropdown Styling */
+  select {
+    background-image: linear-gradient(45deg, hsl(280 85% 35%), hsl(280 75% 45%));
+    background-size: 12px 12px;
+    background-position: right 8px center;
+    background-repeat: no-repeat;
+    padding-right: 32px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  select:hover {
+    background-image: linear-gradient(45deg, hsl(280 85% 45%), hsl(45 85% 55%));
+    box-shadow: 0 2px 8px hsl(280 85% 35% / 0.3);
+  }
+
+  select:focus {
+    outline: none;
+    border-color: hsl(280 85% 45%);
+    box-shadow: 0 0 0 2px hsl(280 85% 45% / 0.2), 0 2px 12px hsl(280 85% 35% / 0.3);
+  }
+
+  /* Enhanced Button Hover Effects */
+  .btn-mystical {
+    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
+    border: 1px solid hsl(280 85% 25%);
+    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-mystical::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, hsl(45 85% 55% / 0.3), transparent);
+    transition: left 0.6s ease;
+  }
+
+  .btn-mystical:hover::before {
+    left: 100%;
+  }
+
+  .btn-mystical:hover {
+    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
+    box-shadow: 0 4px 16px hsl(280 85% 35% / 0.5), 0 0 20px hsl(45 85% 55% / 0.3);
+    transform: translateY(-1px);
+  }
+
+  .btn-mystical:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.4);
+  }
+
+  /* Vertical text for collapsible log panel */
+  .writing-mode-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
 }
