@@ -13,7 +13,7 @@ import heroBanner from '@/assets/dnd-hero-banner.jpg';
 
 const Index = () => {
   const { toast } = useToast();
-  const { generateEncounter, testCreaturesStructure, loading: generatingEncounter, error: generationError } = useNotionService();
+  const { generateEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
   
   const [params, setParams] = useState<EncounterParams>({
     environment: 'Any',
@@ -28,6 +28,7 @@ const Index = () => {
   
   const [encounter, setEncounter] = useState<GeneratedEncounter | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const handleGenerate = async () => {
     if (!params.environment || params.environment === '' || params.xpThreshold <= 0) {
@@ -39,6 +40,9 @@ const Index = () => {
       return;
     }
 
+    // Create new AbortController for this generation
+    const controller = new AbortController();
+    setAbortController(controller);
     setIsGenerating(true);
     
     try {
@@ -57,7 +61,14 @@ const Index = () => {
       };
       
       console.log('🔮 Calling generateEncounter with:', notionParams);
-      const result = await generateEncounter(notionParams);
+      const result = await generateEncounter(notionParams, controller.signal);
+      
+      // Check if the operation was cancelled
+      if (controller.signal.aborted) {
+        console.log('🚫 Encounter generation was cancelled');
+        return;
+      }
+      
       console.log('✅ Encounter generation result:', result);
       
       if (result) {
@@ -70,6 +81,16 @@ const Index = () => {
         throw new Error("Failed to generate encounter - no result returned");
       }
     } catch (error: unknown) {
+      // Don't show error if operation was cancelled
+      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
+        console.log('🚫 Encounter generation was cancelled by user');
+        toast({
+          title: "Generation Cancelled",
+          description: "Encounter generation was cancelled.",
+        });
+        return;
+      }
+      
       console.error('❌ Encounter generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : "Failed to generate encounter. Check your Notion configuration.";
       
@@ -80,26 +101,14 @@ const Index = () => {
       });
     } finally {
       setIsGenerating(false);
+      setAbortController(null);
     }
   };
 
-  const handleTestCreatures = async () => {
-    try {
-      console.log('🔍 Testing creatures database structure...');
-      const result = await testCreaturesStructure();
-      console.log('✅ Creatures test result:', result);
-      
-      toast({
-        title: "Creatures Test Complete",
-        description: "Check the console for detailed database structure information",
-      });
-    } catch (error) {
-      console.error('❌ Creatures test failed:', error);
-      toast({
-        title: "Creatures Test Failed", 
-        description: error instanceof Error ? error.message : "Failed to test creatures structure",
-        variant: "destructive",
-      });
+  const handleCancel = () => {
+    if (abortController) {
+      console.log('🚫 Cancelling encounter generation...');
+      abortController.abort();
     }
   };
 
@@ -110,8 +119,8 @@ const Index = () => {
           params={params}
           setParams={setParams}
           onGenerate={handleGenerate}
+          onCancel={handleCancel}
           isGenerating={isGenerating}
-          onTestCreatures={handleTestCreatures}
         />
         
         <div className="flex-1 flex flex-col">

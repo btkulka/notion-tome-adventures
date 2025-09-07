@@ -38,16 +38,41 @@ export const useNotionService = () => {
 
   const executeWithErrorHandling = async <T>(
     operation: () => Promise<T>,
-    operationName: string
+    operationName: string,
+    signal?: AbortSignal
   ): Promise<T> => {
     try {
       setLoading(true)
       setError(null)
       console.log(`🚀 Starting ${operationName}...`)
+      
+      // Check if already aborted
+      if (signal?.aborted) {
+        throw new DOMException('Operation was aborted', 'AbortError');
+      }
+      
       const result = await operation()
+      
+      // Check if aborted after operation
+      if (signal?.aborted) {
+        throw new DOMException('Operation was aborted', 'AbortError');
+      }
+      
       console.log(`✅ ${operationName} completed successfully:`, result)
       return result
     } catch (err: unknown) {
+      // Handle abort errors specially
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        console.log(`🚫 ${operationName} was cancelled`)
+        throw err
+      }
+      
+      // Also handle other cancellation patterns
+      if (err instanceof Error && err.message.includes('aborted')) {
+        console.log(`🚫 ${operationName} was cancelled`)
+        throw new DOMException('Operation was aborted', 'AbortError')
+      }
+      
       console.error(`❌ ${operationName} failed:`, err)
       
       let errorMessage = `Failed to ${operationName}`
@@ -108,17 +133,11 @@ export const useNotionService = () => {
     )
   }
 
-  const generateEncounter = async (params: NotionEncounterParams): Promise<GeneratedEncounter> => {
+  const generateEncounter = async (params: NotionEncounterParams, signal?: AbortSignal): Promise<GeneratedEncounter> => {
     return executeWithErrorHandling(
-      () => callEdgeFunction('generate-encounter', params),
-      'generate encounter'
-    )
-  }
-
-  const testCreaturesStructure = async (): Promise<any> => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('simple-creatures-test'),
-      'test creatures structure'
+      () => callEdgeFunction('generate-encounter', params, signal),
+      'generate encounter',
+      signal
     )
   }
 
@@ -131,9 +150,6 @@ export const useNotionService = () => {
     fetchCreatures,
     fetchEnvironments,
     generateEncounter,
-    
-    // Debug operations
-    testCreaturesStructure,
     
     // State
     loading,

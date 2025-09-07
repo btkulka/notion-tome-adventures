@@ -13,13 +13,18 @@ export const supabase = createClient(
 )
 
 // Helper function to call Edge Functions
-export async function callEdgeFunction(functionName: string, body?: unknown) {
+export async function callEdgeFunction(functionName: string, body?: unknown, signal?: AbortSignal) {
   try {
     console.log(`🔮 Calling edge function: ${functionName}`, body ? 'with body' : 'without body')
     
     const { data, error } = await supabase.functions.invoke(functionName, {
       body: body ? JSON.stringify(body) : undefined,
     })
+
+    // Check if operation was aborted
+    if (signal?.aborted) {
+      throw new DOMException('Operation was aborted', 'AbortError');
+    }
 
     if (error) {
       console.error(`❌ Edge function error for ${functionName}:`, {
@@ -39,6 +44,12 @@ export async function callEdgeFunction(functionName: string, body?: unknown) {
     console.log(`✅ Edge function ${functionName} succeeded:`, data)
     return data
   } catch (error) {
+    // Handle abort errors specially
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.log(`🚫 Edge function ${functionName} was cancelled`)
+      throw error
+    }
+    
     console.error(`🔥 Exception calling ${functionName}:`, error)
     
     // Simplified error logging for cleaner console
