@@ -1,15 +1,14 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Client } from 'https://esm.sh/@notionhq/client@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCORS, 
+  createNotionClient, 
+  createErrorResponse, 
+  createSuccessResponse 
+} from '../_shared/notion-utils.ts'
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = handleCORS(req)
+  if (corsResponse) return corsResponse
 
   try {
     const { databaseId } = await req.json()
@@ -18,9 +17,8 @@ serve(async (req) => {
       throw new Error('Database ID is required')
     }
 
-    const notion = new Client({
-      auth: Deno.env.get('NOTION_API_KEY'),
-    })
+    console.log('Fetching schema for database:', databaseId)
+    const notion = createNotionClient()
 
     // Get database schema
     const database = await notion.databases.retrieve({
@@ -35,26 +33,17 @@ serve(async (req) => {
       config: prop[prop.type] || null,
     }))
 
-    return new Response(
-      JSON.stringify({
-        id: database.id,
-        title: database.title?.[0]?.plain_text || 'Untitled',
-        properties,
-        url: database.url,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
+    const schemaData = {
+      id: database.id,
+      title: database.title?.[0]?.plain_text || 'Untitled',
+      properties,
+      url: database.url,
+    }
+    
+    console.log(`Successfully retrieved schema for "${schemaData.title}" with ${properties.length} properties`)
+    return createSuccessResponse(schemaData)
+    
   } catch (error) {
-    console.error('Error in get-notion-schema:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
-    )
+    return createErrorResponse(error, 'get-notion-schema')
   }
 })

@@ -131,39 +131,23 @@ function generateEncounter(creatures: any[], params: any): any {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = handleCORS(req)
+  if (corsResponse) return corsResponse
 
   try {
-    const notionApiKey = Deno.env.get('NOTION_API_KEY');
-    const creaturesDbId = Deno.env.get('CREATURES_DATABASE_ID');
-    const environmentsDbId = Deno.env.get('ENVIRONMENTS_DATABASE_ID');
+    const creaturesDbId = validateDatabaseId(
+      Deno.env.get('CREATURES_DATABASE_ID'), 
+      'CREATURES_DATABASE_ID'
+    )
+    const environmentsDbId = validateDatabaseId(
+      Deno.env.get('ENVIRONMENTS_DATABASE_ID'), 
+      'ENVIRONMENTS_DATABASE_ID'
+    )
     
-    if (!notionApiKey) {
-      console.error('NOTION_API_KEY environment variable is not set');
-      throw new Error('NOTION_API_KEY environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
-    }
+    console.log('Generating encounter with creatures from:', creaturesDbId)
+    console.log('Using environments database:', environmentsDbId)
     
-    if (!creaturesDbId) {
-      console.error('CREATURES_DATABASE_ID environment variable is not set');
-      throw new Error('CREATURES_DATABASE_ID environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
-    }
-    
-    if (!environmentsDbId) {
-      console.error('ENVIRONMENTS_DATABASE_ID environment variable is not set');
-      throw new Error('ENVIRONMENTS_DATABASE_ID environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
-    }
-    
-    console.log('Initializing Notion client with API key length:', notionApiKey.length);
-    console.log('Using creatures database ID:', creaturesDbId);
-    console.log('Using environments database ID:', environmentsDbId);
-    
-    const notion = new Client({
-      auth: notionApiKey,
-    });
-    
-    console.log('Notion client initialized successfully');
+    const notion = createNotionClient()
 
     const params = await req.json()
     const {

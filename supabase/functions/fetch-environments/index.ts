@@ -1,41 +1,25 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Client } from 'https://esm.sh/@notionhq/client@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCORS, 
+  createNotionClient, 
+  validateDatabaseId, 
+  createErrorResponse, 
+  createSuccessResponse 
+} from '../_shared/notion-utils.ts'
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = handleCORS(req)
+  if (corsResponse) return corsResponse
 
   try {
-    const notionApiKey = Deno.env.get('NOTION_API_KEY');
-    const environmentsDbId = Deno.env.get('ENVIRONMENTS_DATABASE_ID');
+    const environmentsDbId = validateDatabaseId(
+      Deno.env.get('ENVIRONMENTS_DATABASE_ID'), 
+      'ENVIRONMENTS_DATABASE_ID'
+    )
     
-    if (!notionApiKey) {
-      console.error('NOTION_API_KEY environment variable is not set');
-      throw new Error('NOTION_API_KEY environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
-    }
+    console.log('Fetching environments from database:', environmentsDbId)
     
-    if (!environmentsDbId) {
-      console.error('ENVIRONMENTS_DATABASE_ID environment variable is not set');
-      throw new Error('ENVIRONMENTS_DATABASE_ID environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
-    }
-    
-    console.log('Initializing Notion client with API key length:', notionApiKey.length);
-    console.log('Using environments database ID:', environmentsDbId);
-    
-    const notion = new Client({
-      auth: notionApiKey,
-    });
-    
-    console.log('Notion client initialized successfully');
-
-    console.log('Querying environments database...');
-
+    const notion = createNotionClient()
     const response = await notion.databases.query({
       database_id: environmentsDbId,
     })
@@ -48,23 +32,10 @@ serve(async (req) => {
       climate: page.properties.Climate?.select?.name || '',
     }))
 
-    console.log(`Found ${environments.length} environments`)
-
-    return new Response(
-      JSON.stringify({ environments }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
+    console.log(`Successfully fetched ${environments.length} environments`)
+    return createSuccessResponse({ environments })
+    
   } catch (error) {
-    console.error('Error in fetch-environments function:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
-    )
+    return createErrorResponse(error, 'fetch-environments')
   }
 })

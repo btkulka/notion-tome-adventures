@@ -1,42 +1,30 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Client } from 'https://esm.sh/@notionhq/client@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCORS, 
+  createNotionClient, 
+  validateDatabaseId, 
+  createErrorResponse, 
+  createSuccessResponse 
+} from '../_shared/notion-utils.ts'
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = handleCORS(req)
+  if (corsResponse) return corsResponse
 
   try {
-    const { environment, minCR, maxCR, creatureType, alignment, size } = await req.json()
-    console.log('Received filters:', { environment, minCR, maxCR, creatureType, alignment, size });
+    const body = await req.json()
+    const { environment, minCR, maxCR, creatureType, alignment, size } = body || {}
+    console.log('Received filters:', { environment, minCR, maxCR, creatureType, alignment, size })
 
-    const notionApiKey = Deno.env.get('NOTION_API_KEY');
-    const creaturesDbId = Deno.env.get('CREATURES_DATABASE_ID');
+    const creaturesDbId = validateDatabaseId(
+      Deno.env.get('CREATURES_DATABASE_ID'), 
+      'CREATURES_DATABASE_ID'
+    )
     
-    if (!notionApiKey) {
-      console.error('NOTION_API_KEY environment variable is not set');
-      throw new Error('NOTION_API_KEY environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
-    }
+    console.log('Fetching creatures from database:', creaturesDbId)
     
-    if (!creaturesDbId) {
-      console.error('CREATURES_DATABASE_ID environment variable is not set');
-      throw new Error('CREATURES_DATABASE_ID environment variable is not set. Please configure it in Supabase Edge Functions secrets.');
-    }
-    
-    console.log('Initializing Notion client with API key length:', notionApiKey.length);
-    console.log('Using creatures database ID:', creaturesDbId);
-    
-    const notion = new Client({
-      auth: notionApiKey,
-    });
-    
-    console.log('Notion client initialized successfully');
-    console.log('Querying creatures database...');
+    const notion = createNotionClient()
+    console.log('Querying creatures database...')
 
     // Build filter based on parameters
     const filters: any[] = []
@@ -120,23 +108,10 @@ serve(async (req) => {
       size: page.properties.Size?.select?.name || 'Medium',
     }))
 
-    console.log(`Found ${creatures.length} creatures matching filters`)
-
-    return new Response(
-      JSON.stringify({ creatures }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
+    console.log(`Successfully fetched ${creatures.length} creatures matching filters`)
+    return createSuccessResponse({ creatures })
+    
   } catch (error) {
-    console.error('Error in fetch-creatures function:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
-    )
+    return createErrorResponse(error, 'fetch-creatures')
   }
 })

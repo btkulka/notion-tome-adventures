@@ -1,23 +1,18 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Client } from 'https://esm.sh/@notionhq/client@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { 
+  handleCORS, 
+  createNotionClient, 
+  createErrorResponse, 
+  createSuccessResponse 
+} from '../_shared/notion-utils.ts'
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = handleCORS(req)
+  if (corsResponse) return corsResponse
 
   try {
-    // Initialize Notion client
-    const notion = new Client({
-      auth: Deno.env.get('NOTION_API_KEY'),
-    })
+    console.log('Discovering Notion databases...')
+    const notion = createNotionClient()
 
     // Discover all databases
     const response = await notion.search({
@@ -66,24 +61,13 @@ serve(async (req) => {
       }
     })
 
-    return new Response(
-      JSON.stringify({ 
-        allDatabases: databases,
-        matches: matches 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
+    console.log(`Successfully discovered ${databases.length} databases with ${matches.length} matches`)
+    return createSuccessResponse({ 
+      allDatabases: databases,
+      matches: matches 
+    })
+    
   } catch (error) {
-    console.error('Error in discover-notion-databases:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
-    )
+    return createErrorResponse(error, 'discover-notion-databases')
   }
 })
