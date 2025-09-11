@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { UI_CONSTANTS } from '@/lib/constants';
 
 interface NumberInputProps {
   label: string;
@@ -43,7 +44,7 @@ export function NumberInput({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+      <label className={UI_CONSTANTS.FIELD_LABEL_STYLES}>
         {label}
       </label>
       <div className="relative flex">
@@ -55,7 +56,7 @@ export function NumberInput({
           max={max}
           step={step}
           placeholder={placeholder}
-          className="pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className={cn(UI_CONSTANTS.FIELD_STYLES, "pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
         />
         <div className="absolute right-1 top-1 bottom-1 flex flex-col">
           <Button

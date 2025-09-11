@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useNotionService } from '@/hooks/useNotionService';
+import { UI_CONSTANTS } from '@/lib/constants';
 
 interface CRSelectProps {
   value: number;
@@ -56,14 +57,14 @@ const STANDARD_CRS = [
 export function CRSelect({ value, onValueChange, label, placeholder }: CRSelectProps) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+      <label className={UI_CONSTANTS.FIELD_LABEL_STYLES}>
         {label}
       </label>
       <Select 
         value={value.toString()} 
         onValueChange={(val) => onValueChange(parseFloat(val))}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className={UI_CONSTANTS.FIELD_STYLES}>
           <SelectValue placeholder={placeholder || `Select ${label}`} />
         </SelectTrigger>
         <SelectContent>

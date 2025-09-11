@@ -2,8 +2,11 @@ import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { FieldSkeleton } from '@/components/ui/field-skeleton';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { UI_CONSTANTS } from '@/lib/constants';
 
 /**
  * Reusable form field components to reduce duplication
@@ -29,6 +32,7 @@ interface SelectFieldProps extends BaseFieldProps {
   }>;
   loading?: boolean;
   errorMessage?: string;
+  skeletonOptions?: string[];
 }
 
 export function SelectField({
@@ -40,23 +44,35 @@ export function SelectField({
   className = "",
   disabled = false,
   loading = false,
-  errorMessage
+  errorMessage,
+  skeletonOptions
 }: SelectFieldProps) {
   const selectedOption = options.find(opt => opt.value === value);
 
+  if (loading) {
+    return (
+      <FieldSkeleton
+        className={className}
+        showLabel={true}
+        showOptions={true}
+        optionNames={skeletonOptions || ['Option 1', 'Option 2', 'Option 3', 'Option 4']}
+      />
+    );
+  }
+
   return (
     <div className={cn("space-y-2", className)}>
-      <Label className="text-sm font-semibold text-foreground uppercase tracking-wide">
+      <Label className={UI_CONSTANTS.FIELD_LABEL_STYLES}>
         {label}
       </Label>
       
       <Select 
         value={value} 
         onValueChange={onValueChange}
-        disabled={disabled || loading}
+        disabled={disabled}
       >
-        <SelectTrigger className="bg-transparent border-0 border-b-2 border-border rounded-none px-0 py-3 focus:border-primary focus:ring-0 focus:outline-none hover:bg-primary/5 focus:bg-primary/10 transition-all duration-200">
-          <SelectValue placeholder={loading ? "Loading..." : placeholder}>
+        <SelectTrigger className={UI_CONSTANTS.FIELD_STYLES}>
+          <SelectValue placeholder={placeholder}>
             {selectedOption && (
               <div className="flex items-center gap-2 text-foreground">
                 {selectedOption.icon && <selectedOption.icon className="h-4 w-4" />}
@@ -108,7 +124,7 @@ export function NumberField({
 }: NumberFieldProps) {
   return (
     <div className={cn("space-y-2", className)}>
-      <Label className="text-sm font-semibold text-foreground">
+      <Label className={UI_CONSTANTS.FIELD_LABEL_STYLES}>
         {label}
       </Label>
       
@@ -138,7 +154,7 @@ interface FormSectionProps {
 export function FormSection({ title, children, className = "" }: FormSectionProps) {
   return (
     <div className={cn("space-y-4", className)}>
-      <h3 className="text-sm font-bold text-white uppercase tracking-wide border-b border-border pb-2">
+      <h3 className={UI_CONSTANTS.SECTION_TITLE_STYLES}>
         {title}
       </h3>
       {children}

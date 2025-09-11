@@ -1,7 +1,8 @@
 import {
   Trees, Mountain, Waves, Sun, Building, Castle, Globe, Landmark, Home,
   Shield, Sword, Heart, Skull, Crown, Users, User, Zap, Star, Target, Scale, 
-  Maximize, Minimize, Sparkles
+  Maximize, Minimize, Sparkles, Snowflake, Palmtree, Flower2, 
+  HandMetal, Zap as Lightning, Flame, Settings, CircleDot, Rabbit, Circle, Dot
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
@@ -37,19 +38,23 @@ const ENVIRONMENT_ICONS: Record<string, LucideIcon> = {
   cave: Mountain,
   cavern: Mountain,
   underground: Mountain,
+  arctic: Snowflake,
+  coastal: Palmtree,
+  underdark: Flower2,
+  underwater: Waves,
   any: Globe,
 };
 
 // Alignment icon mappings
 const ALIGNMENT_ICONS: Record<string, LucideIcon> = {
-  'lawful good': Crown,
-  'lg': Crown,
+  'lawful good': HandMetal,
+  'lg': HandMetal,
   'lawful neutral': Shield,
   'ln': Shield,
   'lawful evil': Sword,
   'le': Sword,
-  'neutral good': Heart,
-  'ng': Heart,
+  'neutral good': Sun,
+  'ng': Sun,
   'true neutral': Scale,
   'tn': Scale,
   'neutral': Scale,
@@ -67,15 +72,15 @@ const ALIGNMENT_ICONS: Record<string, LucideIcon> = {
 // Creature type icon mappings
 const CREATURE_TYPE_ICONS: Record<string, LucideIcon> = {
   humanoid: Users,
-  beast: Heart,
-  dragon: Zap,
+  beast: Rabbit,
+  dragon: Lightning,
   undead: Skull,
   fiend: Target,
   celestial: Star,
   fey: Sparkles,
-  elemental: Mountain,
-  aberration: Zap,
-  construct: Shield,
+  elemental: Flame,
+  aberration: CircleDot,
+  construct: Settings,
   giant: Crown,
   monstrosity: Sword,
   ooze: Waves,
@@ -86,9 +91,9 @@ const CREATURE_TYPE_ICONS: Record<string, LucideIcon> = {
 // Size icon mappings
 const SIZE_ICONS: Record<string, LucideIcon> = {
   tiny: Minimize,
-  small: User,
-  medium: Users,
-  large: Crown,
+  small: Dot,
+  medium: CircleDot,
+  large: Circle,
   huge: Mountain,
   gargantuan: Maximize,
   any: Globe,

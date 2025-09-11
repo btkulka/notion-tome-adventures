@@ -35,10 +35,10 @@ serve(async (req) => {
       
       // Extract name from various possible properties
       let name = 'Unknown Environment'
-      if (props?.Name?.title?.[0]?.plain_text) {
-        name = props.Name.title[0].plain_text
-      } else if (props?.Environment?.title?.[0]?.plain_text) {
+      if (props?.Environment?.title?.[0]?.plain_text) {
         name = props.Environment.title[0].plain_text
+      } else if (props?.Name?.title?.[0]?.plain_text) {
+        name = props.Name.title[0].plain_text
       } else if (props?.Environments?.title?.[0]?.plain_text) {
         name = props.Environments.title[0].plain_text
       } else if (props?.EnvironmentName?.title?.[0]?.plain_text) {

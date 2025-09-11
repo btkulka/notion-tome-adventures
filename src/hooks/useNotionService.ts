@@ -23,6 +23,13 @@ export interface NotionEnvironment {
   climate: string
 }
 
+export interface NotionSession {
+  id: string
+  name: string
+  date?: string
+  description?: string
+}
+
 export interface CreatureFilters {
   environment?: string
   minCR?: string
@@ -133,6 +140,13 @@ export const useNotionService = () => {
     )
   }
 
+  const fetchSessions = async (searchQuery?: string): Promise<{ sessions: NotionSession[] }> => {
+    return executeWithErrorHandling(
+      () => callEdgeFunction('fetch-sessions', searchQuery ? { search: searchQuery } : {}),
+      'fetch sessions'
+    )
+  }
+
   const generateEncounter = async (params: NotionEncounterParams, signal?: AbortSignal): Promise<GeneratedEncounter> => {
     return executeWithErrorHandling(
       () => callEdgeFunction('generate-encounter', params, signal),
@@ -148,6 +162,20 @@ export const useNotionService = () => {
     )
   }
 
+  const debugEnvironments = async (): Promise<any> => {
+    return executeWithErrorHandling(
+      () => callEdgeFunction('debug-environments'),
+      'debug environments'
+    )
+  }
+
+  const simpleDebug = async (): Promise<any> => {
+    return executeWithErrorHandling(
+      () => callEdgeFunction('simple-debug'),
+      'simple debug'
+    )
+  }
+
   return {
     // Discovery
     discoverDatabases,
@@ -156,8 +184,11 @@ export const useNotionService = () => {
     // Data operations
     fetchCreatures,
     fetchEnvironments,
+    fetchSessions,
     generateEncounter,
     saveEncounter,
+    debugEnvironments,
+    simpleDebug,
     
     // State
     loading,

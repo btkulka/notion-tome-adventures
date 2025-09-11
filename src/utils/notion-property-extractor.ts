@@ -251,7 +251,7 @@ export const CREATURE_SCHEMA: ExtractionSchema = {
   },
 
   creature_type: {
-    notionPropertyName: 'CreatureType',
+    notionPropertyName: 'Creature Type',
     outputKey: 'creature_type',
     type: 'relation',
     fallbackProperties: ['Type', 'Species', 'Kind'],

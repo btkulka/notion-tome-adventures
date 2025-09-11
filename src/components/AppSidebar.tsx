@@ -21,6 +21,8 @@ import {
 
 import { useNotionService } from '@/hooks/useNotionService';
 import { EncounterParams } from '@/types/encounter';
+import { notionLogger } from '@/utils/logger';
+import { useToast } from '@/hooks/use-toast';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
 
 // Static data for filters
@@ -48,24 +50,25 @@ interface AppSidebarProps {
 
 export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerating }: AppSidebarProps) {
   const { open } = useSidebar();
-  const { fetchEnvironments, loading: environmentsLoading, error: environmentsError } = useNotionService();
+  const { fetchEnvironments, debugEnvironments, simpleDebug, loading: environmentsLoading, error: environmentsError } = useNotionService();
+  const { toast } = useToast();
   const [environments, setEnvironments] = React.useState<{ id: string; name: string }[]>([]);
 
   React.useEffect(() => {
     const loadEnvironments = async () => {
       try {
-        console.log('🌍 Attempting to load environments from Notion...');
+        notionLogger.info('Attempting to load environments from Notion');
         const result = await fetchEnvironments();
         if (result && result.environments && result.environments.length > 0) {
-          console.log('✅ Successfully loaded', result.environments.length, 'environments from Notion');
-          console.log('📋 Environment data:', result.environments);
+          notionLogger.info('Successfully loaded environments from Notion', { count: result.environments.length });
+          notionLogger.debug('Environment data', result.environments);
           setEnvironments(result.environments);
         } else {
-          console.error('❌ No environments returned from Notion database');
+          notionLogger.warn('No environments returned from Notion database');
           setEnvironments([]);
         }
       } catch (err) {
-        console.error('❌ Failed to load environments fromC Notion:', err);
+        notionLogger.error('Failed to load environments from Notion', err);
         setEnvironments([]);
       }
     };
@@ -104,6 +107,26 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
     label: size,
     icon: getSizeIcon(size)
   }));
+
+  const handleSimpleDebug = async () => {
+    try {
+      const result = await simpleDebug();
+      console.log('Simple debug result:', result);
+      
+      toast({
+        title: "Property Keys Debug",
+        description: `Env props: ${result.environmentPropertyKeys?.join(', ') || 'none'}. Creature props: ${result.creaturePropertyKeys?.slice(0,3).join(', ') || 'none'}...`,
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Simple debug failed:', error);
+      toast({
+        title: "Debug Failed", 
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <Sidebar
@@ -145,6 +168,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                     environmentsError ? "Error loading environments" :
                     "Select environment"
                   }
+                  skeletonOptions={['Forest', 'Desert', 'Mountain', 'Coastal', 'Urban', 'Swamp']}
                   errorMessage={environmentsError ? 
                     "Using default environments. Configure Notion integration for custom data." : 
                     undefined
@@ -236,13 +260,23 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                       </Button>
                     </div>
                   ) : (
-                    <Button 
-                      onClick={onGenerate}
-                      className="w-full btn-mystical text-primary-foreground font-semibold tracking-wide"
-                    >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Encounter
-                    </Button>
+                    <div className="space-y-3">
+                      <Button 
+                        onClick={onGenerate}
+                        className="w-full btn-mystical text-primary-foreground font-semibold tracking-wide"
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate Encounter
+                      </Button>
+                      <Button 
+                        onClick={handleSimpleDebug}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                      >
+                        Debug Property Keys
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>

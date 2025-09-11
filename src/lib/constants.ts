@@ -130,9 +130,9 @@ export const ICON_MAPPINGS = {
 export const UI_CONSTANTS = {
   FIELD_STYLES: "bg-transparent border-0 border-b-2 border-border rounded-none px-0 py-3 focus:border-primary focus:ring-0 focus:outline-none hover:bg-primary/5 focus:bg-primary/10 transition-all duration-200",
   
-  SECTION_TITLE_STYLES: "text-sm font-semibold text-foreground uppercase tracking-wide border-b border-border pb-2",
+  SECTION_TITLE_STYLES: "text-sm font-bold text-foreground uppercase tracking-wide border-b border-border pb-2",
   
-  FIELD_LABEL_STYLES: "text-sm font-semibold text-foreground",
+  FIELD_LABEL_STYLES: "text-sm font-semibold text-foreground uppercase tracking-wide",
 
   LOADING_MESSAGES: {
     ENVIRONMENTS: "Loading environments...",
