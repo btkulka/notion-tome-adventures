@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FieldSkeleton } from '@/components/ui/field-skeleton';
+import { ErrorMessage } from '@/components/ui/error-message';
+import { FlexContainer } from '@/components/ui/base-card';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UI_CONSTANTS } from '@/lib/constants';
@@ -74,10 +76,10 @@ export function SelectField({
         <SelectTrigger className={UI_CONSTANTS.FIELD_STYLES}>
           <SelectValue placeholder={placeholder}>
             {selectedOption && (
-              <div className="flex items-center gap-2 text-foreground">
+              <FlexContainer gap={2}>
                 {selectedOption.icon && <selectedOption.icon className="h-4 w-4" />}
                 {selectedOption.label}
-              </div>
+              </FlexContainer>
             )}
           </SelectValue>
         </SelectTrigger>
@@ -85,19 +87,17 @@ export function SelectField({
         <SelectContent>
           {options.map(option => (
             <SelectItem key={option.value} value={option.value}>
-              <div className="flex items-center gap-2 text-foreground">
+              <FlexContainer gap={2}>
                 {option.icon && <option.icon className="h-4 w-4" />}
                 {option.label}
-              </div>
+              </FlexContainer>
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
       
       {errorMessage && (
-        <p className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
-          {errorMessage}
-        </p>
+        <ErrorMessage message={errorMessage} type="warning" />
       )}
     </div>
   );
