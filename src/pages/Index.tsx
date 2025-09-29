@@ -22,7 +22,6 @@ import { encounterLogger } from '@/utils/logger';
 import { useProgressiveGeneration } from '@/hooks/useProgressiveGeneration';
 
 const Index = () => {
-  console.log('Index component rendering');
   const { toast } = useToast();
   const { generateEncounter, saveEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
   

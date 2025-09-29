@@ -32,12 +32,9 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 }
 
 const App = () => {
-  console.log('App component rendering');
-  
-  try {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -53,10 +50,6 @@ const App = () => {
       </TooltipProvider>
     </QueryClientProvider>
   );
-} catch (error) {
-  console.error('Error in App component:', error);
-  return <div>Error loading app: {String(error)}</div>;
-}
 };
 
 export default App;
