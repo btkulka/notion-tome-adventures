@@ -15,6 +15,6 @@
     "allowJs": true,
     "noUnusedLocals": false,
     "strictNullChecks": false,
-    "soureMap": true
+    "sourceMap": true
   }
 }
