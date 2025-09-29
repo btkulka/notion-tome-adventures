@@ -5,6 +5,7 @@
 
 import { createAdvancedEncounterGenerator, CreaturePool } from '@/services/advanced-encounter-generator';
 import { NotionEncounterParams, GeneratedEncounter } from '@/types/encounter';
+import { logger } from '@/utils/logger';
 
 // Mock creature data for fallback
 const MOCK_CREATURES: CreaturePool[] = [
@@ -211,7 +212,7 @@ const MOCK_CREATURES: CreaturePool[] = [
 ];
 
 export function generateFallbackEncounter(params: NotionEncounterParams): GeneratedEncounter {
-  console.log('🎲 Using fallback encounter generator with mock data');
+  logger.warn('🎲 Using fallback encounter generator with mock data');
   
   const generator = createAdvancedEncounterGenerator(MOCK_CREATURES);
   

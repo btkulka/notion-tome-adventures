@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DND_CONSTANTS } from '@/lib/constants';
 import { NotionDataService, NotionEnvironment } from '@/services/notion-services';
+import { notionLogger } from '@/utils/logger';
 
 export interface Environment {
   id: string;
@@ -28,21 +29,21 @@ export function useEnvironments(): UseEnvironmentsReturn {
       setError(null);
       
       try {
-        console.log('🌍 Attempting to load environments from Notion...');
+        notionLogger.info('🌍 Attempting to load environments from Notion...');
         const result = await dataService.fetchEnvironments();
         
         if (result?.environments?.length > 0) {
-          console.log('✅ Successfully loaded', result.environments.length, 'environments from Notion');
-          console.log('📋 Environment data:', result.environments);
+          notionLogger.info(`✅ Successfully loaded ${result.environments.length} environments from Notion`);
+          notionLogger.debug('📋 Environment data:', result.environments);
           
           setEnvironments(result.environments);
           setIsUsingDefaults(false);
         } else {
-          console.log('⚠️ No environments returned from Notion, using defaults');
+          notionLogger.warn('⚠️ No environments returned from Notion, using defaults');
           setDefaultEnvironments();
         }
       } catch (err) {
-        console.log('🏔️ Notion integration not available, using default environments');
+        notionLogger.warn('🏔️ Notion integration not available, using default environments');
         setDefaultEnvironments();
         setError(err instanceof Error ? err.message : 'Failed to load environments');
       } finally {
@@ -53,7 +54,7 @@ export function useEnvironments(): UseEnvironmentsReturn {
     const setDefaultEnvironments = () => {
       setEnvironments([...DND_CONSTANTS.DEFAULT_ENVIRONMENTS]);
       setIsUsingDefaults(true);
-      console.log('🎲 Using', DND_CONSTANTS.DEFAULT_ENVIRONMENTS.length, 'default D&D environments');
+      notionLogger.info(`🎲 Using ${DND_CONSTANTS.DEFAULT_ENVIRONMENTS.length} default D&D environments`);
     };
 
     loadEnvironments();

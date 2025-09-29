@@ -3,6 +3,8 @@
  * Centralizes all property extraction logic with proper error handling
  */
 
+import { logger } from '@/utils/logger';
+
 export type NotionPropertyType = 
   | 'title' | 'rich_text' | 'number' | 'select' | 'multi_select' 
   | 'checkbox' | 'date' | 'relation' | 'formula' | 'rollup' | 'files';
@@ -206,13 +208,13 @@ export function safeExtract<T>(
     }
     
     if (extractor.validate && !extractor.validate(extracted)) {
-      console.warn(`Invalid value for property ${propertyName}:`, extracted);
+      logger.warn(`Invalid value for property ${propertyName}:`, extracted);
       return extractor.default;
     }
-    
+
     return extracted;
   } catch (error) {
-    console.error(`Error extracting property ${propertyName}:`, error);
+    logger.error(`Error extracting property ${propertyName}:`, error);
     return extractor.default;
   }
 }

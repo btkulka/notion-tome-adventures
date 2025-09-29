@@ -111,15 +111,15 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
   const handleSimpleDebug = async () => {
     try {
       const result = await simpleDebug();
-      console.log('Simple debug result:', result);
+      notionLogger.debug('Simple debug result:', result);
       
       toast({
         title: "Property Keys Debug",
-        description: `Env props: ${result.environmentPropertyKeys?.join(', ') || 'none'}. Creature props: ${result.creaturePropertyKeys?.slice(0,3).join(', ') || 'none'}...`,
+        description: `Debug result returned. Check console for details.`,
         variant: "default"
       });
     } catch (error) {
-      console.error('Simple debug failed:', error);
+      notionLogger.error('Simple debug failed:', error);
       toast({
         title: "Debug Failed", 
         description: error instanceof Error ? error.message : "Unknown error",

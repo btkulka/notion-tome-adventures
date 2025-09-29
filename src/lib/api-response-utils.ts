@@ -3,14 +3,14 @@
  * Extracted from edge-function-response-processor.ts for reusability
  */
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
   timestamp: string;
   duration?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ErrorDetail {
@@ -36,7 +36,7 @@ export const responseFormatters = {
   success<T>(
     data: T,
     message?: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     duration?: number
   ): ApiResponse<T> {
     return {
