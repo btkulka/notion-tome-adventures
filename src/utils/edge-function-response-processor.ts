@@ -267,7 +267,7 @@ export class EdgeFunctionResponseProcessor {
     transformer: (data: T) => R
   ): ApiResponse<R> {
     if (!response.success || !response.data) {
-      return response as ApiResponse<R>;
+      return response as unknown as ApiResponse<R>;
     }
 
     try {

@@ -247,10 +247,12 @@ export function generateFallbackEncounter(params: NotionEncounterParams): Genera
       total_xp: basicCreature.xp_value,
       adjusted_xp: basicCreature.xp_value,
       creatures: [{
+        id: basicCreature.id,
         name: basicCreature.name,
         quantity: 1,
         challenge_rating: basicCreature.challenge_rating.toString(),
-        xp_value: basicCreature.xp_value
+        xp_value: basicCreature.xp_value,
+        total_xp: basicCreature.xp_value
       }],
       generation_notes: 'Used fallback encounter generator with limited creature database. This is a basic encounter generated with mock data. For full functionality, configure your Notion integration.'
     };
@@ -264,10 +266,12 @@ export function generateFallbackEncounter(params: NotionEncounterParams): Genera
     total_xp: result.total_xp,
     adjusted_xp: result.adjusted_xp,
     creatures: result.creatures.map(creature => ({
+      id: creature.id,
       name: creature.name,
       quantity: creature.quantity,
       challenge_rating: creature.challenge_rating.toString(),
-      xp_value: creature.xp_value
+      xp_value: creature.xp_value,
+      total_xp: creature.xp_value * creature.quantity
     })),
     generation_notes: result.generation_notes.join('\n') + '\n\nGenerated using fallback mock creature database. Configure Notion for full functionality.'
   };

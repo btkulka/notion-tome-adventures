@@ -24,7 +24,9 @@ export interface NotionEncounterParams {
 export interface GeneratedEncounter {
   encounter_name: string;
   environment: string;
+  difficulty?: string;
   total_xp: number;
+  adjusted_xp?: number;
   creatures: Array<{
     id: string;
     name: string;

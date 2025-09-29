@@ -1,4 +1,4 @@
-import { Client } from 'npm:@notionhq/client@2.2.15'
+import { Client } from 'https://esm.sh/@notionhq/client@2.2.15'
 
 export const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

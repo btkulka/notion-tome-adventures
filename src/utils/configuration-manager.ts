@@ -52,7 +52,7 @@ export interface AppConfiguration {
 }
 
 // D&D 5e Challenge Rating to XP mapping
-export const XP_BY_CR: Record<number, number> = {
+const XP_BY_CR_MAP: Record<number, number> = {
   0: 10,
   0.125: 25,  // 1/8
   0.25: 50,   // 1/4
@@ -90,7 +90,7 @@ export const XP_BY_CR: Record<number, number> = {
 };
 
 // D&D 5e Encounter multipliers based on number of monsters
-export const ENCOUNTER_MULTIPLIERS: Record<number, number> = {
+const ENCOUNTER_MULTIPLIERS_MAP: Record<number, number> = {
   1: 1,
   2: 1.5,
   3: 2,
@@ -109,7 +109,7 @@ export const ENCOUNTER_MULTIPLIERS: Record<number, number> = {
 };
 
 // Standard D&D 5e creature sizes
-export const CREATURE_SIZES = [
+const CREATURE_SIZES_LIST = [
   'Tiny',
   'Small', 
   'Medium',
@@ -119,7 +119,7 @@ export const CREATURE_SIZES = [
 ] as const;
 
 // Standard D&D 5e alignments
-export const ALIGNMENTS = [
+const ALIGNMENTS_LIST = [
   'Lawful Good',
   'Neutral Good', 
   'Chaotic Good',
@@ -133,7 +133,7 @@ export const ALIGNMENTS = [
 ] as const;
 
 // Standard D&D 5e creature types
-export const CREATURE_TYPES = [
+const CREATURE_TYPES_LIST = [
   'Aberration',
   'Beast',
   'Celestial',
@@ -151,7 +151,7 @@ export const CREATURE_TYPES = [
 ] as const;
 
 // Common D&D 5e environments
-export const ENVIRONMENTS = [
+const ENVIRONMENTS_LIST = [
   'Arctic',
   'Coastal',
   'Desert',
@@ -166,7 +166,7 @@ export const ENVIRONMENTS = [
 ] as const;
 
 // Difficulty thresholds by character level
-export const DIFFICULTY_THRESHOLDS = {
+const DIFFICULTY_THRESHOLDS_MAP = {
   easy: [25, 50, 75, 125, 250, 300, 350, 450, 550, 600, 800, 1000, 1100, 1250, 1400, 1600, 2000, 2100, 2400, 2800],
   medium: [50, 100, 150, 250, 500, 600, 750, 900, 1100, 1200, 1600, 2000, 2200, 2500, 2800, 3200, 3900, 4200, 4900, 5700],
   hard: [75, 150, 225, 375, 750, 900, 1100, 1400, 1600, 1900, 2400, 3000, 3400, 3800, 4300, 4800, 5900, 6300, 7300, 8500],
@@ -245,7 +245,7 @@ export class ConfigurationManager {
           'Hard': 1.5,
           'Deadly': 2.0
         },
-        encounterMultipliers: ENCOUNTER_MULTIPLIERS
+        encounterMultipliers: ENCOUNTER_MULTIPLIERS_MAP
       },
 
       validation: {
@@ -267,7 +267,7 @@ export class ConfigurationManager {
     }
   }
 
-  private getEnvVar(key: string, defaultValue: string): string {
+  public getEnvVar(key: string, defaultValue: string): string {
     if (typeof window !== 'undefined') {
       // Browser environment - check for Vite env vars
       return (import.meta.env as any)?.[key] || defaultValue;
@@ -319,18 +319,18 @@ export class ConfigurationManager {
   }
 
   getXPForCR(challengeRating: number): number {
-    return XP_BY_CR[challengeRating] || 0;
+    return XP_BY_CR_MAP[challengeRating] || 0;
   }
 
   getEncounterMultiplier(monsterCount: number): number {
     if (monsterCount <= 0) return 1;
     if (monsterCount >= 15) return 5;
-    return ENCOUNTER_MULTIPLIERS[monsterCount] || 1;
+    return ENCOUNTER_MULTIPLIERS_MAP[monsterCount] || 1;
   }
 
-  getDifficultyThreshold(level: number, difficulty: keyof typeof DIFFICULTY_THRESHOLDS): number {
+  getDifficultyThreshold(level: number, difficulty: keyof typeof DIFFICULTY_THRESHOLDS_MAP): number {
     if (level < 1 || level > 20) return 0;
-    const thresholds = DIFFICULTY_THRESHOLDS[difficulty];
+    const thresholds = DIFFICULTY_THRESHOLDS_MAP[difficulty];
     return thresholds[level - 1] || 0;
   }
 
@@ -362,15 +362,13 @@ export class ConfigurationManager {
 export const config = ConfigurationManager.getInstance();
 
 // Convenient exports for common values
-export { 
-  XP_BY_CR,
-  ENCOUNTER_MULTIPLIERS, 
-  CREATURE_SIZES,
-  ALIGNMENTS,
-  CREATURE_TYPES,
-  ENVIRONMENTS,
-  DIFFICULTY_THRESHOLDS
-};
+export const XP_BY_CR = XP_BY_CR_MAP;
+export const ENCOUNTER_MULTIPLIERS = ENCOUNTER_MULTIPLIERS_MAP;
+export const CREATURE_SIZES = CREATURE_SIZES_LIST;
+export const ALIGNMENTS = ALIGNMENTS_LIST;
+export const CREATURE_TYPES = CREATURE_TYPES_LIST;
+export const ENVIRONMENTS = ENVIRONMENTS_LIST;
+export const DIFFICULTY_THRESHOLDS = DIFFICULTY_THRESHOLDS_MAP;
 
 // Utility functions using configuration
 export const configUtils = {
