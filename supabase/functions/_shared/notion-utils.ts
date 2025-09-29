@@ -51,7 +51,7 @@ export function handleCORS(req: Request): Response | null {
   return null
 }
 
-export function createNotionClient(): Client {
+export function createNotionClient() {
   const apiKey = Deno.env.get('NOTION_API_KEY')
   if (!apiKey) {
     throw new Error('❌ NOTION_API_KEY environment variable is not set in Supabase Edge Functions. Please configure it using: supabase secrets set NOTION_API_KEY=your_key')
@@ -62,7 +62,15 @@ export function createNotionClient(): Client {
   }
   
   console.log('✅ Notion API key found and appears valid')
-  return new Client({ auth: apiKey })
+  
+  try {
+    const client = new Client({ auth: apiKey })
+    console.log('✅ Notion client created successfully')
+    return client
+  } catch (error) {
+    console.error('❌ Failed to create Notion client:', error)
+    throw new Error(`Failed to create Notion client: ${error}`)
+  }
 }
 
 export function validateDatabaseId(databaseId: string | undefined, name: string): string {

@@ -1,11 +1,47 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { 
-  handleCORS, 
-  createNotionClient, 
-  validateDatabaseId, 
-  createErrorResponse, 
-  createSuccessResponse 
-} from '../_shared/notion-utils.ts'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+function handleCORS(req: Request): Response | null {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+  return null
+}
+
+function createErrorResponse(error: unknown, context: string): Response {
+  console.error(`Error in ${context}:`, error)
+  
+  let errorMessage = 'An unexpected error occurred'
+  if (error instanceof Error) {
+    errorMessage = error.message
+  }
+  
+  return new Response(
+    JSON.stringify({ 
+      error: errorMessage,
+      context,
+      timestamp: new Date().toISOString()
+    }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    }
+  )
+}
+
+function createSuccessResponse(data: unknown): Response {
+  return new Response(
+    JSON.stringify(data),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    }
+  )
+}
 
 serve(async (req) => {
   const corsResponse = handleCORS(req)
@@ -14,22 +50,38 @@ serve(async (req) => {
   try {
     console.log('🌍 Starting environments fetch...')
     
-    const notion = createNotionClient()
-    const environmentsDbId = validateDatabaseId(
-      Deno.env.get('ENVIRONMENTS_DATABASE_ID'), 
-      'ENVIRONMENTS_DATABASE_ID'
-    )
+    const apiKey = Deno.env.get('NOTION_API_KEY')
+    if (!apiKey) {
+      throw new Error('❌ NOTION_API_KEY environment variable is not set')
+    }
     
-    console.log('🔍 Querying environments database...')
-    const response = await notion.databases.query({
-      database_id: environmentsDbId,
+    const environmentsDbId = Deno.env.get('ENVIRONMENTS_DATABASE_ID')
+    if (!environmentsDbId) {
+      throw new Error('❌ ENVIRONMENTS_DATABASE_ID environment variable is not set')
+    }
+    
+    console.log('✅ API keys found, querying Notion database...')
+    
+    // Make direct API call to Notion instead of using the client
+    const response = await fetch(`https://api.notion.com/v1/databases/${environmentsDbId}/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify({})
     })
 
-    console.log(`📋 Processing ${response.results.length} environment records...`)
+    if (!response.ok) {
+      throw new Error(`Notion API error: ${response.status} ${response.statusText}`)
+    }
 
-    const environments = response.results.map((page: any) => {
+    const data = await response.json()
+    console.log(`📋 Processing ${data.results.length} environment records...`)
+
+    const environments = data.results.map((page: any) => {
       console.log('🔍 Processing environment page:', page.id)
-      console.log('📊 Page properties:', JSON.stringify(page.properties, null, 2))
       
       const props = page.properties
       
@@ -52,27 +104,19 @@ serve(async (req) => {
           key.toLowerCase().includes('environment') ||
           key.toLowerCase().includes('title')
         )
-        console.log('⚠️ No standard name property found. Checking alternative keys:', nameKeys)
         
         for (const key of nameKeys) {
           const prop = props[key]
           if (prop?.rich_text?.[0]?.plain_text) {
             name = prop.rich_text[0].plain_text
-            console.log(`✅ Found name in ${key} (rich_text):`, name)
             break
           } else if (prop?.select?.name) {
             name = prop.select.name
-            console.log(`✅ Found name in ${key} (select):`, name)
             break
           } else if (prop?.title?.[0]?.plain_text) {
             name = prop.title[0].plain_text
-            console.log(`✅ Found name in ${key} (title):`, name)
             break
           }
-        }
-        
-        if (name === 'Unknown Environment') {
-          console.log('⚠️ Could not find environment name. Available properties:', Object.keys(props || {}))
         }
       }
       
@@ -144,7 +188,6 @@ serve(async (req) => {
         shelter_availability,
         water_availability,
         food_availability,
-        // Add notion metadata
         created_time: page.created_time,
         last_edited_time: page.last_edited_time,
         url: page.url
