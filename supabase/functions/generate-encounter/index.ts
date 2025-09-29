@@ -238,6 +238,16 @@ serve(async (req) => {
         else if ((crPage as any).properties?.['Challenge Level']?.number !== undefined) {
           crValue = (crPage as any).properties['Challenge Level'].number
         }
+        // Try rich_text properties
+        else if ((crPage as any).properties?.['Challenge Level']?.rich_text?.[0]?.plain_text) {
+          crValue = (crPage as any).properties['Challenge Level'].rich_text[0].plain_text
+        }
+        else if ((crPage as any).properties?.Name?.rich_text?.[0]?.plain_text) {
+          crValue = (crPage as any).properties.Name.rich_text[0].plain_text
+        }
+        else if ((crPage as any).properties?.CR?.rich_text?.[0]?.plain_text) {
+          crValue = (crPage as any).properties.CR.rich_text[0].plain_text
+        }
         
         console.log(`🔍 CR ${crId} extraction result: "${crValue}" (type: ${typeof crValue})`)
         
@@ -251,6 +261,7 @@ serve(async (req) => {
             'Challenge Level title length': (crPage as any).properties?.['Challenge Level']?.title?.length,
             'Challenge Level title[0]': (crPage as any).properties?.['Challenge Level']?.title?.[0],
             'Challenge Level plain_text': (crPage as any).properties?.['Challenge Level']?.title?.[0]?.plain_text,
+            'Challenge Level rich_text': (crPage as any).properties?.['Challenge Level']?.rich_text,
             'Raw crValue before parsing': crValue
           })
         }
@@ -258,16 +269,27 @@ serve(async (req) => {
         if (typeof crValue === 'number') {
           crMap.set(crId, crValue)
         } else if (typeof crValue === 'string') {
-          const parsedCR = parseFloat(crValue) || 0
+          // Handle fractional CRs
+          let parsedCR: number
+          if (crValue.includes('/')) {
+            const [numerator, denominator] = crValue.split('/').map(Number)
+            if (!isNaN(numerator) && !isNaN(denominator) && denominator !== 0) {
+              parsedCR = numerator / denominator
+            } else {
+              parsedCR = 0
+            }
+          } else {
+            parsedCR = parseFloat(crValue) || 0
+          }
           console.log(`🔍 CR ${crId} parsed "${crValue}" -> ${parsedCR}`)
           crMap.set(crId, parsedCR)
         } else {
-          console.warn(`🔍 CR ${crId} no valid value found, defaulting to 1`)
-          crMap.set(crId, 1)
+          console.warn(`🔍 CR ${crId} no valid value found, setting to 0 (will be skipped)`)
+          crMap.set(crId, 0)  // Changed from 1 to 0
         }
       } catch (error) {
         console.warn(`Failed to resolve CR relation ${crId}:`, error)
-        crMap.set(crId, 1)
+        crMap.set(crId, 0)  // Changed from 1 to 0 - creatures with failed CR resolution will be skipped
       }
     })
     
@@ -400,23 +422,60 @@ serve(async (req) => {
         })
       }
 
-      // Handle Challenge Rating using pre-resolved map
+      // Handle Challenge Rating using comprehensive extraction logic (matching fetch-creatures)
       let challengeRating = 0
       let crSource = 'none'
       
-      if (properties['Challenge Rating']?.relation?.[0]?.id) {
-        const crId = properties['Challenge Rating'].relation[0].id
-        challengeRating = crMap.get(crId) || 1
-        crSource = `Challenge Rating relation -> ${crId} -> ${challengeRating}`
-      } else if (properties['Challenge Rating']?.number !== undefined) {
+      // Try number property first (most reliable)
+      if (properties['Challenge Rating']?.number !== undefined) {
         challengeRating = properties['Challenge Rating'].number
         crSource = `Challenge Rating number -> ${challengeRating}`
       } else if (properties.CR?.number !== undefined) {
         challengeRating = properties.CR.number
         crSource = `CR number -> ${challengeRating}`
+      } else if (properties.ChallengeRating?.number !== undefined) {
+        challengeRating = properties.ChallengeRating.number
+        crSource = `ChallengeRating number -> ${challengeRating}`
+      } 
+      // Try select property (text format that may need parsing)
+      else if (properties['Challenge Rating']?.select?.name) {
+        const crText = properties['Challenge Rating'].select.name
+        if (crText === '1/8') challengeRating = 0.125
+        else if (crText === '1/4') challengeRating = 0.25
+        else if (crText === '1/2') challengeRating = 0.5
+        else challengeRating = parseFloat(crText) || 0
+        crSource = `Challenge Rating select -> ${crText} -> ${challengeRating}`
+      } else if (properties.CR?.select?.name) {
+        const crText = properties.CR.select.name
+        if (crText === '1/8') challengeRating = 0.125
+        else if (crText === '1/4') challengeRating = 0.25
+        else if (crText === '1/2') challengeRating = 0.5
+        else challengeRating = parseFloat(crText) || 0
+        crSource = `CR select -> ${crText} -> ${challengeRating}`
+      } else if (properties.Challenge?.select?.name) {
+        const crText = properties.Challenge.select.name
+        if (crText === '1/8') challengeRating = 0.125
+        else if (crText === '1/4') challengeRating = 0.25
+        else if (crText === '1/2') challengeRating = 0.5
+        else challengeRating = parseFloat(crText) || 0
+        crSource = `Challenge select -> ${crText} -> ${challengeRating}`
+      }
+      // Try relation property (links to another database)
+      else if (properties['Challenge Rating']?.relation?.[0]?.id) {
+        const crId = properties['Challenge Rating'].relation[0].id
+        challengeRating = crMap.get(crId) || 0
+        crSource = `Challenge Rating relation -> ${crId} -> ${challengeRating}`
+      } else if (properties.CR?.relation?.[0]?.id) {
+        const crId = properties.CR.relation[0].id
+        challengeRating = crMap.get(crId) || 0
+        crSource = `CR relation -> ${crId} -> ${challengeRating}`
+      } else if (properties.Challenge?.relation?.[0]?.id) {
+        const crId = properties.Challenge.relation[0].id
+        challengeRating = crMap.get(crId) || 0
+        crSource = `Challenge relation -> ${crId} -> ${challengeRating}`
       } else {
-        challengeRating = 1 // Default fallback
-        crSource = 'default fallback -> 1'
+        challengeRating = 0 // Use 0 instead of 1 as fallback to avoid incorrect XP calculations
+        crSource = 'no CR property found -> 0'
       }
 
       // Debug logging for CR extraction for first few monsters
@@ -432,12 +491,18 @@ serve(async (req) => {
         })
       }
 
-      // Calculate XP value from CR
-      const xpValue = XP_BY_CR[challengeRating.toString()] || 0
+      // Calculate XP value from CR (only if we have a valid CR)
+      const xpValue = challengeRating > 0 ? (XP_BY_CR[challengeRating.toString()] || 0) : 0
       
       // Debug XP calculation for first few monsters
       if (allMonsters.indexOf(monsterPage) < 3) {
-        console.log(`🔍 XP calculation for ${name}: CR ${challengeRating} -> ${xpValue} XP`)
+        console.log(`🔍 XP calculation for ${name}: CR ${challengeRating} -> ${xpValue} XP (source: ${crSource})`)
+      }
+      
+      // Skip monsters with no valid CR/XP for encounter generation
+      if (challengeRating <= 0 || xpValue <= 0) {
+        console.log(`⚠️ Skipping ${name} - invalid CR (${challengeRating}) or XP (${xpValue})`)
+        continue
       }
 
       // Handle Environment using pre-resolved map

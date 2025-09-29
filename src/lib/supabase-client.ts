@@ -3,16 +3,38 @@ import { createLogger } from '@/utils/logger'
 
 const logger = createLogger('Supabase');
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
+const supabaseProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined
+
+// Resolve the correct base URL for Edge Functions
+function resolveFunctionsBaseUrl(): string | null {
+  const url = supabaseUrl?.trim()
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    // Hosted Supabase projects live at <ref>.supabase.co and functions at <ref>.functions.supabase.co
+    if (u.hostname.endsWith('.supabase.co')) {
+      const projectRef = u.hostname.split('.')[0]
+      return `${u.protocol}//${projectRef}.functions.supabase.co`
+    }
+    // Local dev (e.g., http://127.0.0.1:54321) proxies functions under /functions/v1
+    return `${url.replace(/\/$/, '')}/functions/v1`
+  } catch {
+    return null
+  }
+}
+
+const functionsBaseUrl = resolveFunctionsBaseUrl()
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  logger.warn('Missing Supabase environment variables. Some features may not work.')
+  logger.warn('Supabase env not set (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY). Edge calls will fail until configured.')
 }
 
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder-key'
+  // Only instantiate with a real URL/key; otherwise use obvious placeholders to avoid DNS lookups
+  supabaseUrl || 'http://invalid.local',
+  supabaseAnonKey || 'invalid-key'
 )
 
 // Helper function to call Edge Functions
@@ -29,7 +51,12 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
 
     // Use direct fetch for better AbortSignal support when signal is provided
     if (signal) {
-      const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+      // Fail fast with a clear message if env is missing
+      if (!functionsBaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.')
+      }
+
+      const response = await fetch(`${functionsBaseUrl}/${functionName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,6 +82,9 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
       data = await response.json();
     } else {
       // Use Supabase client for non-cancellable requests
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.')
+      }
       const result = await supabase.functions.invoke(functionName, {
         body: body ? JSON.stringify(body) : undefined,
       });
