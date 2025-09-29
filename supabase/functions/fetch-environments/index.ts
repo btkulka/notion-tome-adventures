@@ -48,7 +48,7 @@ serve(async (req) => {
   if (corsResponse) return corsResponse
 
   try {
-    console.log('🌍 Starting environments fetch...')
+    console.log('🌍 Starting environments fetch... (NEW VERSION with direct API calls)')
     
     const apiKey = Deno.env.get('NOTION_API_KEY')
     if (!apiKey) {
