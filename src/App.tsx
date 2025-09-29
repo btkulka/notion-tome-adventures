@@ -32,6 +32,8 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 }
 
 const App = () => {
+  console.log('App component rendering...');
+  
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
