@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DND_CONSTANTS } from '@/lib/constants';
-import { NotionDataService, NotionEnvironment } from '@/services/notion-services';
+import { useNotionService } from '@/hooks/useNotionService';
 import { notionLogger } from '@/utils/logger';
 
 export interface Environment {
@@ -21,7 +21,7 @@ export function useEnvironments(): UseEnvironmentsReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUsingDefaults, setIsUsingDefaults] = useState(false);
-  const [dataService] = useState(() => new NotionDataService());
+  const notionService = useNotionService();
 
   useEffect(() => {
     const loadEnvironments = async () => {
@@ -30,7 +30,7 @@ export function useEnvironments(): UseEnvironmentsReturn {
       
       try {
         notionLogger.info('🌍 Attempting to load environments from Notion...');
-        const result = await dataService.fetchEnvironments();
+        const result = await notionService.fetchEnvironments();
         
         if (result?.environments?.length > 0) {
           notionLogger.info(`✅ Successfully loaded ${result.environments.length} environments from Notion`);
@@ -58,7 +58,7 @@ export function useEnvironments(): UseEnvironmentsReturn {
     };
 
     loadEnvironments();
-  }, [dataService]);
+  }, [notionService]);
 
   // Create environment options with 'Any' and sorted list
   const environmentOptions = ['Any', ...environments.map(env => env.name)]
