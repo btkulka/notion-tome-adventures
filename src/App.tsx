@@ -44,53 +44,11 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 }
 
 const App = () => {
-  logger.info('🎨 App component rendering...');
-  logger.debug('Providers: QueryClient, Tooltip, Toast, Router');
+  // Log immediately without calling any functions that might fail
+  console.log('🎨 App component rendering - START');
   
-  // Basic startup check
-  const [startupError, setStartupError] = React.useState<string | null>(null);
-  const [isReady, setIsReady] = React.useState(false);
-  
-  React.useEffect(() => {
-    try {
-      // Check if critical environment is available
-      logger.info('✓ App initialized successfully');
-      setIsReady(true);
-    } catch (error) {
-      logger.error('Failed to initialize app:', error);
-      setStartupError(error instanceof Error ? error.message : 'Unknown initialization error');
-    }
-  }, []);
-  
-  if (startupError) {
+  try {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center p-8 max-w-md">
-          <h1 className="text-2xl font-bold mb-4 text-destructive">App Initialization Failed</h1>
-          <p className="text-muted-foreground mb-4">{startupError}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
-          >
-            Reload
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!isReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Initializing application...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
@@ -101,14 +59,12 @@ const App = () => {
               <ErrorBoundary 
                 FallbackComponent={ErrorFallback}
                 onReset={() => {
-                  logger.info('🔄 Error boundary reset triggered');
+                  console.log('🔄 Error boundary reset triggered');
                   window.location.reload();
                 }}
                 onError={(error, errorInfo) => {
-                  logger.error('❌ Error boundary caught error:', {
-                    error: error.message,
-                    componentStack: errorInfo.componentStack,
-                  });
+                  console.error('❌ Error boundary caught error:', error);
+                  console.error('Component stack:', errorInfo.componentStack);
                 }}
               >
                 <Index />
@@ -126,7 +82,17 @@ const App = () => {
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
-  );
+    );
+  } catch (error) {
+    console.error('❌ CRITICAL ERROR in App component:', error);
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <h1 style={{ color: 'red' }}>Critical App Error</h1>
+        <p>{error instanceof Error ? error.message : 'Unknown error'}</p>
+        <button onClick={() => window.location.reload()}>Reload</button>
+      </div>
+    );
+  }
 };
 
 export default App;
