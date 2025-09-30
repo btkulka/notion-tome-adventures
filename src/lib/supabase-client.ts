@@ -3,9 +3,26 @@ import { createLogger } from '@/utils/logger'
 
 const logger = createLogger('Supabase');
 
+logger.info('🔌 Initializing Supabase client...');
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
 const supabaseProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined
+
+// Validate configuration at startup
+if (!supabaseUrl || !supabaseAnonKey) {
+  logger.error('❌ Supabase configuration missing!', {
+    hasUrl: !!supabaseUrl,
+    hasAnonKey: !!supabaseAnonKey,
+    hasProjectId: !!supabaseProjectId,
+  });
+} else {
+  logger.info('✅ Supabase configuration validated');
+  logger.debug('Config details:', {
+    url: supabaseUrl.substring(0, 30) + '...',
+    projectId: supabaseProjectId || 'not set',
+  });
+}
 
 // Resolve the correct base URL for Edge Functions
 function resolveFunctionsBaseUrl(): string | null {
@@ -39,8 +56,16 @@ export const supabase = createClient(
 
 // Helper function to call Edge Functions
 export async function callEdgeFunction(functionName: string, body?: unknown, signal?: AbortSignal) {
+  const callStartTime = performance.now();
+  
   try {
-    logger.debug(`Calling edge function: ${functionName}`, body ? 'with body' : 'without body')
+    logger.info(`📡 Calling edge function: ${functionName}`);
+    logger.debug('Request details:', {
+      function: functionName,
+      hasBody: !!body,
+      hasCancelSignal: !!signal,
+      bodyPreview: body ? JSON.stringify(body).substring(0, 100) : 'none',
+    });
     
     // Check if already aborted before starting
     if (signal?.aborted) {
@@ -109,7 +134,12 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
       throw error;
     }
 
-    logger.info(`Edge function ${functionName} succeeded`, data);
+    const callDuration = (performance.now() - callStartTime).toFixed(2);
+    logger.info(`✅ Edge function ${functionName} succeeded (${callDuration}ms)`);
+    logger.debug('Response preview:', {
+      dataKeys: data ? Object.keys(data) : [],
+      dataSize: JSON.stringify(data).length,
+    });
     return data;
 
   } catch (error) {

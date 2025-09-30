@@ -91,6 +91,28 @@ class Logger {
       console.log(this.formatMessage('⚡ GENERATION', message, data));
     }
   }
+
+  // Performance tracking
+  performance(operation: string, durationMs: number, data?: any): void {
+    if (this.shouldLog(LogLevel.DEBUG)) {
+      const formatted = `${operation} completed in ${durationMs.toFixed(2)}ms`;
+      console.log(this.formatMessage('⏱️ PERFORMANCE', formatted, data));
+    }
+  }
+
+  // State change tracking
+  stateChange(component: string, changes: Record<string, any>): void {
+    if (this.shouldLog(LogLevel.DEBUG)) {
+      console.log(this.formatMessage('🔄 STATE', `${component} state changed`, changes));
+    }
+  }
+
+  // API call tracking
+  apiCall(endpoint: string, method: string, details?: any): void {
+    if (this.shouldLog(LogLevel.DEBUG)) {
+      console.log(this.formatMessage('📡 API', `${method} ${endpoint}`, details));
+    }
+  }
 }
 
 // Create default logger instances

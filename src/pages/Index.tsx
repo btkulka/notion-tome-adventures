@@ -18,11 +18,15 @@ import { MonsterCardContextMenu } from '@/components/ui/monster-card-context-men
 import { FloatingProgressBar } from '@/components/floating-progress-bar';
 import { AbilityScoresRadialChart } from '@/components/ui/ability-scores-radial-chart';
 import { SessionSelect } from '@/components/ui/session-select';
-import { encounterLogger } from '@/utils/logger';
+import { encounterLogger, createLogger } from '@/utils/logger';
 import { useProgressiveGeneration } from '@/hooks/useProgressiveGeneration';
+import { useEffect, useRef } from 'react';
 
 const Index = () => {
-  console.log('Index component rendering...');
+  const componentMountTime = performance.now();
+  const logger = createLogger('Index');
+  
+  logger.info('🎮 Index component mounting...');
   
   const { toast } = useToast();
   const { generateEncounter, saveEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
@@ -61,6 +65,51 @@ const Index = () => {
   
   // Session selection state
   const [selectedSession, setSelectedSession] = useState<{id: string, name: string} | null>(null);
+  
+  // Track component lifecycle
+  const isFirstRender = useRef(true);
+  const renderCount = useRef(0);
+  
+  useEffect(() => {
+    renderCount.current += 1;
+    
+    if (isFirstRender.current) {
+      const mountDuration = (performance.now() - componentMountTime).toFixed(2);
+      logger.info(`✅ Index component mounted (${mountDuration}ms)`);
+      logger.debug('Initial state:', {
+        params,
+        hasEncounter: !!encounter,
+        isGenerating,
+      });
+      isFirstRender.current = false;
+    }
+    
+    logger.debug(`Render #${renderCount.current}`, {
+      generatingEncounter,
+      hasEncounter: !!encounter,
+      isGenerating,
+      selectedSession: selectedSession?.name,
+    });
+  });
+  
+  // Track state changes
+  useEffect(() => {
+    if (encounter) {
+      logger.info('📊 Encounter state updated:', {
+        name: encounter.encounter_name,
+        totalXP: encounter.total_xp,
+        creatureCount: encounter.creatures.length,
+      });
+    }
+  }, [encounter]);
+  
+  useEffect(() => {
+    logger.debug('Generation state changed:', {
+      generatingEncounter,
+      isGenerating,
+      hasAbortController: !!abortController,
+    });
+  }, [generatingEncounter, isGenerating, abortController]);
 
   const handleGenerate = async () => {
     if (!params.environment || params.environment === '' || params.xpThreshold <= 0) {

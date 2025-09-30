@@ -5,8 +5,21 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ErrorBoundary } from "react-error-boundary";
 import Index from "./pages/Index";
+import { createLogger } from "@/utils/logger";
 
-const queryClient = new QueryClient();
+const logger = createLogger('App');
+
+logger.info('🔧 Initializing QueryClient...');
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
+logger.debug('QueryClient configured with default options');
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
   return (
@@ -32,7 +45,8 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 }
 
 const App = () => {
-  console.log('App component rendering...');
+  logger.info('🎨 App component rendering...');
+  logger.debug('Providers: QueryClient, Tooltip, Toast, Router');
   
   return (
     <QueryClientProvider client={queryClient}>
@@ -42,11 +56,30 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={
-              <ErrorBoundary FallbackComponent={ErrorFallback}>
+              <ErrorBoundary 
+                FallbackComponent={ErrorFallback}
+                onReset={() => {
+                  logger.info('🔄 Error boundary reset triggered');
+                  window.location.reload();
+                }}
+                onError={(error, errorInfo) => {
+                  logger.error('❌ Error boundary caught error:', {
+                    error: error.message,
+                    componentStack: errorInfo.componentStack,
+                  });
+                }}
+              >
                 <Index />
               </ErrorBoundary>
             } />
-            <Route path="*" element={<div>Not found page</div>} />
+            <Route path="*" element={
+              <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-center">
+                  <h1 className="text-2xl font-bold mb-2">404 - Page Not Found</h1>
+                  <p className="text-muted-foreground">The requested page does not exist.</p>
+                </div>
+              </div>
+            } />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
