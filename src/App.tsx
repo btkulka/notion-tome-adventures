@@ -6,9 +6,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ErrorBoundary } from "react-error-boundary";
 import React from "react";
 import Index from "./pages/Index";
-import { createLogger } from "@/utils/logger";
-
-const logger = createLogger('App');
 
 const queryClient = new QueryClient({
   defaultOptions: {
