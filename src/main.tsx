@@ -2,47 +2,40 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { createLogger } from '@/utils/logger'
 
-const logger = createLogger('Bootstrap');
+// Safe logger that won't crash during initialization
+const safeLog = {
+  info: (...args: any[]) => console.log('[Bootstrap]', ...args),
+  error: (...args: any[]) => console.error('[Bootstrap]', ...args),
+  debug: (...args: any[]) => console.log('[Bootstrap DEBUG]', ...args),
+};
 
 // Track startup timing
 const startupTimestamp = performance.now();
 
-logger.info('🚀 Application bootstrap started');
-logger.debug('Environment:', {
-  mode: import.meta.env.MODE,
-  dev: import.meta.env.DEV,
-  prod: import.meta.env.PROD,
-});
+safeLog.info('🚀 Application bootstrap started');
 
 // Validate critical environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  logger.warn('⚠️ Supabase configuration missing - some features will be limited');
-  logger.debug('Config status:', {
-    hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseKey,
-  });
+  safeLog.debug('⚠️ Supabase configuration incomplete');
 }
 
 const rootElement = document.getElementById("root");
 
 if (rootElement) {
-  logger.info('✅ Root element found, initializing React...');
+  safeLog.info('✅ Root element found, initializing React...');
   
   try {
     const root = createRoot(rootElement);
-    logger.debug('React root created successfully');
-    
     root.render(<App />);
     
     const bootTime = (performance.now() - startupTimestamp).toFixed(2);
-    logger.info(`✅ React render complete (${bootTime}ms)`);
+    safeLog.info(`✅ React render complete (${bootTime}ms)`);
   } catch (error) {
-    logger.error('❌ Fatal error during React initialization:', error);
+    safeLog.error('❌ Fatal error during React initialization:', error);
     
     // Display user-friendly error
     rootElement.innerHTML = `
@@ -64,11 +57,7 @@ if (rootElement) {
     `;
   }
 } else {
-  logger.error('❌ CRITICAL: Root element not found in DOM!');
-  logger.debug('Available elements:', {
-    bodyChildren: document.body?.children.length || 0,
-    headChildren: document.head?.children.length || 0,
-  });
+  safeLog.error('❌ CRITICAL: Root element not found in DOM!');
   
   // Fallback error display
   document.body.innerHTML = `

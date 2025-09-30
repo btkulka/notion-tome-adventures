@@ -9,7 +9,6 @@ import { createLogger } from "@/utils/logger";
 
 const logger = createLogger('App');
 
-logger.info('🔧 Initializing QueryClient...');
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -19,7 +18,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-logger.debug('QueryClient configured with default options');
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
   return (

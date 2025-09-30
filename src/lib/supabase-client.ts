@@ -3,26 +3,9 @@ import { createLogger } from '@/utils/logger'
 
 const logger = createLogger('Supabase');
 
-logger.info('🔌 Initializing Supabase client...');
-
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
 const supabaseProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined
-
-// Validate configuration at startup
-if (!supabaseUrl || !supabaseAnonKey) {
-  logger.error('❌ Supabase configuration missing!', {
-    hasUrl: !!supabaseUrl,
-    hasAnonKey: !!supabaseAnonKey,
-    hasProjectId: !!supabaseProjectId,
-  });
-} else {
-  logger.info('✅ Supabase configuration validated');
-  logger.debug('Config details:', {
-    url: supabaseUrl.substring(0, 30) + '...',
-    projectId: supabaseProjectId || 'not set',
-  });
-}
 
 // Resolve the correct base URL for Edge Functions
 function resolveFunctionsBaseUrl(): string | null {
