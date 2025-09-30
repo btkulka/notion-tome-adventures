@@ -1,1 +1,28 @@
 project_id = "xhrobkdzjabllhftksvt"
+
+[functions.generate-encounter]
+verify_jwt = false
+
+[functions.fetch-environments]
+verify_jwt = false
+
+[functions.fetch-creatures]
+verify_jwt = false
+
+[functions.fetch-sessions]
+verify_jwt = false
+
+[functions.discover-notion-databases]
+verify_jwt = false
+
+[functions.get-notion-schema]
+verify_jwt = false
+
+[functions.save-encounter]
+verify_jwt = false
+
+[functions.debug-environments]
+verify_jwt = false
+
+[functions.simple-debug]
+verify_jwt = false
