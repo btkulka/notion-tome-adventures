@@ -29,6 +29,12 @@ if (rootElement) {
   safeLog.info('✅ Root element found, initializing React...');
   
   try {
+    // Remove initial loader
+    const initialLoader = document.getElementById('initial-loader');
+    if (initialLoader) {
+      initialLoader.style.display = 'none';
+    }
+    
     const root = createRoot(rootElement);
     root.render(<App />);
     
