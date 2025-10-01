@@ -122,15 +122,8 @@ serve(async (req) => {
     // Build filters
     const filters: any[] = []
     
-    // Environment filter
-    if (params.environment && params.environment !== 'Any') {
-      filters.push({
-        property: 'Environment',
-        multi_select: {
-          contains: params.environment
-        }
-      })
-    }
+    // Note: Environment filtering is done post-query to handle flexible property names
+    // The property might be named 'Environment', 'Environments', or 'Terrain'
     
     // CR filter
     if (params.minCR || params.maxCR) {
@@ -221,11 +214,22 @@ serve(async (req) => {
     
     console.log(`✅ Parsed ${creatures.length} valid creatures`)
     
+    // Filter by environment (post-query since property name varies)
+    let environmentFiltered = creatures
+    if (params.environment && params.environment !== 'Any') {
+      environmentFiltered = creatures.filter(c => 
+        c.environment.some((env: string) => 
+          env.toLowerCase().includes(params.environment.toLowerCase())
+        )
+      )
+      console.log(`🌍 ${environmentFiltered.length} creatures after environment filtering (${params.environment})`)
+    }
+    
     // Filter by CR range
     const minCRValue = CR_VALUES[params.minCR || '0'] || 0
     const maxCRValue = CR_VALUES[params.maxCR || '30'] || 30
     
-    const filteredCreatures = creatures.filter(c => {
+    const filteredCreatures = environmentFiltered.filter(c => {
       const crValue = CR_VALUES[c.cr] || 0
       return crValue >= minCRValue && crValue <= maxCRValue
     })

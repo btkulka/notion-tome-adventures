@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dice6, Swords, ExternalLink, ChevronRight, ChevronDown, FileText, Sparkles, Scroll, Menu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ErrorToastContent } from '@/components/ui/error-toast-content';
 import { useNotionService, NotionSession } from '@/hooks/useNotionService';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { EdgeFunctionError } from '@/components/ui/edge-function-error';
@@ -216,6 +217,7 @@ const Index = () => {
       
       encounterLogger.error('Encounter generation failed', error);
       const errorMessage = error instanceof Error ? error.message : "Failed to generate encounter. Check your Notion configuration.";
+      const errorObj = error instanceof Error ? error : new Error(errorMessage);
       
       // Check if this is an environment-related error and show detailed info
       if (errorMessage.includes('No creatures found for environment') && errorMessage.includes('Available environments:')) {
@@ -224,13 +226,21 @@ const Index = () => {
         
         toast({
           title: "No Creatures Found",
-          description: `No creatures available for "${params.environment}". Available: ${availableEnvs}`,
+          description: <ErrorToastContent 
+            title="No Creatures Found"
+            message={`No creatures available for "${params.environment}". Available: ${availableEnvs}`}
+            error={errorObj}
+          />,
           variant: "destructive"
         });
       } else {
         toast({
           title: "Generation Failed",
-          description: errorMessage,
+          description: <ErrorToastContent 
+            title="Generation Failed"
+            message={errorMessage}
+            error={errorObj}
+          />,
           variant: "destructive"
         });
       }
