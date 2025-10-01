@@ -24,10 +24,8 @@ import { encounterLogger, createLogger } from '@/utils/logger';
 import { useProgressiveGeneration } from '@/hooks/useProgressiveGeneration';
 
 const Index = () => {
-  const componentMountTime = performance.now();
-  const logger = createLogger('Index');
-  
-  logger.info('🎮 Index component mounting...');
+  const componentMountTimeRef = useRef(performance.now());
+  const loggerRef = useRef(createLogger('Index'));
   
   const { toast } = useToast();
   const { generateEncounter, saveEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
@@ -76,9 +74,9 @@ const Index = () => {
     renderCount.current += 1;
     
     if (isFirstRender.current) {
-      const mountDuration = (performance.now() - componentMountTime).toFixed(2);
-      logger.info(`✅ Index component mounted (${mountDuration}ms)`);
-      logger.debug('Initial state:', {
+      const mountDuration = (performance.now() - componentMountTimeRef.current).toFixed(2);
+      loggerRef.current.info(`✅ Index component mounted (${mountDuration}ms)`);
+      loggerRef.current.debug('Initial state:', {
         params,
         hasEncounter: !!encounter,
         isGenerating,
@@ -86,7 +84,7 @@ const Index = () => {
       isFirstRender.current = false;
     }
     
-    logger.debug(`Render #${renderCount.current}`, {
+    loggerRef.current.debug(`Render #${renderCount.current}`, {
       generatingEncounter,
       hasEncounter: !!encounter,
       isGenerating,
@@ -97,7 +95,7 @@ const Index = () => {
   // Track state changes
   useEffect(() => {
     if (encounter) {
-      logger.info('📊 Encounter state updated:', {
+      loggerRef.current.info('📊 Encounter state updated:', {
         name: encounter.encounter_name,
         totalXP: encounter.total_xp,
         creatureCount: encounter.creatures.length,
@@ -106,7 +104,7 @@ const Index = () => {
   }, [encounter]);
   
   useEffect(() => {
-    logger.debug('Generation state changed:', {
+    loggerRef.current.debug('Generation state changed:', {
       generatingEncounter,
       isGenerating,
       hasAbortController: !!abortController,

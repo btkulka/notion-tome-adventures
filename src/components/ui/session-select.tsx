@@ -42,12 +42,12 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
 
   // Load initial sessions on mount
   useEffect(() => {
+    encounterLogger.debug('SessionSelect mounted - loading sessions');
     loadSessions();
   }, []);
 
   const loadSessions = async (search?: string) => {
     setIsLoading(true);
-    encounterLogger.debug('Fetching sessions', { search });
     
     const result = await fetchSessions(search);
     

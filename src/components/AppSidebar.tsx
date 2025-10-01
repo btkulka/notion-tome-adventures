@@ -57,7 +57,6 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
   const [envError, setEnvError] = React.useState<Error | null>(null);
 
   const loadEnvironments = async () => {
-    notionLogger.info('Attempting to load environments from Notion');
     const result = await fetchEnvironments();
     
     if (!result.success) {
@@ -79,6 +78,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
   };
 
   React.useEffect(() => {
+    notionLogger.info('AppSidebar mounted - loading environments from Notion');
     loadEnvironments();
   }, []);
 

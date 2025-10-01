@@ -22,9 +22,18 @@ class Logger {
   private config: LoggerConfig;
 
   constructor(config: Partial<LoggerConfig> = {}) {
+    // Safe handling of import.meta.env which might be undefined during initialization
+    let isProd = false;
+    try {
+      isProd = import.meta?.env?.PROD === true;
+    } catch (e) {
+      // If import.meta is not available, default to development mode
+      isProd = false;
+    }
+    
     this.config = {
-      level: import.meta.env.PROD ? LogLevel.WARN : LogLevel.DEBUG,
-      enableConsole: !import.meta.env.PROD,
+      level: isProd ? LogLevel.WARN : LogLevel.DEBUG,
+      enableConsole: !isProd,
       enableTimestamp: true,
       ...config
     };
@@ -35,41 +44,62 @@ class Logger {
   }
 
   private formatMessage(level: string, message: string, data?: any): string {
-    const timestamp = this.config.enableTimestamp 
-      ? `[${new Date().toLocaleTimeString()}] ` 
-      : '';
-    const prefix = this.config.prefix ? `[${this.config.prefix}] ` : '';
-    
-    let formatted = `${timestamp}${prefix}${level}: ${message}`;
-    
-    if (data !== undefined) {
-      formatted += ` ${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}`;
+    try {
+      const timestamp = this.config.enableTimestamp 
+        ? `[${new Date().toLocaleTimeString()}] ` 
+        : '';
+      const prefix = this.config.prefix ? `[${this.config.prefix}] ` : '';
+      
+      let formatted = `${timestamp}${prefix}${level}: ${message}`;
+      
+      if (data !== undefined) {
+        formatted += ` ${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}`;
+      }
+      
+      return formatted;
+    } catch (e) {
+      // Fallback to simple message if formatting fails
+      return `${level}: ${message}`;
     }
-    
-    return formatted;
   }
 
   debug(message: string, data?: any): void {
-    if (this.shouldLog(LogLevel.DEBUG)) {
-      console.log(this.formatMessage('🔍 DEBUG', message, data));
+    try {
+      if (this.shouldLog(LogLevel.DEBUG)) {
+        console.log(this.formatMessage('🔍 DEBUG', message, data));
+      }
+    } catch (e) {
+      // Silently fail - logging should never crash the app
     }
   }
 
   info(message: string, data?: any): void {
-    if (this.shouldLog(LogLevel.INFO)) {
-      console.info(this.formatMessage('ℹ️ INFO', message, data));
+    try {
+      if (this.shouldLog(LogLevel.INFO)) {
+        console.info(this.formatMessage('ℹ️ INFO', message, data));
+      }
+    } catch (e) {
+      // Silently fail - logging should never crash the app
     }
   }
 
   warn(message: string, data?: any): void {
-    if (this.shouldLog(LogLevel.WARN)) {
-      console.warn(this.formatMessage('⚠️ WARN', message, data));
+    try {
+      if (this.shouldLog(LogLevel.WARN)) {
+        console.warn(this.formatMessage('⚠️ WARN', message, data));
+      }
+    } catch (e) {
+      // Silently fail - logging should never crash the app
     }
   }
 
   error(message: string, error?: any): void {
-    if (this.shouldLog(LogLevel.ERROR)) {
-      console.error(this.formatMessage('❌ ERROR', message, error));
+    try {
+      if (this.shouldLog(LogLevel.ERROR)) {
+        console.error(this.formatMessage('❌ ERROR', message, error));
+      }
+    } catch (e) {
+      // Silently fail - logging should never crash the app
     }
   }
 
