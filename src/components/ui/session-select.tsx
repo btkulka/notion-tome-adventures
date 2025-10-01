@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useNotionService, NotionSession } from '@/hooks/useNotionService';
 import { useToast } from '@/hooks/use-toast';
 import { encounterLogger } from '@/utils/logger';
+import { EdgeFunctionError } from '@/components/ui/edge-function-error';
 
 interface SessionSelectProps {
   value: NotionSession | null;
@@ -26,6 +27,7 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [sessions, setSessions] = useState<NotionSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionError, setSessionError] = useState<Error | null>(null);
   const { fetchSessions } = useNotionService();
   const { toast } = useToast();
 
@@ -44,24 +46,26 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
   }, []);
 
   const loadSessions = async (search?: string) => {
-    try {
-      setIsLoading(true);
-      encounterLogger.debug('Fetching sessions', { search });
-      
-      const result = await fetchSessions(search);
-      setSessions(result.sessions);
-      
-      encounterLogger.info('Sessions loaded successfully', { count: result.sessions.length });
-    } catch (error) {
-      encounterLogger.error('Failed to load sessions', error);
-      toast({
-        title: "Failed to load sessions",
-        description: "Could not fetch sessions from Notion. Please check your integration.",
-        variant: "destructive",
-      });
-    } finally {
+    setIsLoading(true);
+    encounterLogger.debug('Fetching sessions', { search });
+    
+    const result = await fetchSessions(search);
+    
+    if (!result.success) {
+      encounterLogger.error('Failed to load sessions', result.error);
+      setSessionError(result.error || new Error('Unknown error'));
+      setSessions([]);
       setIsLoading(false);
+      return;
     }
+    
+    if (result.data?.sessions) {
+      setSessions(result.data.sessions);
+      setSessionError(null);
+      encounterLogger.info('Sessions loaded successfully', { count: result.data.sessions.length });
+    }
+    
+    setIsLoading(false);
   };
 
   const filteredSessions = useMemo(() => {
@@ -96,8 +100,18 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <>
+      {sessionError && (
+        <div className="mb-2">
+          <EdgeFunctionError
+            error={sessionError}
+            operationName="fetch sessions"
+            onRetry={() => loadSessions(searchQuery)}
+          />
+        </div>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
         <Button
           variant="outline"
           role="combobox"
@@ -181,6 +195,7 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
           </CommandList>
         </Command>
       </PopoverContent>
-    </Popover>
+      </Popover>
+    </>
   );
 };

@@ -24,6 +24,7 @@ import { EncounterParams } from '@/types/encounter';
 import { notionLogger } from '@/utils/logger';
 import { useToast } from '@/hooks/use-toast';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
+import { EdgeFunctionError } from '@/components/ui/edge-function-error';
 
 // Static data for filters
 const alignments = [
@@ -53,26 +54,31 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
   const { fetchEnvironments, debugEnvironments, simpleDebug, loading: environmentsLoading, error: environmentsError } = useNotionService();
   const { toast } = useToast();
   const [environments, setEnvironments] = React.useState<{ id: string; name: string }[]>([]);
+  const [envError, setEnvError] = React.useState<Error | null>(null);
+
+  const loadEnvironments = async () => {
+    notionLogger.info('Attempting to load environments from Notion');
+    const result = await fetchEnvironments();
+    
+    if (!result.success) {
+      notionLogger.error('Failed to load environments from Notion', result.error);
+      setEnvError(result.error || new Error('Unknown error'));
+      setEnvironments([]);
+      return;
+    }
+    
+    if (result.data && result.data.environments && result.data.environments.length > 0) {
+      notionLogger.info('Successfully loaded environments from Notion', { count: result.data.environments.length });
+      notionLogger.debug('Environment data', result.data.environments);
+      setEnvironments(result.data.environments);
+      setEnvError(null);
+    } else {
+      notionLogger.warn('No environments returned from Notion database');
+      setEnvironments([]);
+    }
+  };
 
   React.useEffect(() => {
-    const loadEnvironments = async () => {
-      try {
-        notionLogger.info('Attempting to load environments from Notion');
-        const result = await fetchEnvironments();
-        if (result && result.environments && result.environments.length > 0) {
-          notionLogger.info('Successfully loaded environments from Notion', { count: result.environments.length });
-          notionLogger.debug('Environment data', result.environments);
-          setEnvironments(result.environments);
-        } else {
-          notionLogger.warn('No environments returned from Notion database');
-          setEnvironments([]);
-        }
-      } catch (err) {
-        notionLogger.error('Failed to load environments from Notion', err);
-        setEnvironments([]);
-      }
-    };
-
     loadEnvironments();
   }, []);
 
@@ -109,23 +115,24 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
   }));
 
   const handleSimpleDebug = async () => {
-    try {
-      const result = await simpleDebug();
-      notionLogger.debug('Simple debug result:', result);
-      
-      toast({
-        title: "Property Keys Debug",
-        description: `Debug result returned. Check console for details.`,
-        variant: "default"
-      });
-    } catch (error) {
-      notionLogger.error('Simple debug failed:', error);
+    const result = await simpleDebug();
+    
+    if (!result.success) {
+      notionLogger.error('Simple debug failed:', result.error);
       toast({
         title: "Debug Failed", 
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: result.error?.message || "Unknown error",
         variant: "destructive"
       });
+      return;
     }
+    
+    notionLogger.debug('Simple debug result:', result.data);
+    toast({
+      title: "Property Keys Debug",
+      description: `Debug result returned. Check console for details.`,
+      variant: "default"
+    });
   };
 
   return (
@@ -155,6 +162,15 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
           {open && (
             <SidebarGroupContent className="px-6 py-6">
               <div className="space-y-8">
+                {/* Error Display */}
+                {envError && (
+                  <EdgeFunctionError
+                    error={envError}
+                    operationName="fetch environments"
+                    onRetry={loadEnvironments}
+                  />
+                )}
+                
                 {/* Environment Section */}
                 <SelectField
                   label="Environment"

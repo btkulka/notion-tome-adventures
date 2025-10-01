@@ -40,15 +40,22 @@ export interface CreatureFilters {
   size?: string
 }
 
+export interface EdgeFunctionResult<T> {
+  success: boolean
+  data?: T
+  error?: Error
+  operationName: string
+}
+
 export const useNotionService = () => {
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Error | null>(null)
 
   const executeWithErrorHandling = async <T>(
     operation: () => Promise<T>,
     operationName: string,
     signal?: AbortSignal
-  ): Promise<T> => {
+  ): Promise<EdgeFunctionResult<T>> => {
     try {
       setLoading(true)
       setError(null)
@@ -56,70 +63,79 @@ export const useNotionService = () => {
       
       // Check if already aborted
       if (signal?.aborted) {
-        throw new DOMException('Operation was aborted', 'AbortError');
+        const abortError = new DOMException('Operation was aborted', 'AbortError');
+        setError(abortError as Error);
+        return { success: false, error: abortError as Error, operationName };
       }
       
       const result = await operation()
       
       // Check if aborted after operation
       if (signal?.aborted) {
-        throw new DOMException('Operation was aborted', 'AbortError');
+        const abortError = new DOMException('Operation was aborted', 'AbortError');
+        setError(abortError as Error);
+        return { success: false, error: abortError as Error, operationName };
       }
       
       notionLogger.info(`✅ ${operationName} completed successfully`, result)
-      return result
+      return { success: true, data: result, operationName }
     } catch (err: unknown) {
       // Handle abort errors specially
       if (err instanceof DOMException && err.name === 'AbortError') {
         notionLogger.warn(`🚫 ${operationName} was cancelled`)
-        throw err
+        setError(err as Error);
+        return { success: false, error: err as Error, operationName }
       }
       
       // Also handle other cancellation patterns
       if (err instanceof Error && err.message.includes('aborted')) {
         notionLogger.warn(`🚫 ${operationName} was cancelled`)
-        throw new DOMException('Operation was aborted', 'AbortError')
+        const abortError = new DOMException('Operation was aborted', 'AbortError');
+        setError(abortError as Error);
+        return { success: false, error: abortError as Error, operationName }
       }
       
       notionLogger.error(`❌ ${operationName} failed:`, err)
       
-      let errorMessage = `Failed to ${operationName}`
+      let error: Error;
       
       if (err instanceof Error) {
-        errorMessage = err.message
+        error = err;
         notionLogger.error(`🔥 Error details:`, {
           name: err.name,
           message: err.message,
           stack: err.stack
         })
+      } else {
+        error = new Error(`Failed to ${operationName}`);
       }
       
-      setError(errorMessage)
+      setError(error)
       
       // Only log simplified messages for expected issues
-      if (errorMessage.includes('NOTION_API_KEY') || errorMessage.includes('DATABASE_ID')) {
+      if (error.message.includes('NOTION_API_KEY') || error.message.includes('DATABASE_ID')) {
         notionLogger.warn(`⚠️ ${operationName}: Notion integration not configured`)
-      } else if (errorMessage.includes('Notion integration') || errorMessage.includes('temporarily unavailable')) {
+      } else if (error.message.includes('Notion integration') || error.message.includes('temporarily unavailable')) {
         notionLogger.warn(`⚠️ ${operationName}: Using fallback data`)
       } else {
         notionLogger.error(`💥 Unexpected error in ${operationName}:`, err)
       }
       
-      throw new Error(errorMessage)
+      return { success: false, error, operationName }
     } finally {
       setLoading(false)
     }
   }
 
   // Discovery operations
-  const discoverDatabases = async (): Promise<{ allDatabases: NotionDatabase[]; matches: DatabaseMatch[] }> => {
+  const discoverDatabases = async () => {
     return executeWithErrorHandling(
       () => callEdgeFunction('discover-notion-databases'),
       'discover databases'
     )
   }
 
-  const getSchema = async (databaseId: string): Promise<DatabaseSchema> => {
+  const getSchema = async (databaseId: string) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('get-notion-schema', { databaseId }),
       'get database schema'
@@ -127,28 +143,28 @@ export const useNotionService = () => {
   }
 
   // Data fetching operations
-  const fetchCreatures = async (filters?: CreatureFilters): Promise<{ creatures: NotionCreature[] }> => {
+  const fetchCreatures = async (filters?: CreatureFilters) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('fetch-creatures', filters),
       'fetch creatures'
     )
   }
 
-  const fetchEnvironments = async (): Promise<{ environments: NotionEnvironment[] }> => {
+  const fetchEnvironments = async () => {
     return executeWithErrorHandling(
       () => callEdgeFunction('fetch-environments'),
       'fetch environments'
     )
   }
 
-  const fetchSessions = async (searchQuery?: string): Promise<{ sessions: NotionSession[] }> => {
+  const fetchSessions = async (searchQuery?: string) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('fetch-sessions', searchQuery ? { search: searchQuery } : {}),
       'fetch sessions'
     )
   }
 
-  const generateEncounter = async (params: NotionEncounterParams, signal?: AbortSignal): Promise<GeneratedEncounter> => {
+  const generateEncounter = async (params: NotionEncounterParams, signal?: AbortSignal) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('generate-encounter', params, signal),
       'generate encounter',
@@ -156,21 +172,21 @@ export const useNotionService = () => {
     )
   }
 
-  const saveEncounter = async (encounter: GeneratedEncounter): Promise<{ pageId: string; pageUrl: string; message: string }> => {
+  const saveEncounter = async (encounter: GeneratedEncounter) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('save-encounter', encounter),
       'save encounter to Notion'
     )
   }
 
-  const debugEnvironments = async (): Promise<unknown> => {
+  const debugEnvironments = async () => {
     return executeWithErrorHandling(
       () => callEdgeFunction('debug-environments'),
       'debug environments'
     )
   }
 
-  const simpleDebug = async (): Promise<unknown> => {
+  const simpleDebug = async () => {
     return executeWithErrorHandling(
       () => callEdgeFunction('simple-debug'),
       'simple debug'

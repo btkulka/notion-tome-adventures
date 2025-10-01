@@ -28,27 +28,24 @@ export function useEnvironments(): UseEnvironmentsReturn {
       setLoading(true);
       setError(null);
       
-      try {
-        notionLogger.info('🌍 Attempting to load environments from Notion...');
-        const result = await notionService.fetchEnvironments();
+      notionLogger.info('🌍 Attempting to load environments from Notion...');
+      const result = await notionService.fetchEnvironments();
+      
+      if (result.success && result.data?.environments?.length > 0) {
+        notionLogger.info(`✅ Successfully loaded ${result.data.environments.length} environments from Notion`);
+        notionLogger.debug('📋 Environment data:', result.data.environments);
         
-        if (result?.environments?.length > 0) {
-          notionLogger.info(`✅ Successfully loaded ${result.environments.length} environments from Notion`);
-          notionLogger.debug('📋 Environment data:', result.environments);
-          
-          setEnvironments(result.environments);
-          setIsUsingDefaults(false);
-        } else {
-          notionLogger.warn('⚠️ No environments returned from Notion, using defaults');
-          setDefaultEnvironments();
+        setEnvironments(result.data.environments);
+        setIsUsingDefaults(false);
+      } else {
+        notionLogger.warn('⚠️ No environments returned from Notion, using defaults');
+        if (result.error) {
+          setError(result.error.message);
         }
-      } catch (err) {
-        notionLogger.warn('🏔️ Notion integration not available, using default environments');
         setDefaultEnvironments();
-        setError(err instanceof Error ? err.message : 'Failed to load environments');
-      } finally {
-        setLoading(false);
       }
+      
+      setLoading(false);
     };
 
     const setDefaultEnvironments = () => {

@@ -10,6 +10,7 @@ import { Dice6, Swords, ExternalLink, ChevronRight, ChevronDown, FileText, Spark
 import { useToast } from '@/hooks/use-toast';
 import { useNotionService, NotionSession } from '@/hooks/useNotionService';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { EdgeFunctionError } from '@/components/ui/edge-function-error';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EncounterParams, NotionEncounterParams, GeneratedEncounter } from '@/types/encounter';
@@ -45,6 +46,7 @@ const Index = () => {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [isLogExpanded, setIsLogExpanded] = useState(false);
   const [generationLogs, setGenerationLogs] = useState<string[]>([]);
+  const [fatalError, setFatalError] = useState<Error | null>(null);
   // Tab state management for monster cards
   const [monsterCardTabs, setMonsterCardTabs] = useState<Record<string, string | null>>({});
   
@@ -158,6 +160,11 @@ const Index = () => {
       encounterLogger.debug('Calling generateEncounter', notionParams);
       const result = await generateEncounter(notionParams, controller.signal);
       
+      // Check if generation failed
+      if (!result.success) {
+        throw result.error || new Error('Unknown error during encounter generation');
+      }
+      
       // Mark processing steps as complete
       markStepComplete('resolve-relations');
       markStepComplete('process-creatures');
@@ -169,16 +176,17 @@ const Index = () => {
         return;
       }
       
-      encounterLogger.info('Encounter generation result', result);
+      encounterLogger.info('Encounter generation result', result.data);
       
-      if (result) {
-        setEncounter(result);
+      if (result.data) {
+        setEncounter(result.data);
+        setFatalError(null);
         completeGeneration();
-        setGenerationLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Successfully generated encounter with ${result.total_xp} XP`]);
+        setGenerationLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Successfully generated encounter with ${result.data.total_xp} XP`]);
         
         // Initialize tab states for all monster cards (default to "loot" tab)
         const initialTabStates: Record<string, string | null> = {};
-        result.creatures.forEach((creature, creatureIndex) => {
+        result.data.creatures.forEach((creature, creatureIndex) => {
           for (let instanceIndex = 0; instanceIndex < creature.quantity; instanceIndex++) {
             const cardKey = `${creatureIndex}-${instanceIndex}`;
             initialTabStates[cardKey] = "loot";
@@ -188,14 +196,15 @@ const Index = () => {
         
         toast({
           title: "Encounter Generated!",
-          description: `Generated an encounter with ${result.total_xp} XP.`,
+          description: `Generated an encounter with ${result.data.total_xp} XP.`,
         });
       } else {
         throw new Error("Failed to generate encounter - no result returned");
       }
     } catch (error: unknown) {
-      // Clear encounter on error
+      // Clear encounter on error and set fatal error
       setEncounter(null);
+      setFatalError(error instanceof Error ? error : new Error('Unknown error'));
       cancelGeneration();
       setGenerationLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`]);
       
@@ -259,24 +268,27 @@ const Index = () => {
   const handleSaveEncounter = async () => {
     if (!encounter) return;
     
-    try {
-      encounterLogger.info('Saving encounter to Notion');
-      const result = await saveEncounter(encounter);
-      
-      toast({
-        title: "Encounter Saved!",
-        description: "Successfully saved to Notion. Opening in new tab...",
-      });
-      
-      // Open the new Notion page in a new tab
-      window.open(result.pageUrl, '_blank');
-    } catch (error) {
-      encounterLogger.error('Failed to save encounter', error);
+    encounterLogger.info('Saving encounter to Notion');
+    const result = await saveEncounter(encounter);
+    
+    if (!result.success) {
+      encounterLogger.error('Failed to save encounter', result.error);
       toast({
         title: "Save Failed",
-        description: error instanceof Error ? error.message : "Failed to save encounter to Notion",
+        description: result.error?.message || "Failed to save encounter to Notion",
         variant: "destructive",
       });
+      return;
+    }
+    
+    toast({
+      title: "Encounter Saved!",
+      description: "Successfully saved to Notion. Opening in new tab...",
+    });
+    
+    // Open the new Notion page in a new tab
+    if (result.data?.pageUrl) {
+      window.open(result.data.pageUrl, '_blank');
     }
   };
 
@@ -303,6 +315,19 @@ const Index = () => {
             {/* Main content */}
             <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-7xl mx-auto w-full">
+                {/* Fatal Error Display */}
+                {fatalError && (
+                  <EdgeFunctionError
+                    error={fatalError}
+                    operationName="generate encounter"
+                    onRetry={() => {
+                      setFatalError(null);
+                      handleGenerate();
+                    }}
+                    className="mb-6"
+                  />
+                )}
+                
                 {/* Encounter Stats Section */}
                 {encounter && (
                   <div className="mb-6 lg:mb-8">
