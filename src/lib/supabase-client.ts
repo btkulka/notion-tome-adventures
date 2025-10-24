@@ -156,10 +156,3 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
   }
 }
 
-// HMR: Reset logger on module reload
-if (import.meta.hot) {
-  import.meta.hot.accept(() => {
-    console.log('🔄 Supabase client module reloaded');
-    _logger = null;
-  });
-}
