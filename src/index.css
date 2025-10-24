@@ -43,7 +43,7 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(280 85% 25%), hsl(280 85% 45%));
     --gradient-accent: linear-gradient(135deg, hsl(45 85% 45%), hsl(45 85% 65%));
     --gradient-mystical: linear-gradient(180deg, hsl(240 15% 8%), hsl(255 15% 12%));
-    
+
     /* Magical shadows */
     --shadow-mystical: 0 10px 30px -5px hsl(280 85% 25% / 0.4);
     --shadow-glow: 0 0 40px hsl(280 75% 55% / 0.3);
@@ -125,7 +125,7 @@ All colors MUST be HSL.
   /* Webkit Scrollbars */
   *::-webkit-scrollbar {
     width: 12px;
-    height: 12px;
+    height: 20px;
   }
 
   *::-webkit-scrollbar-track {
@@ -177,7 +177,7 @@ All colors MUST be HSL.
 
   /* Custom increment/decrement buttons */
   .number-input-container::after {
-    content: '';
+    content: "";
     position: absolute;
     right: 8px;
     top: 50%;
@@ -201,7 +201,9 @@ All colors MUST be HSL.
   input[type="number"]:focus {
     outline: none;
     border-color: hsl(280 85% 45%);
-    box-shadow: 0 0 0 2px hsl(280 85% 45% / 0.2), 0 2px 12px hsl(280 85% 35% / 0.3);
+    box-shadow:
+      0 0 0 2px hsl(280 85% 45% / 0.2),
+      0 2px 12px hsl(280 85% 35% / 0.3);
   }
 
   /* Range/Slider Styling */
@@ -281,7 +283,9 @@ All colors MUST be HSL.
   select:focus {
     outline: none;
     border-color: hsl(280 85% 45%);
-    box-shadow: 0 0 0 2px hsl(280 85% 45% / 0.2), 0 2px 12px hsl(280 85% 35% / 0.3);
+    box-shadow:
+      0 0 0 2px hsl(280 85% 45% / 0.2),
+      0 2px 12px hsl(280 85% 35% / 0.3);
   }
 
   /* Enhanced Button Hover Effects */
@@ -295,7 +299,7 @@ All colors MUST be HSL.
   }
 
   .btn-mystical::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: -100%;
@@ -311,7 +315,9 @@ All colors MUST be HSL.
 
   .btn-mystical:hover {
     background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
-    box-shadow: 0 4px 16px hsl(280 85% 35% / 0.5), 0 0 20px hsl(45 85% 55% / 0.3);
+    box-shadow:
+      0 4px 16px hsl(280 85% 35% / 0.5),
+      0 0 20px hsl(45 85% 55% / 0.3);
     transform: translateY(-1px);
   }
 
