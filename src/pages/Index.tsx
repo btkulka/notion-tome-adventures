@@ -20,7 +20,6 @@ import { MonsterCardContextMenu } from '@/components/ui/monster-card-context-men
 import { FloatingProgressBar } from '@/components/floating-progress-bar';
 import { AbilityScoresRadialChart } from '@/components/ui/ability-scores-radial-chart';
 import { SessionSelect } from '@/components/ui/session-select';
-import { encounterLogger } from '@/utils/logger';
 import { createSafeLogger } from '@/utils/safe-logger';
 import { useProgressiveGeneration } from '@/hooks/useProgressiveGeneration';
 
@@ -137,7 +136,7 @@ const Index = () => {
     setEncounter(null);
     
     try {
-      encounterLogger.encounter('Starting encounter generation', params);
+      loggerRef.current.encounter('Starting encounter generation', params);
       
       // Mark initial steps as we prepare the request
       setTimeout(() => markStepComplete('notion-connect'), 200);
@@ -157,7 +156,7 @@ const Index = () => {
       // Mark that we're about to fetch creatures
       setTimeout(() => markStepComplete('fetch-creatures'), 600);
       
-      encounterLogger.debug('Calling generateEncounter', notionParams);
+      loggerRef.current.debug('Calling generateEncounter', notionParams);
       const result = await generateEncounter(notionParams, controller.signal);
       
       // Check if generation failed
@@ -172,11 +171,11 @@ const Index = () => {
       
       // Check if the operation was cancelled
       if (controller.signal.aborted) {
-        encounterLogger.info('Encounter generation was cancelled');
+        loggerRef.current.info('Encounter generation was cancelled');
         return;
       }
       
-      encounterLogger.info('Encounter generation result', result.data);
+      loggerRef.current.info('Encounter generation result', result.data);
       
       if (result.data) {
         setEncounter(result.data);
@@ -210,11 +209,11 @@ const Index = () => {
       
       // Don't show error if operation was cancelled - the cancel handler already showed feedback
       if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
-        encounterLogger.info('Encounter generation was cancelled by user');
+        loggerRef.current.info('Encounter generation was cancelled by user');
         return; // Don't show additional toast - already handled in handleCancel
       }
       
-      encounterLogger.error('Encounter generation failed', error);
+      loggerRef.current.error('Encounter generation failed', error);
       const errorMessage = error instanceof Error ? error.message : "Failed to generate encounter. Check your Notion configuration.";
       const errorObj = error instanceof Error ? error : new Error(errorMessage);
       
@@ -251,7 +250,7 @@ const Index = () => {
 
   const handleCancel = () => {
     if (abortController) {
-      encounterLogger.info('Cancelling encounter generation');
+      loggerRef.current.info('Cancelling encounter generation');
       
       // Cancel progressive generation
       cancelGeneration();
@@ -277,11 +276,11 @@ const Index = () => {
   const handleSaveEncounter = async () => {
     if (!encounter) return;
     
-    encounterLogger.info('Saving encounter to Notion');
+    loggerRef.current.info('Saving encounter to Notion');
     const result = await saveEncounter(encounter);
     
     if (!result.success) {
-      encounterLogger.error('Failed to save encounter', result.error);
+      loggerRef.current.error('Failed to save encounter', result.error);
       toast({
         title: "Save Failed",
         description: result.error?.message || "Failed to save encounter to Notion",
@@ -465,10 +464,10 @@ const Index = () => {
                                 key={`${creatureIndex}-${instanceIndex}`}
                                 monsterName={creature.name}
                                 onOpenMonsterInstance={() => {
-                                  encounterLogger.debug('Open monster instance', creature.name);
+                                  loggerRef.current.debug('Open monster instance', creature.name);
                                 }}
                                 onOpenMonsterData={() => {
-                                  encounterLogger.debug('Open monster data', creature.name);
+                                  loggerRef.current.debug('Open monster data', creature.name);
                                 }}
                               >
                                 <Card className="bg-gradient-to-br from-card to-muted/20 border-border/50 shadow-lg hover:shadow-mystical transition-all duration-300">

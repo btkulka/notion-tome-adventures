@@ -2,7 +2,9 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { logger } from '@/utils/logger'
+import { createSafeLogger } from '@/utils/safe-logger'
+
+const logger = createSafeLogger('Bootstrap');
 
 // Track startup timing
 const startupTimestamp = performance.now();

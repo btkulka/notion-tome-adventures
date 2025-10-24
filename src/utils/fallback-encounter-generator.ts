@@ -5,7 +5,9 @@
 
 import { createAdvancedEncounterGenerator, CreaturePool } from '@/services/advanced-encounter-generator';
 import { NotionEncounterParams, GeneratedEncounter } from '@/types/encounter';
-import { logger } from '@/utils/logger';
+import { createSafeLogger } from '@/utils/safe-logger';
+
+const logger = createSafeLogger('FallbackGenerator');
 
 // Mock creature data for fallback
 const MOCK_CREATURES: CreaturePool[] = [
