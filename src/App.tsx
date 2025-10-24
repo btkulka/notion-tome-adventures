@@ -41,6 +41,32 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 }
 
 const App = () => {
+  // HMR Error Handler - Show visible error instead of white screen
+  React.useEffect(() => {
+    if (import.meta.hot) {
+      import.meta.hot.on('vite:error', (error) => {
+        console.error('❌ HMR Error:', error);
+        const existingError = document.getElementById('hmr-error-overlay');
+        if (!existingError) {
+          const errorDiv = document.createElement('div');
+          errorDiv.id = 'hmr-error-overlay';
+          errorDiv.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); color: white; display: flex; align-items: center; justify-content: center; z-index: 9999; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="text-align: center; padding: 2rem; max-width: 500px;">
+                <h1 style="color: #ef4444; margin-bottom: 1rem; font-size: 1.5rem; font-weight: bold;">⚠️ HMR Update Failed</h1>
+                <p style="margin-bottom: 1.5rem; color: #d1d5db;">A hot module replacement failed. The app needs to reload.</p>
+                <button onclick="window.location.reload()" style="margin-top: 1rem; padding: 0.75rem 1.5rem; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 1rem; font-weight: 500; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                  Reload Page
+                </button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(errorDiv);
+        }
+      });
+    }
+  }, []);
+
   try {
     return (
       <QueryClientProvider client={queryClient}>

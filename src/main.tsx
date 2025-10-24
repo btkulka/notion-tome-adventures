@@ -7,20 +7,29 @@ import { logger } from '@/utils/logger'
 // Track startup timing
 const startupTimestamp = performance.now();
 
-logger.info('Application bootstrap started');
+// Safe logger wrapper for bootstrap
+const safeLog = (fn: () => void) => {
+  try {
+    fn();
+  } catch (e) {
+    console.log('[BOOTSTRAP]', 'Logger not ready');
+  }
+};
+
+safeLog(() => logger.info('Application bootstrap started'));
 
 // Validate critical environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  logger.warn('Supabase configuration incomplete');
+  safeLog(() => logger.warn('Supabase configuration incomplete'));
 }
 
 const rootElement = document.getElementById("root");
 
 if (rootElement) {
-  logger.info('Root element found, initializing React...');
+  safeLog(() => logger.info('Root element found, initializing React...'));
   
   try {
     // Remove initial loader
@@ -33,24 +42,24 @@ if (rootElement) {
     root.render(<App />);
     
     const bootTime = (performance.now() - startupTimestamp).toFixed(2);
-    logger.info(`React render complete (${bootTime}ms)`);
+    safeLog(() => logger.info(`React render complete (${bootTime}ms)`));
     
     // HMR event handlers for debugging
     if (import.meta.hot) {
       import.meta.hot.on('vite:beforeUpdate', () => {
-        logger.info('🔄 HMR: Preparing to update...');
+        safeLog(() => logger.info('🔄 HMR: Preparing to update...'));
       });
       
       import.meta.hot.on('vite:afterUpdate', () => {
-        logger.info('✅ HMR: Update complete');
+        safeLog(() => logger.info('✅ HMR: Update complete'));
       });
       
       import.meta.hot.on('vite:error', (error) => {
-        logger.error('❌ HMR: Error during update', error);
+        safeLog(() => logger.error('❌ HMR: Error during update', error));
       });
     }
   } catch (error) {
-    logger.error('Fatal error during React initialization', error);
+    safeLog(() => logger.error('Fatal error during React initialization', error));
     
     // Display user-friendly error
     rootElement.innerHTML = `
@@ -72,7 +81,7 @@ if (rootElement) {
     `;
   }
 } else {
-  logger.error('CRITICAL: Root element not found in DOM!');
+  safeLog(() => logger.error('CRITICAL: Root element not found in DOM!'));
   
   // Fallback error display
   document.body.innerHTML = `

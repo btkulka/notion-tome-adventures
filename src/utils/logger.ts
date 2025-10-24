@@ -172,9 +172,19 @@ export const createLogger = (prefix: string, config?: Partial<LoggerConfig>) => 
 // Export Logger class for external use
 export { Logger };
 
-// HMR acceptance - prevents white screen on hot reload
+// HMR: Accept hot updates and reset initialization state
 if (import.meta.hot) {
-  import.meta.hot.accept(() => {
+  import.meta.hot.accept((newModule) => {
     console.log('🔄 Logger module reloaded');
+    if (newModule) {
+      // Force re-initialization on next use
+      if (logger instanceof Logger) logger['initialized'] = false;
+      if (encounterLogger instanceof Logger) encounterLogger['initialized'] = false;
+      if (notionLogger instanceof Logger) notionLogger['initialized'] = false;
+    }
+  });
+  
+  import.meta.hot.dispose(() => {
+    console.log('🧹 Logger module disposing');
   });
 }

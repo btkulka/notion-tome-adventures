@@ -1,7 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import { createLogger } from '@/utils/logger'
 
-const logger = createLogger('Supabase');
+// Lazy logger - only creates when needed
+let _logger: ReturnType<typeof createLogger> | null = null;
+const getLogger = () => {
+  if (!_logger) {
+    _logger = createLogger('Supabase');
+  }
+  return _logger;
+};
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
@@ -28,7 +35,11 @@ function resolveFunctionsBaseUrl(): string | null {
 const functionsBaseUrl = resolveFunctionsBaseUrl()
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  logger.warn('Supabase env not set (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY). Edge calls will fail until configured.')
+  try {
+    getLogger().warn('Supabase env not set (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY). Edge calls will fail until configured.');
+  } catch (e) {
+    console.warn('[Supabase] Env not set');
+  }
 }
 
 export const supabase = createClient(
@@ -42,8 +53,8 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
   const callStartTime = performance.now();
   
   try {
-    logger.info(`📡 Calling edge function: ${functionName}`);
-    logger.debug('Request details:', {
+    getLogger().info(`📡 Calling edge function: ${functionName}`);
+    getLogger().debug('Request details:', {
       function: functionName,
       hasBody: !!body,
       hasCancelSignal: !!signal,
@@ -103,23 +114,23 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
 
     // Check for errors from Supabase client
     if (error) {
-      logger.error(`Edge function error for ${functionName}`, {
+      getLogger().error(`Edge function error for ${functionName}`, {
         message: error.message,
         details: error,
       });
       
       // Don't log verbose errors for expected failures (like missing Notion setup)
       if (error.message?.includes('NOTION_API_KEY') || error.message?.includes('DATABASE_ID')) {
-        logger.warn(`${functionName}: Notion integration not configured`);
+        getLogger().warn(`${functionName}: Notion integration not configured`);
       } else {
-        logger.error(`Edge function ${functionName} failed`, error.message);
+        getLogger().error(`Edge function ${functionName} failed`, error.message);
       }
       throw error;
     }
 
     const callDuration = (performance.now() - callStartTime).toFixed(2);
-    logger.info(`✅ Edge function ${functionName} succeeded (${callDuration}ms)`);
-    logger.debug('Response preview:', {
+    getLogger().info(`✅ Edge function ${functionName} succeeded (${callDuration}ms)`);
+    getLogger().debug('Response preview:', {
       dataKeys: data ? Object.keys(data) : [],
       dataSize: JSON.stringify(data).length,
     });
@@ -128,19 +139,27 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
   } catch (error) {
     // Handle abort errors specially
     if (error instanceof DOMException && error.name === 'AbortError') {
-      logger.info(`Edge function ${functionName} was cancelled`)
+      getLogger().info(`Edge function ${functionName} was cancelled`)
       throw error
     }
     
-    logger.error(`Exception calling ${functionName}`, error)
+    getLogger().error(`Exception calling ${functionName}`, error)
     
     // Simplified error logging for cleaner output
     if (error instanceof Error && error.message?.includes('non-2xx status code')) {
-      logger.warn(`${functionName}: Service returned non-2xx status code`)
-      logger.debug('Error details', error.message)
+      getLogger().warn(`${functionName}: Service returned non-2xx status code`)
+      getLogger().debug('Error details', error.message)
     } else {
-      logger.error('Exception details', error instanceof Error ? error.message : 'Unknown error')
+      getLogger().error('Exception details', error instanceof Error ? error.message : 'Unknown error')
     }
     throw error
   }
+}
+
+// HMR: Reset logger on module reload
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    console.log('🔄 Supabase client module reloaded');
+    _logger = null;
+  });
 }

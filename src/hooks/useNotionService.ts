@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { callEdgeFunction } from '@/lib/supabase-client'
 import { NotionDatabase, DatabaseMatch, DatabaseSchema } from './useNotionDiscovery'
 import { NotionEncounterParams, GeneratedEncounter } from '@/types/encounter'
-import { notionLogger } from '@/utils/logger'
+import { createSafeLogger } from '@/utils/safe-logger'
+
+const logger = createSafeLogger('Notion');
 
 export interface NotionCreature {
   id: string
@@ -59,7 +61,7 @@ export const useNotionService = () => {
     try {
       setLoading(true)
       setError(null)
-      notionLogger.info(`🚀 Starting ${operationName}...`)
+      logger.info(`🚀 Starting ${operationName}...`)
       
       // Check if already aborted
       if (signal?.aborted) {
@@ -77,31 +79,31 @@ export const useNotionService = () => {
         return { success: false, error: abortError as Error, operationName };
       }
       
-      notionLogger.info(`✅ ${operationName} completed successfully`, result)
+      logger.info(`✅ ${operationName} completed successfully`, result)
       return { success: true, data: result, operationName }
     } catch (err: unknown) {
       // Handle abort errors specially
       if (err instanceof DOMException && err.name === 'AbortError') {
-        notionLogger.warn(`🚫 ${operationName} was cancelled`)
+        logger.warn(`🚫 ${operationName} was cancelled`)
         setError(err as Error);
         return { success: false, error: err as Error, operationName }
       }
       
       // Also handle other cancellation patterns
       if (err instanceof Error && err.message.includes('aborted')) {
-        notionLogger.warn(`🚫 ${operationName} was cancelled`)
+        logger.warn(`🚫 ${operationName} was cancelled`)
         const abortError = new DOMException('Operation was aborted', 'AbortError');
         setError(abortError as Error);
         return { success: false, error: abortError as Error, operationName }
       }
       
-      notionLogger.error(`❌ ${operationName} failed:`, err)
+      logger.error(`❌ ${operationName} failed:`, err)
       
       let error: Error;
       
       if (err instanceof Error) {
         error = err;
-        notionLogger.error(`🔥 Error details:`, {
+        logger.error(`🔥 Error details:`, {
           name: err.name,
           message: err.message,
           stack: err.stack
@@ -114,11 +116,11 @@ export const useNotionService = () => {
       
       // Only log simplified messages for expected issues
       if (error.message.includes('NOTION_API_KEY') || error.message.includes('DATABASE_ID')) {
-        notionLogger.warn(`⚠️ ${operationName}: Notion integration not configured`)
+        logger.warn(`⚠️ ${operationName}: Notion integration not configured`)
       } else if (error.message.includes('Notion integration') || error.message.includes('temporarily unavailable')) {
-        notionLogger.warn(`⚠️ ${operationName}: Using fallback data`)
+        logger.warn(`⚠️ ${operationName}: Using fallback data`)
       } else {
-        notionLogger.error(`💥 Unexpected error in ${operationName}:`, err)
+        logger.error(`💥 Unexpected error in ${operationName}:`, err)
       }
       
       return { success: false, error, operationName }

@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { logger } from '@/utils/logger';
+import { createSafeLogger } from '@/utils/safe-logger';
+
+const logger = createSafeLogger('ErrorHandler');
 
 export interface ErrorContext {
   operation: string;
