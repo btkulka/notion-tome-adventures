@@ -604,9 +604,8 @@ const Index = () => {
                   )}
                 </CardContent>
               </Card>
-              </div>
-            </main>
-          </div>
+            </div>
+          </main>
 
           {/* Expandable log panel */}
           {encounter && (
@@ -660,8 +659,6 @@ const Index = () => {
               </CollapsibleContent>
             </Collapsible>
           )}
-            </div>
-          </main>
         </SidebarInset>
         
         {/* Floating Progress Bar */}
