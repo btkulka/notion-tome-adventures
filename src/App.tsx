@@ -43,37 +43,37 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 const App = () => {
   try {
     return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={
-              <ErrorBoundary 
-                FallbackComponent={ErrorFallback}
-                onReset={() => {
-                  window.location.reload();
-                }}
-                onError={(_error, _errorInfo) => {
-                  // Error boundary caught error - handled by fallback component
-                }}
-              >
-                <Index />
-              </ErrorBoundary>
-            } />
-            <Route path="*" element={
-              <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="text-center">
-                  <h1 className="text-2xl font-bold mb-2">404 - Page Not Found</h1>
-                  <p className="text-muted-foreground">The requested page does not exist.</p>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={
+                <ErrorBoundary 
+                  FallbackComponent={ErrorFallback}
+                  onReset={() => {
+                    window.location.reload();
+                  }}
+                  onError={(_error, _errorInfo) => {
+                    // Error boundary caught error - handled by fallback component
+                  }}
+                >
+                  <Index />
+                </ErrorBoundary>
+              } />
+              <Route path="*" element={
+                <div className="min-h-screen flex items-center justify-center bg-background">
+                  <div className="text-center">
+                    <h1 className="text-2xl font-bold mb-2">404 - Page Not Found</h1>
+                    <p className="text-muted-foreground">The requested page does not exist.</p>
+                  </div>
                 </div>
-              </div>
-            } />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+              } />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
     );
   } catch (error) {
     return (
