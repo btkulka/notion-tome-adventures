@@ -64,18 +64,10 @@ serve(async (req) => {
     
     const notion = new Client({ auth: apiKey })
     
-    // Build filters
+    // Build filters (only for properties we know exist)
     const filters: any[] = []
     
-    // CR filter
-    if (params.minCR || params.maxCR) {
-      filters.push({
-        property: 'CR',
-        rich_text: {
-          is_not_empty: true
-        }
-      })
-    }
+    // Note: CR filtering is done post-query since property name varies
     
     // Alignment filter
     if (params.alignment && params.alignment !== 'Any') {
