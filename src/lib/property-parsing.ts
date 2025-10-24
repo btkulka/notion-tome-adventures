@@ -179,7 +179,7 @@ export function validateXP(xp: number): boolean {
 /**
  * Parses cost text into structured format
  */
-export function parseCost(costText: string | undefined): any {
+export function parseCost(costText: string | undefined): { quantity: number; unit: string } | undefined {
   if (!costText) return undefined;
   
   const match = costText.match(/(\d+)\s*(cp|sp|ep|gp|pp)/i);
@@ -196,7 +196,7 @@ export function parseCost(costText: string | undefined): any {
 /**
  * Parses damage text into structured format
  */
-export function parseDamage(damageText: string | undefined): any {
+export function parseDamage(damageText: string | undefined): { dice: string; type: string } | undefined {
   if (!damageText) return undefined;
   
   const match = damageText.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)\s+(\w+)/i);
@@ -213,7 +213,7 @@ export function parseDamage(damageText: string | undefined): any {
 /**
  * Parses armor class text into structured format
  */
-export function parseArmorClass(acText: string | undefined): any {
+export function parseArmorClass(acText: string | undefined): { base: number; dex_bonus: boolean; max_bonus?: number } | undefined {
   if (!acText) return undefined;
   
   const baseMatch = acText.match(/(\d+)/);

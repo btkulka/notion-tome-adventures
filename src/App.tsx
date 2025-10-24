@@ -41,9 +41,6 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 }
 
 const App = () => {
-  // Log immediately without calling any functions that might fail
-  console.log('🎨 App component rendering - START');
-  
   try {
     return (
     <QueryClientProvider client={queryClient}>
@@ -56,12 +53,10 @@ const App = () => {
               <ErrorBoundary 
                 FallbackComponent={ErrorFallback}
                 onReset={() => {
-                  console.log('🔄 Error boundary reset triggered');
                   window.location.reload();
                 }}
-                onError={(error, errorInfo) => {
-                  console.error('❌ Error boundary caught error:', error);
-                  console.error('Component stack:', errorInfo.componentStack);
+                onError={(_error, _errorInfo) => {
+                  // Error boundary caught error - handled by fallback component
                 }}
               >
                 <Index />
@@ -81,7 +76,6 @@ const App = () => {
     </QueryClientProvider>
     );
   } catch (error) {
-    console.error('❌ CRITICAL ERROR in App component:', error);
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <h1 style={{ color: 'red' }}>Critical App Error</h1>

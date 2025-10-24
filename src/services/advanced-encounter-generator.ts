@@ -108,7 +108,6 @@ export class AdvancedEncounterGenerator {
   private log(message: string): void {
     const timestamp = Date.now() - this.startTime;
     const logEntry = `[${timestamp}ms] ${message}`;
-    console.log(`🎲 ${logEntry}`);
     this.generationLog.push(logEntry);
   }
 

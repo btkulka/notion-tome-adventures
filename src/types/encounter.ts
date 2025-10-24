@@ -35,9 +35,9 @@ export interface GeneratedEncounter {
     xp_value: number;
     total_xp: number;
     image_url?: string;
-    creature_type?: string;
-    size?: string;
-    alignment?: string;
+    creature_type: string;
+    size: string;
+    alignment: string;
   }>;
   generation_notes: string;
 }

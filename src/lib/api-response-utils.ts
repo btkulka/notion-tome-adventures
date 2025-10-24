@@ -55,7 +55,7 @@ export const responseFormatters = {
   error(
     error: string,
     message?: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     duration?: number
   ): ApiResponse<never> {
     return {
@@ -106,7 +106,7 @@ export const validationUtils = {
   /**
    * Validate response data structure
    */
-  validateStructure(data: any, requiredFields: string[]): ValidationResult {
+  validateStructure(data: unknown, requiredFields: string[]): ValidationResult {
     const errors: ErrorDetail[] = [];
     const warnings: ErrorDetail[] = [];
 
@@ -119,8 +119,9 @@ export const validationUtils = {
       return { isValid: false, errors, warnings };
     }
 
+    const dataObj = data as Record<string, unknown>;
     for (const field of requiredFields) {
-      if (!(field in data) || data[field] === undefined || data[field] === null) {
+      if (!(field in dataObj) || dataObj[field] === undefined || dataObj[field] === null) {
         errors.push({
           field,
           code: 'MISSING_REQUIRED_FIELD',
@@ -140,7 +141,7 @@ export const validationUtils = {
   /**
    * Validate array response
    */
-  validateArray(data: any, itemValidator?: (item: any) => ValidationResult): ValidationResult {
+  validateArray(data: unknown, itemValidator?: (item: unknown) => ValidationResult): ValidationResult {
     const errors: ErrorDetail[] = [];
     const warnings: ErrorDetail[] = [];
 
@@ -233,7 +234,7 @@ export const errorUtils = {
   createErrorResponse(
     error: unknown,
     operationName: string,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): ApiResponse<never> {
     const message = errorUtils.extractErrorMessage(error);
     const category = errorUtils.categorizeError(error);

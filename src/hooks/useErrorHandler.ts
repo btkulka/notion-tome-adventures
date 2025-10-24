@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/utils/logger';
 
 export interface ErrorContext {
   operation: string;
@@ -60,13 +61,13 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
       if (logDetails) {
-        console.log(`🚀 Starting ${operationName}...`);
+        logger.info(`Starting ${operationName}...`);
       }
       
       const result = await operation();
       
       if (logDetails) {
-        console.log(`✅ ${operationName} completed successfully:`, result);
+        logger.info(`${operationName} completed successfully`, result);
       }
       
       setState(prev => ({ ...prev, isLoading: false }));
@@ -82,7 +83,7 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
       if (err instanceof Error) {
         errorMessage = err.message;
         if (logDetails) {
-          console.error(`🔥 Error details:`, {
+          logger.error('Error details', {
             name: err.name,
             message: err.message,
             stack: err.stack,
@@ -99,11 +100,11 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
       
       // Handle different types of errors with appropriate logging
       if (errorMessage.includes('NOTION_API_KEY') || errorMessage.includes('DATABASE_ID')) {
-        console.log(`⚠️ ${operationName}: Notion integration not configured`);
+        logger.warn(`${operationName}: Notion integration not configured`);
       } else if (errorMessage.includes('Notion integration') || errorMessage.includes('temporarily unavailable')) {
-        console.log(`⚠️ ${operationName}: Using fallback data`);
+        logger.warn(`${operationName}: Using fallback data`);
       } else if (logDetails) {
-        console.error(`💥 Unexpected error in ${operationName}:`, err);
+        logger.error(`Unexpected error in ${operationName}`, err);
       }
 
       // Show toast notification if requested

@@ -253,7 +253,10 @@ export function generateFallbackEncounter(params: NotionEncounterParams): Genera
         quantity: 1,
         challenge_rating: basicCreature.challenge_rating.toString(),
         xp_value: basicCreature.xp_value,
-        total_xp: basicCreature.xp_value
+        total_xp: basicCreature.xp_value,
+        creature_type: 'Beast',
+        size: 'Medium',
+        alignment: 'Unaligned'
       }],
       generation_notes: 'Used fallback encounter generator with limited creature database. This is a basic encounter generated with mock data. For full functionality, configure your Notion integration.'
     };
@@ -272,7 +275,10 @@ export function generateFallbackEncounter(params: NotionEncounterParams): Genera
       quantity: creature.quantity,
       challenge_rating: creature.challenge_rating.toString(),
       xp_value: creature.xp_value,
-      total_xp: creature.xp_value * creature.quantity
+      total_xp: creature.xp_value * creature.quantity,
+      creature_type: 'creature_type' in creature ? String(creature.creature_type) : 'Beast',
+      size: 'size' in creature ? String(creature.size) : 'Medium',
+      alignment: 'alignment' in creature ? String(creature.alignment) : 'Unaligned'
     })),
     generation_notes: result.generation_notes.join('\n') + '\n\nGenerated using fallback mock creature database. Configure Notion for full functionality.'
   };

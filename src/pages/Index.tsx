@@ -459,23 +459,6 @@ const Index = () => {
                       <div className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                           {encounter.creatures.flatMap((creature, creatureIndex) => {
-                            // Debug log creature data for first creature
-                            // Debug creature type for all creatures
-                            console.log(`🔍 Creature ${creatureIndex} (${creature.name}) debug:`, {
-                              creature_type: creature.creature_type,
-                              creature_type_type: typeof creature.creature_type,
-                              creature_type_exists: creature.hasOwnProperty('creature_type'),
-                              size: creature.size,
-                              alignment: creature.alignment,
-                              all_keys: Object.keys(creature)
-                            });
-                            
-                            if (creatureIndex === 0) {
-                              console.log('🔍 First creature FULL data debug:', {
-                                full_creature: creature
-                              });
-                            }
-                            
                             return Array.from({ length: creature.quantity }, (_, instanceIndex) => (
                               <MonsterCardContextMenu
                                 key={`${creatureIndex}-${instanceIndex}`}

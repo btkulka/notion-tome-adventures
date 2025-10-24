@@ -1,11 +1,11 @@
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
   timestamp: string;
   duration?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ErrorDetail {
@@ -48,11 +48,8 @@ export class EdgeFunctionResponseProcessor {
     };
   }
 
-  private log(message: string, level: 'info' | 'error' | 'warn' = 'info') {
-    if (!this.config.logResponses) return;
-
-    const emoji = { info: '📊', error: '❌', warn: '⚠️' };
-    console.log(`${emoji[level]} Response Processor: ${message}`);
+  private log(_message: string, _level: 'info' | 'error' | 'warn' = 'info') {
+    // Logging disabled - use logger utility instead if needed
   }
 
   /**
@@ -130,18 +127,19 @@ export class EdgeFunctionResponseProcessor {
         } : undefined
       };
 
-    } catch (error: any) {
-      this.log(`Error processing response: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log(`Error processing response: ${errorMessage}`, 'error');
 
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
         timestamp,
         duration,
         metadata: this.config.includeMetadata ? {
           status: response.status,
           operationName,
-          errorType: error.constructor.name
+          errorType: error instanceof Error ? error.constructor.name : 'UnknownError'
         } : undefined
       };
     }
@@ -189,9 +187,10 @@ export class EdgeFunctionResponseProcessor {
         // Last attempt failed, process the error response
         return this.processResponse<T>(response, operationName, startTime);
 
-      } catch (error: any) {
-        lastError = error;
-        this.log(`Attempt ${attempt + 1} failed: ${error.message}`, 'warn');
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        this.log(`Attempt ${attempt + 1} failed: ${errorMessage}`, 'warn');
 
         // If not retrying or last attempt, return error
         if (!this.config.retryFailedRequests || attempt >= this.config.maxRetries) {
@@ -229,14 +228,15 @@ export class EdgeFunctionResponseProcessor {
   /**
    * Basic response structure validation
    */
-  private validateResponseStructure(data: any): ValidationResult {
+  private validateResponseStructure(data: unknown): ValidationResult {
     const errors: ErrorDetail[] = [];
     const warnings: ErrorDetail[] = [];
 
     // Check for common response patterns
     if (typeof data === 'object' && data !== null) {
+      const dataObj = data as Record<string, unknown>;
       // Check for error responses
-      if ('error' in data && !data.success) {
+      if ('error' in dataObj && dataObj.success === false) {
         warnings.push({
           message: 'Response contains error field',
           severity: 'warning'
@@ -244,7 +244,7 @@ export class EdgeFunctionResponseProcessor {
       }
 
       // Check for data field
-      if (!('data' in data) && !('results' in data) && !('items' in data)) {
+      if (!('data' in dataObj) && !('results' in dataObj) && !('items' in dataObj)) {
         warnings.push({
           message: 'Response does not contain standard data field',
           severity: 'warning'
@@ -276,12 +276,13 @@ export class EdgeFunctionResponseProcessor {
         ...response,
         data: transformedData
       };
-    } catch (error: any) {
-      this.log(`Data transformation failed: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log(`Data transformation failed: ${errorMessage}`, 'error');
       return {
         ...response,
         success: false,
-        error: `Data transformation failed: ${error.message}`,
+        error: `Data transformation failed: ${errorMessage}`,
         data: undefined
       };
     }
@@ -329,7 +330,7 @@ export class EdgeFunctionResponseProcessor {
   /**
    * Create response with standardized error handling
    */
-  createErrorResponse(error: any, operationName: string): ApiResponse<never> {
+  createErrorResponse(error: unknown, operationName: string): ApiResponse<never> {
     const timestamp = new Date().toISOString();
     
     let errorMessage = 'Unknown error occurred';
@@ -341,8 +342,9 @@ export class EdgeFunctionResponseProcessor {
     } else if (typeof error === 'string') {
       errorMessage = error;
     } else if (error && typeof error === 'object') {
-      errorMessage = error.message || error.error || JSON.stringify(error);
-      errorCode = error.code || error.name;
+      const err = error as Record<string, unknown>;
+      errorMessage = String(err.message || err.error || JSON.stringify(error));
+      errorCode = String(err.code || err.name || '');
     }
 
     return {
@@ -422,7 +424,7 @@ export const responseTransformers = {
   /**
    * Extract creatures with XP calculation
    */
-  creaturesWithXP: (data: any) => {
+  creaturesWithXP: (data: Record<string, unknown>) => {
     if (!data.creatures) return data;
     
     const XP_BY_CR: Record<number, number> = {
@@ -433,11 +435,12 @@ export const responseTransformers = {
       16: 15000, 17: 18000, 18: 20000, 19: 22000, 20: 25000
     };
     
+    const creatures = data.creatures as Array<Record<string, unknown>>;
     return {
       ...data,
-      creatures: data.creatures.map((creature: any) => ({
+      creatures: creatures.map((creature) => ({
         ...creature,
-        xp_value: XP_BY_CR[creature.challenge_rating] || 0
+        xp_value: XP_BY_CR[Number(creature.challenge_rating)] || 0
       }))
     };
   },
@@ -445,12 +448,13 @@ export const responseTransformers = {
   /**
    * Normalize environment data
    */
-  normalizeEnvironments: (data: any) => {
+  normalizeEnvironments: (data: Record<string, unknown>) => {
     if (!data.environments) return data;
     
+    const environments = data.environments as Array<Record<string, unknown>>;
     return {
       ...data,
-      environments: data.environments.map((env: any) => ({
+      environments: environments.map((env) => ({
         ...env,
         terrain_type: Array.isArray(env.terrain_type) ? env.terrain_type : [env.terrain_type].filter(Boolean),
         hazards: Array.isArray(env.hazards) ? env.hazards : [env.hazards].filter(Boolean)
@@ -461,18 +465,19 @@ export const responseTransformers = {
   /**
    * Add encounter metadata
    */
-  addEncounterMetadata: (data: any) => {
+  addEncounterMetadata: (data: Record<string, unknown>) => {
     if (!data.creatures) return data;
     
-    const totalCreatures = data.creatures.reduce((sum: number, c: any) => sum + (c.quantity || 1), 0);
-    const avgCR = data.creatures.reduce((sum: number, c: any) => sum + (c.challenge_rating || 0), 0) / data.creatures.length;
+    const creatures = data.creatures as Array<Record<string, unknown>>;
+    const totalCreatures = creatures.reduce((sum: number, c) => sum + (Number(c.quantity) || 1), 0);
+    const avgCR = creatures.reduce((sum: number, c) => sum + (Number(c.challenge_rating) || 0), 0) / creatures.length;
     
     return {
       ...data,
       metadata: {
         total_creatures: totalCreatures,
         average_cr: Math.round(avgCR * 100) / 100,
-        creature_types: [...new Set(data.creatures.map((c: any) => c.creature_type).filter(Boolean))]
+        creature_types: [...new Set(creatures.map((c) => c.creature_type).filter(Boolean))]
       }
     };
   }
