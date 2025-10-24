@@ -14,18 +14,8 @@ export {
   type DnDEntityType
 } from './icon-mappings';
 
-// Property parsing utilities
+// Property parsing utilities (D&D-specific)
 export {
-  extractText,
-  extractNumber,
-  extractSelect,
-  extractMultiSelect,
-  extractCheckbox,
-  extractDate,
-  extractRelation,
-  extractUrl,
-  extractEmail,
-  extractPhoneNumber,
   parseStringArray,
   parseKeyValuePairs,
   parseSpeed,
@@ -38,8 +28,17 @@ export {
   getEncounterMultiplier,
   validateCR,
   validateAbilityScore,
-  validateXP
+  validateXP,
+  parseCost,
+  parseDamage,
+  parseArmorClass
 } from './property-parsing';
 
-// Re-export commonly used components
-export { NotionDTOMapper } from './notion-dto-mapper';
+// DTO transformers for display
+export {
+  formatCR,
+  formatNumber,
+  creatureToDisplay,
+  environmentToDisplay,
+  sessionToDisplay
+} from './dto-transformers';

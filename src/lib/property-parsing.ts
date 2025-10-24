@@ -1,66 +1,8 @@
 /**
- * Centralized property parsing utilities
- * Eliminates duplication of parsing logic across DTO mappers and extractors
+ * Property Parsing Utilities
+ * Utility functions for D&D calculations and parsing
+ * (Property extraction moved to supabase/functions/_shared/notion-extractors.ts)
  */
-
-// Basic property extractors
-export function extractText(property: any): string | undefined {
-  // Handle title properties (common for names)
-  if (property?.title?.[0]?.plain_text) {
-    return property.title[0].plain_text;
-  }
-  
-  // Handle rich_text properties
-  if (property?.rich_text?.[0]?.plain_text) {
-    return property.rich_text[0].plain_text;
-  }
-  
-  // Handle plain_text properties
-  if (property?.plain_text) {
-    return property.plain_text;
-  }
-  
-  return undefined;
-}
-
-export function extractNumber(property: any): number | undefined {
-  if (property?.number !== undefined && property?.number !== null) {
-    return property.number;
-  }
-  return undefined;
-}
-
-export function extractSelect(property: any): string | undefined {
-  return property?.select?.name;
-}
-
-export function extractMultiSelect(property: any): string[] {
-  return property?.multi_select?.map((item: any) => item.name) || [];
-}
-
-export function extractCheckbox(property: any): boolean {
-  return property?.checkbox || false;
-}
-
-export function extractDate(property: any): string | undefined {
-  return property?.date?.start;
-}
-
-export function extractRelation(property: any): string[] {
-  return property?.relation?.map((rel: any) => rel.id) || [];
-}
-
-export function extractUrl(property: any): string | undefined {
-  return property?.url;
-}
-
-export function extractEmail(property: any): string | undefined {
-  return property?.email;
-}
-
-export function extractPhoneNumber(property: any): string | undefined {
-  return property?.phone_number;
-}
 
 // Complex property parsers
 export function parseStringArray(text: string | undefined): string[] | undefined {

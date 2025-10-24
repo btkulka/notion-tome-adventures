@@ -1,29 +1,31 @@
-# Scripts
+# Scripts Directory
 
-This directory contains utility scripts for debugging, testing, and setup.
+This directory is reserved for production-related scripts and utilities.
 
-## Structure
+All debugging and one-off scripts have been removed as part of the codebase cleanup.
 
-- **debug/** - Debug and testing scripts for development
-- **setup/** - Setup and installation scripts
-- **run-all-fixes.js** - Main script to run all available fixes
+## Current Status
 
-## Debug Scripts
+✅ **Clean** - No unused debug scripts  
+✅ **Organized** - All Notion extraction logic centralized in `supabase/functions/_shared/notion-extractors.ts`  
+✅ **Type-Safe** - DTOs match actual edge function outputs in `src/types/notion-dtos.ts`
 
-The debug directory contains various scripts for testing and debugging:
-- Database connection testing
-- Edge function testing
-- Data structure examination
-- Field fixing validation
+## Architecture
 
-## Setup Scripts
+The application follows a clean data flow:
 
-The setup directory contains scripts for initial project setup and configuration.
-
-## Usage
-
-Run scripts from the project root directory:
-```bash
-node scripts/debug/debug-auth.js
-node scripts/run-all-fixes.js
 ```
+Notion API → Edge Functions (_shared/notion-extractors.ts) → DTOs → Frontend
+```
+
+All property extraction happens in one place:
+- `supabase/functions/_shared/notion-extractors.ts` - Single source of truth for all Notion data extraction
+
+## If You Need to Debug
+
+Use the Supabase dashboard to:
+1. Check edge function logs: https://supabase.com/dashboard/project/xhrobkdzjabllhftksvt/functions
+2. View database data: https://supabase.com/dashboard/project/xhrobkdzjabllhftksvt/editor
+3. Test edge functions directly: https://supabase.com/dashboard/project/xhrobkdzjabllhftksvt/functions/{function_name}/details
+
+Or use the browser console and Network tab to debug API calls from the frontend.

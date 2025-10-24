@@ -1,4 +1,12 @@
-// Base Notion page properties that all DTOs will have
+/**
+ * Notion DTO Type Definitions
+ * These match the actual data returned by edge functions
+ */
+
+// =============================================================================
+// BASE TYPES
+// =============================================================================
+
 export interface NotionPageBase {
   id: string;
   created_time: string;
@@ -6,39 +14,83 @@ export interface NotionPageBase {
   url: string;
 }
 
-// Creature/Monster DTO - only fields with direct database mappings
+// =============================================================================
+// ENTITY DTOs
+// =============================================================================
+
+/**
+ * Creature/Monster DTO
+ * Maps from Notion properties:
+ * - name: 'Name' | 'Creature' | 'Monster'
+ * - cr: 'CR' | 'Challenge Rating' | 'ChallengeRating'
+ * - size: 'Size' | 'CreatureSize'
+ * - type: 'Type' | 'Species' | 'Creature Type'
+ * - alignment: 'Alignment'
+ * - ac: 'AC' | 'ArmorClass' | 'Armor Class'
+ * - hp: 'HP' | 'HitPoints' | 'Hit Points'
+ * - environment: 'Environment' | 'Environments' | 'Terrain'
+ * - xp: calculated from CR
+ */
 export interface CreatureDTO extends NotionPageBase {
   name: string;
-  size: 'Tiny' | 'Small' | 'Medium' | 'Large' | 'Huge' | 'Gargantuan';
-  type: string; // Beast, Humanoid, Dragon, etc.
-  subtype?: string;
+  cr: string;
+  size: string;
+  type: string;
   alignment: string;
-  armor_class: number;
-  hit_points: number;
-  speed: {
-    walk?: number;
-  };
-  challenge_rating: number;
-  xp_value: number;
+  ac: number;
+  hp: number;
   environment: string[];
-  languages?: string[];
-  source: string;
+  xp: number;
 }
 
-// Environment DTO - only fields with direct database mappings
+/**
+ * Environment DTO
+ * Maps from Notion properties:
+ * - name: 'Name' | 'Environment' | 'Title' | 'Environments' | 'EnvironmentName'
+ * - description: 'Description' | 'Desc'
+ * - terrain_type: 'TerrainType' | 'Terrain' | 'TerrainTypes'
+ * - climate: 'Climate' | 'Weather' | 'ClimateType'
+ * - hazards: 'Hazards' | 'Dangers'
+ * - common_creatures: 'CommonCreatures' | 'Creatures' | 'TypicalCreatures'
+ * - survival_dc: 'SurvivalDC' | 'DC'
+ * - foraging_dc: 'ForagingDC' | 'ForageDC'
+ * - navigation_dc: 'NavigationDC' | 'NavDC'
+ * - shelter_availability: 'ShelterAvailability' | 'Shelter'
+ * - water_availability: 'WaterAvailability' | 'Water'
+ * - food_availability: 'FoodAvailability' | 'Food'
+ */
 export interface EnvironmentDTO extends NotionPageBase {
   name: string;
   description: string;
   terrain_type: string[];
   climate: string;
-  hazards?: string[];
+  hazards: string[];
   common_creatures: string[];
-  survival_dc?: number;
-  foraging_dc?: number;
-  navigation_dc?: number;
+  survival_dc: number;
+  foraging_dc: number;
+  navigation_dc: number;
+  shelter_availability: string;
+  water_availability: string;
+  food_availability: string;
 }
 
-// Generated Encounter DTO - based on actual encounter generation output
+/**
+ * Session DTO
+ * Maps from Notion properties:
+ * - name: 'Name' | 'Session' | 'Title'
+ * - date: 'Date' | 'SessionDate'
+ * - description: 'Description' | 'Notes'
+ */
+export interface SessionDTO extends NotionPageBase {
+  name: string;
+  date: string;
+  description: string;
+}
+
+/**
+ * Generated Encounter DTO
+ * Returned by generate-encounter edge function
+ */
 export interface EncounterDTO extends NotionPageBase {
   encounter_name: string;
   environment: string;
@@ -53,10 +105,16 @@ export interface EncounterDTO extends NotionPageBase {
   generation_notes: string;
 }
 
-// Union type for DTOs with actual database mappings
-export type NotionDTO = CreatureDTO | EnvironmentDTO | EncounterDTO;
+// =============================================================================
+// UNION TYPES
+// =============================================================================
 
-// Helper types for common D&D concepts
+export type NotionDTO = CreatureDTO | EnvironmentDTO | SessionDTO | EncounterDTO;
+
+// =============================================================================
+// D&D HELPER TYPES
+// =============================================================================
+
 export type DamageType = 
   | 'Acid' | 'Bludgeoning' | 'Cold' | 'Fire' | 'Force' 
   | 'Lightning' | 'Necrotic' | 'Piercing' | 'Poison' 
@@ -72,7 +130,6 @@ export type ChallengeRating =
   | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 
   | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30;
 
-// Ability scores interface for easier handling
 export interface AbilityScores {
   str: number;
   dex: number;
