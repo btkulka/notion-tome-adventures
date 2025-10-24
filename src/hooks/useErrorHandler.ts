@@ -1,8 +1,5 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { createSafeLogger } from '@/utils/safe-logger';
-
-const logger = createSafeLogger('ErrorHandler');
 
 export interface ErrorContext {
   operation: string;
@@ -62,15 +59,7 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      if (logDetails) {
-        logger.info(`Starting ${operationName}...`);
-      }
-      
       const result = await operation();
-      
-      if (logDetails) {
-        logger.info(`${operationName} completed successfully`, result);
-      }
       
       setState(prev => ({ ...prev, isLoading: false }));
       return result;
@@ -84,14 +73,6 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
       
       if (err instanceof Error) {
         errorMessage = err.message;
-        if (logDetails) {
-          logger.error('Error details', {
-            name: err.name,
-            message: err.message,
-            stack: err.stack,
-            operation: operationName
-          });
-        }
       }
       
       setState({
@@ -99,15 +80,6 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
         isLoading: false,
         context: errorContext
       });
-      
-      // Handle different types of errors with appropriate logging
-      if (errorMessage.includes('NOTION_API_KEY') || errorMessage.includes('DATABASE_ID')) {
-        logger.warn(`${operationName}: Notion integration not configured`);
-      } else if (errorMessage.includes('Notion integration') || errorMessage.includes('temporarily unavailable')) {
-        logger.warn(`${operationName}: Using fallback data`);
-      } else if (logDetails) {
-        logger.error(`Unexpected error in ${operationName}`, err);
-      }
 
       // Show toast notification if requested
       if (showToast) {

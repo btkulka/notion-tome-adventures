@@ -21,10 +21,7 @@ import {
 
 import { useNotionService } from '@/hooks/useNotionService';
 import { EncounterParams } from '@/types/encounter';
-import { createSafeLogger } from '@/utils/safe-logger';
 import { useToast } from '@/hooks/use-toast';
-
-const logger = createSafeLogger('AppSidebar');
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
 import { EdgeFunctionError } from '@/components/ui/edge-function-error';
 
@@ -62,25 +59,20 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
     const result = await fetchEnvironments();
     
     if (!result.success) {
-      logger.error('Failed to load environments from Notion', result.error);
       setEnvError(result.error || new Error('Unknown error'));
       setEnvironments([]);
       return;
     }
     
     if (result.data && result.data.environments && result.data.environments.length > 0) {
-      logger.info('Successfully loaded environments from Notion', { count: result.data.environments.length });
-      logger.debug('Environment data', result.data.environments);
       setEnvironments(result.data.environments);
       setEnvError(null);
     } else {
-      logger.warn('No environments returned from Notion database');
       setEnvironments([]);
     }
   };
 
   React.useEffect(() => {
-    logger.info('AppSidebar mounted - loading environments from Notion');
     loadEnvironments();
   }, []);
 
@@ -120,7 +112,6 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
     const result = await simpleDebug();
     
     if (!result.success) {
-      logger.error('Simple debug failed:', result.error);
       toast({
         title: "Debug Failed", 
         description: result.error?.message || "Unknown error",
@@ -128,8 +119,6 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
       });
       return;
     }
-    
-    logger.debug('Simple debug result:', result.data);
     toast({
       title: "Property Keys Debug",
       description: `Debug result returned. Check console for details.`,

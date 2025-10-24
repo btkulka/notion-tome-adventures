@@ -2,37 +2,14 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { createSafeLogger } from '@/utils/safe-logger'
 
-const logger = createSafeLogger('Bootstrap');
-
-// Track startup timing
 const startupTimestamp = performance.now();
 
-// Safe logger wrapper for bootstrap
-const safeLog = (fn: () => void) => {
-  try {
-    fn();
-  } catch (e) {
-    console.log('[BOOTSTRAP]', 'Logger not ready');
-  }
-};
-
-safeLog(() => logger.info('Application bootstrap started'));
-
 // Validate critical environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  safeLog(() => logger.warn('Supabase configuration incomplete'));
-}
 
 const rootElement = document.getElementById("root");
 
 if (rootElement) {
-  safeLog(() => logger.info('Root element found, initializing React...'));
-  
   try {
     // Remove initial loader
     const initialLoader = document.getElementById('initial-loader');
@@ -42,11 +19,7 @@ if (rootElement) {
     
     const root = createRoot(rootElement);
     root.render(<App />);
-    
-    const bootTime = (performance.now() - startupTimestamp).toFixed(2);
-    safeLog(() => logger.info(`React render complete (${bootTime}ms)`));
   } catch (error) {
-    safeLog(() => logger.error('Fatal error during React initialization', error));
     
     // Display user-friendly error
     rootElement.innerHTML = `
@@ -68,7 +41,6 @@ if (rootElement) {
     `;
   }
 } else {
-  safeLog(() => logger.error('CRITICAL: Root element not found in DOM!'));
   
   // Fallback error display
   document.body.innerHTML = `

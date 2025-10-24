@@ -20,12 +20,10 @@ import { MonsterCardContextMenu } from '@/components/ui/monster-card-context-men
 import { FloatingProgressBar } from '@/components/floating-progress-bar';
 import { AbilityScoresRadialChart } from '@/components/ui/ability-scores-radial-chart';
 import { SessionSelect } from '@/components/ui/session-select';
-import { createSafeLogger } from '@/utils/safe-logger';
 import { useProgressiveGeneration } from '@/hooks/useProgressiveGeneration';
 
 const Index = () => {
   const componentMountTimeRef = useRef(performance.now());
-  const loggerRef = useRef(createSafeLogger('Index'));
   
   const { toast } = useToast();
   const { generateEncounter, saveEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
@@ -74,42 +72,10 @@ const Index = () => {
     renderCount.current += 1;
     
     if (isFirstRender.current) {
-      const mountDuration = (performance.now() - componentMountTimeRef.current).toFixed(2);
-      loggerRef.current.info(`✅ Index component mounted (${mountDuration}ms)`);
-      loggerRef.current.debug('Initial state:', {
-        params,
-        hasEncounter: !!encounter,
-        isGenerating,
-      });
       isFirstRender.current = false;
     }
-    
-    loggerRef.current.debug(`Render #${renderCount.current}`, {
-      generatingEncounter,
-      hasEncounter: !!encounter,
-      isGenerating,
-      selectedSession: selectedSession?.name,
-    });
   });
   
-  // Track state changes
-  useEffect(() => {
-    if (encounter) {
-      loggerRef.current.info('📊 Encounter state updated:', {
-        name: encounter.encounter_name,
-        totalXP: encounter.total_xp,
-        creatureCount: encounter.creatures.length,
-      });
-    }
-  }, [encounter]);
-  
-  useEffect(() => {
-    loggerRef.current.debug('Generation state changed:', {
-      generatingEncounter,
-      isGenerating,
-      hasAbortController: !!abortController,
-    });
-  }, [generatingEncounter, isGenerating, abortController]);
 
   const handleGenerate = async () => {
     if (!params.environment || params.environment === '' || params.xpThreshold <= 0) {
@@ -136,7 +102,6 @@ const Index = () => {
     setEncounter(null);
     
     try {
-      loggerRef.current.encounter('Starting encounter generation', params);
       
       // Mark initial steps as we prepare the request
       setTimeout(() => markStepComplete('notion-connect'), 200);
@@ -155,8 +120,6 @@ const Index = () => {
       
       // Mark that we're about to fetch creatures
       setTimeout(() => markStepComplete('fetch-creatures'), 600);
-      
-      loggerRef.current.debug('Calling generateEncounter', notionParams);
       const result = await generateEncounter(notionParams, controller.signal);
       
       // Check if generation failed
@@ -171,11 +134,8 @@ const Index = () => {
       
       // Check if the operation was cancelled
       if (controller.signal.aborted) {
-        loggerRef.current.info('Encounter generation was cancelled');
         return;
       }
-      
-      loggerRef.current.info('Encounter generation result', result.data);
       
       if (result.data) {
         setEncounter(result.data);
@@ -209,11 +169,8 @@ const Index = () => {
       
       // Don't show error if operation was cancelled - the cancel handler already showed feedback
       if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
-        loggerRef.current.info('Encounter generation was cancelled by user');
         return; // Don't show additional toast - already handled in handleCancel
       }
-      
-      loggerRef.current.error('Encounter generation failed', error);
       const errorMessage = error instanceof Error ? error.message : "Failed to generate encounter. Check your Notion configuration.";
       const errorObj = error instanceof Error ? error : new Error(errorMessage);
       
@@ -250,7 +207,6 @@ const Index = () => {
 
   const handleCancel = () => {
     if (abortController) {
-      loggerRef.current.info('Cancelling encounter generation');
       
       // Cancel progressive generation
       cancelGeneration();
@@ -275,12 +231,9 @@ const Index = () => {
 
   const handleSaveEncounter = async () => {
     if (!encounter) return;
-    
-    loggerRef.current.info('Saving encounter to Notion');
     const result = await saveEncounter(encounter);
     
     if (!result.success) {
-      loggerRef.current.error('Failed to save encounter', result.error);
       toast({
         title: "Save Failed",
         description: result.error?.message || "Failed to save encounter to Notion",
@@ -463,12 +416,8 @@ const Index = () => {
                               <MonsterCardContextMenu
                                 key={`${creatureIndex}-${instanceIndex}`}
                                 monsterName={creature.name}
-                                onOpenMonsterInstance={() => {
-                                  loggerRef.current.debug('Open monster instance', creature.name);
-                                }}
-                                onOpenMonsterData={() => {
-                                  loggerRef.current.debug('Open monster data', creature.name);
-                                }}
+                                onOpenMonsterInstance={() => {}}
+                                onOpenMonsterData={() => {}}
                               >
                                 <Card className="bg-gradient-to-br from-card to-muted/20 border-border/50 shadow-lg hover:shadow-mystical transition-all duration-300">
                                   {/* Context Bar */}

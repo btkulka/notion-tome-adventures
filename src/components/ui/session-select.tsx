@@ -7,10 +7,7 @@ import { Calendar, Check, ChevronsUpDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotionService, NotionSession } from '@/hooks/useNotionService';
 import { useToast } from '@/hooks/use-toast';
-import { createSafeLogger } from '@/utils/safe-logger';
 import { EdgeFunctionError } from '@/components/ui/edge-function-error';
-
-const logger = createSafeLogger('SessionSelect');
 
 interface SessionSelectProps {
   value: NotionSession | null;
@@ -44,7 +41,6 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
 
   // Load initial sessions on mount
   useEffect(() => {
-    logger.debug('SessionSelect mounted - loading sessions');
     loadSessions();
   }, []);
 
@@ -54,7 +50,6 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
     const result = await fetchSessions(search);
     
     if (!result.success) {
-      logger.error('Failed to load sessions', result.error);
       setSessionError(result.error || new Error('Unknown error'));
       setSessions([]);
       setIsLoading(false);
@@ -64,7 +59,6 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
     if (result.data?.sessions) {
       setSessions(result.data.sessions);
       setSessionError(null);
-      logger.info('Sessions loaded successfully', { count: result.data.sessions.length });
     }
     
     setIsLoading(false);
@@ -92,13 +86,11 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
   const handleSelect = (session: NotionSession) => {
     onValueChange(session);
     setOpen(false);
-    logger.debug('Session selected', session);
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onValueChange(null);
-    logger.debug('Session selection cleared');
   };
 
   return (

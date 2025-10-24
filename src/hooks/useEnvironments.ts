@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DND_CONSTANTS } from '@/lib/constants';
 import { useNotionService } from '@/hooks/useNotionService';
-import { createSafeLogger } from '@/utils/safe-logger';
-
-const logger = createSafeLogger('Environments');
 
 export interface Environment {
   id: string;
@@ -30,17 +27,13 @@ export function useEnvironments(): UseEnvironmentsReturn {
       setLoading(true);
       setError(null);
       
-      logger.info('🌍 Attempting to load environments from Notion...');
       const result = await notionService.fetchEnvironments();
       
       if (result.success && result.data?.environments?.length > 0) {
-        logger.info(`✅ Successfully loaded ${result.data.environments.length} environments from Notion`);
-        logger.debug('📋 Environment data:', result.data.environments);
         
         setEnvironments(result.data.environments);
         setIsUsingDefaults(false);
       } else {
-        logger.warn('⚠️ No environments returned from Notion, using defaults');
         if (result.error) {
           setError(result.error.message);
         }
@@ -53,7 +46,6 @@ export function useEnvironments(): UseEnvironmentsReturn {
     const setDefaultEnvironments = () => {
       setEnvironments([...DND_CONSTANTS.DEFAULT_ENVIRONMENTS]);
       setIsUsingDefaults(true);
-      logger.info(`🎲 Using ${DND_CONSTANTS.DEFAULT_ENVIRONMENTS.length} default D&D environments`);
     };
 
     loadEnvironments();
