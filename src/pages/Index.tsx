@@ -10,7 +10,7 @@ import { Dice6, Swords, ExternalLink, ChevronRight, ChevronDown, FileText, Spark
 import { useToast } from '@/hooks/use-toast';
 import { ErrorToastContent } from '@/components/ui/error-toast-content';
 import { useNotionService, NotionSession } from '@/hooks/useNotionService';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { EdgeFunctionError } from '@/components/ui/edge-function-error';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -264,18 +264,16 @@ const Index = () => {
           isGenerating={isGenerating}
         />
         
-        <div className="flex-1 flex">
-          {/* Main content area */}
-          <div className="flex-1 flex flex-col">
-            {/* Header with sidebar trigger */}
-            <header className="h-14 flex items-center border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <SidebarTrigger className="ml-4" />
-              <h1 className="ml-4 text-lg font-semibold">D&D Encounter Generator</h1>
-            </header>
+        <SidebarInset>
+          {/* Header with sidebar trigger */}
+          <header className="h-14 flex items-center border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <SidebarTrigger className="ml-4" />
+            <h1 className="ml-4 text-lg font-semibold">D&D Encounter Generator</h1>
+          </header>
 
-            {/* Main content */}
-            <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-7xl mx-auto w-full">
+          {/* Main content */}
+          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+            <div className="max-w-7xl mx-auto w-full">
                 {/* Fatal Error Display */}
                 {fatalError && (
                   <EdgeFunctionError
@@ -662,7 +660,9 @@ const Index = () => {
               </CollapsibleContent>
             </Collapsible>
           )}
-        </div>
+            </div>
+          </main>
+        </SidebarInset>
         
         {/* Floating Progress Bar */}
         <FloatingProgressBar 
