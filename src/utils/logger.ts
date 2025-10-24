@@ -20,26 +20,40 @@ export interface LoggerConfig {
 
 class Logger {
   private config: LoggerConfig;
+  private initialized = false;
 
   constructor(config: Partial<LoggerConfig> = {}) {
-    // Safe handling of import.meta.env which might be undefined during initialization
-    let isProd = false;
-    try {
-      isProd = import.meta?.env?.PROD === true;
-    } catch (e) {
-      // If import.meta is not available, default to development mode
-      isProd = false;
-    }
-    
+    // Initialize with safe defaults - lazy init happens on first log
     this.config = {
-      level: isProd ? LogLevel.WARN : LogLevel.DEBUG,
-      enableConsole: !isProd,
+      level: LogLevel.DEBUG,
+      enableConsole: true,
       enableTimestamp: true,
       ...config
     };
   }
 
+  // Lazy initialization - only check env when actually needed
+  private ensureInitialized(): void {
+    if (this.initialized) return;
+    
+    try {
+      const isProd = import.meta?.env?.PROD === true;
+      // Only override if not already set by user config
+      if (this.config.level === LogLevel.DEBUG) {
+        this.config.level = isProd ? LogLevel.WARN : LogLevel.DEBUG;
+      }
+      if (this.config.enableConsole === true) {
+        this.config.enableConsole = !isProd;
+      }
+      this.initialized = true;
+    } catch (e) {
+      // Default to dev mode if env check fails during HMR
+      this.initialized = true;
+    }
+  }
+
   private shouldLog(level: LogLevel): boolean {
+    this.ensureInitialized();
     return level >= this.config.level && this.config.enableConsole;
   }
 
@@ -157,3 +171,10 @@ export const createLogger = (prefix: string, config?: Partial<LoggerConfig>) => 
 
 // Export Logger class for external use
 export { Logger };
+
+// HMR acceptance - prevents white screen on hot reload
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    console.log('🔄 Logger module reloaded');
+  });
+}

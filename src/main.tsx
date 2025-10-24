@@ -34,6 +34,21 @@ if (rootElement) {
     
     const bootTime = (performance.now() - startupTimestamp).toFixed(2);
     logger.info(`React render complete (${bootTime}ms)`);
+    
+    // HMR event handlers for debugging
+    if (import.meta.hot) {
+      import.meta.hot.on('vite:beforeUpdate', () => {
+        logger.info('🔄 HMR: Preparing to update...');
+      });
+      
+      import.meta.hot.on('vite:afterUpdate', () => {
+        logger.info('✅ HMR: Update complete');
+      });
+      
+      import.meta.hot.on('vite:error', (error) => {
+        logger.error('❌ HMR: Error during update', error);
+      });
+    }
   } catch (error) {
     logger.error('Fatal error during React initialization', error);
     

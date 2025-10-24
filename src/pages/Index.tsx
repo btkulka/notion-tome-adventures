@@ -20,12 +20,13 @@ import { MonsterCardContextMenu } from '@/components/ui/monster-card-context-men
 import { FloatingProgressBar } from '@/components/floating-progress-bar';
 import { AbilityScoresRadialChart } from '@/components/ui/ability-scores-radial-chart';
 import { SessionSelect } from '@/components/ui/session-select';
-import { encounterLogger, createLogger } from '@/utils/logger';
+import { encounterLogger } from '@/utils/logger';
+import { createSafeLogger } from '@/utils/safe-logger';
 import { useProgressiveGeneration } from '@/hooks/useProgressiveGeneration';
 
 const Index = () => {
   const componentMountTimeRef = useRef(performance.now());
-  const loggerRef = useRef(createLogger('Index'));
+  const loggerRef = useRef(createSafeLogger('Index'));
   
   const { toast } = useToast();
   const { generateEncounter, saveEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
