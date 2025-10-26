@@ -13,11 +13,11 @@ Deno.serve(async (req) => {
 
   try {
     const notionApiKey = Deno.env.get('NOTION_API_KEY')
-    const creaturesDbId = Deno.env.get('CREATURES_DATABASE_ID')
+    const monstersDbId = Deno.env.get('MONSTERS_DATABASE_ID')
 
-    if (!notionApiKey || !creaturesDbId) {
+    if (!notionApiKey || !monstersDbId) {
       return new Response(
-        JSON.stringify({ error: 'Notion configuration missing' }),
+        JSON.stringify({ error: 'Notion configuration missing: NOTION_API_KEY and MONSTERS_DATABASE_ID required' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     const notion = new Client({ auth: notionApiKey })
     const { filters } = await req.json()
 
-    console.log('Fetching creatures with filters:', filters)
+    console.log('Fetching monsters with filters:', filters)
 
     // Build Notion query filters
     const notionFilters: any[] = []
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const query: any = { database_id: creaturesDbId }
+    const query: any = { database_id: monstersDbId }
     if (notionFilters.length > 0) {
       query.filter = notionFilters.length === 1 ? notionFilters[0] : { and: notionFilters }
     }

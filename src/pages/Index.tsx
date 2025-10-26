@@ -21,6 +21,7 @@ import { FloatingProgressBar } from '@/components/floating-progress-bar';
 import { AbilityScoresRadialChart } from '@/components/ui/ability-scores-radial-chart';
 import { SessionSelect } from '@/components/ui/session-select';
 import { useProgressiveGeneration } from '@/hooks/useProgressiveGeneration';
+import { LootSidebar } from '@/components/LootSidebar';
 
 const Index = () => {
   const componentMountTimeRef = useRef(performance.now());
@@ -44,6 +45,7 @@ const Index = () => {
   const [isLogExpanded, setIsLogExpanded] = useState(false);
   const [generationLogs, setGenerationLogs] = useState<string[]>([]);
   const [fatalError, setFatalError] = useState<Error | null>(null);
+  const [generationTime, setGenerationTime] = useState<number | null>(null);
   // Tab state management for monster cards
   const [monsterCardTabs, setMonsterCardTabs] = useState<Record<string, string | null>>({});
   
@@ -63,6 +65,12 @@ const Index = () => {
   
   // Session selection state
   const [selectedSession, setSelectedSession] = useState<{id: string, name: string} | null>(null);
+
+  // Campaign selection state with persistence
+  const [selectedCampaign, setSelectedCampaign] = useState<{id: string, name: string, active: boolean} | null>(() => {
+    const saved = localStorage.getItem('selectedCampaign');
+    return saved ? JSON.parse(saved) : null;
+  });
   
   // Track component lifecycle
   const isFirstRender = useRef(true);
@@ -70,11 +78,20 @@ const Index = () => {
   
   useEffect(() => {
     renderCount.current += 1;
-    
+
     if (isFirstRender.current) {
       isFirstRender.current = false;
     }
   });
+
+  // Persist campaign selection to localStorage
+  useEffect(() => {
+    if (selectedCampaign) {
+      localStorage.setItem('selectedCampaign', JSON.stringify(selectedCampaign));
+    } else {
+      localStorage.removeItem('selectedCampaign');
+    }
+  }, [selectedCampaign]);
   
 
   const handleGenerate = async () => {
@@ -87,20 +104,24 @@ const Index = () => {
       return;
     }
 
+    // Track generation time
+    const startTime = performance.now();
+
     // Create new AbortController for this generation
     const controller = new AbortController();
     setAbortController(controller);
-    
+
     // Start progressive generation
     startGeneration();
-    
-    // Reset logs and tab states for new encounter
+
+    // Reset logs, tab states, and generation time for new encounter
     setGenerationLogs([]);
     setMonsterCardTabs({});
-    
+    setGenerationTime(null);
+
     // Clear previous encounter at the start of generation
     setEncounter(null);
-    
+
     try {
       
       // Mark initial steps as we prepare the request
@@ -121,80 +142,143 @@ const Index = () => {
       // Mark that we're about to fetch creatures
       setTimeout(() => markStepComplete('fetch-creatures'), 600);
       const result = await generateEncounter(notionParams, controller.signal);
-      
+
       // Check if generation failed
       if (!result.success) {
         throw result.error || new Error('Unknown error during encounter generation');
       }
-      
+
       // Mark processing steps as complete
       markStepComplete('resolve-relations');
       markStepComplete('process-creatures');
       markStepComplete('generate-encounter');
-      
+
       // Check if the operation was cancelled
       if (controller.signal.aborted) {
         return;
       }
-      
-      if (result.data) {
-        setEncounter(result.data);
+
+      // Transform the edge function response to match our GeneratedEncounter interface
+      const encounterData = (result.data as any)?.encounter;
+
+      console.log('[DEBUG] Encounter data received:', {
+        hasEncounter: !!encounterData,
+        hasCreatures: !!encounterData?.creatures,
+        creatureCount: encounterData?.creatures?.length,
+        totalXP: encounterData?.totalXP,
+        firstCreature: encounterData?.creatures?.[0]
+      });
+
+      if (!encounterData || !Array.isArray(encounterData.creatures)) {
+        console.error('[DEBUG] Invalid encounter data:', result.data);
+        throw new Error(`Failed to generate encounter - invalid or missing data structure. ${result.data ? 'Data received but encounter structure is invalid.' : 'No data returned from generation.'}`);
+      }
+
+      if (encounterData.creatures.length === 0) {
+        console.warn('[DEBUG] No creatures in encounter');
+        throw new Error('No creatures found matching the specified criteria. Try adjusting your filters.');
+      }
+
+      // Transform the data structure to match GeneratedEncounter interface
+      const transformedEncounter: GeneratedEncounter = {
+        encounter_name: `${params.environment} Encounter`,
+        environment: encounterData.environment || params.environment,
+        difficulty: encounterData.difficulty,
+        total_xp: encounterData.totalXP || 0,
+        total_gold: encounterData.totalGold || 0,
+        creatures: encounterData.creatures.map((creature: any, index: number) => {
+          console.log(`[DEBUG] Transforming creature ${index}:`, creature);
+          return {
+            id: creature.id,
+            name: creature.name || 'Unknown Creature',
+            quantity: creature.quantity || 1,
+            challenge_rating: creature.cr || '0',
+            xp_value: creature.xp || 0,
+            total_xp: (creature.xp || 0) * (creature.quantity || 1),
+            image_url: creature.imageUrl,
+            creature_type: creature.type || 'Unknown',
+            creature_subtype: creature.subtype,
+            size: creature.size || 'Medium',
+            alignment: creature.alignment || 'Unaligned',
+            treasure_type: creature.treasure_type,
+            gold: creature.totalGold || creature.gold || 0,
+            goldRoll: creature.goldRoll
+          };
+        }),
+        generation_notes: encounterData.notes || ''
+      };
+
+      console.log('[DEBUG] Transformed encounter:', transformedEncounter);
+
+      if (transformedEncounter.creatures && Array.isArray(transformedEncounter.creatures)) {
+        // Calculate generation time
+        const endTime = performance.now();
+        const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2);
+        setGenerationTime(parseFloat(elapsedSeconds));
+
+        setEncounter(transformedEncounter);
         setFatalError(null);
         completeGeneration();
-        setGenerationLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Successfully generated encounter with ${result.data.total_xp} XP`]);
-        
+        setGenerationLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ✅ Successfully generated encounter with ${transformedEncounter.total_xp} XP in ${elapsedSeconds}s`]);
+
         // Initialize tab states for all monster cards (default to "loot" tab)
         const initialTabStates: Record<string, string | null> = {};
-        result.data.creatures.forEach((creature, creatureIndex) => {
+        transformedEncounter.creatures.forEach((creature, creatureIndex) => {
           for (let instanceIndex = 0; instanceIndex < creature.quantity; instanceIndex++) {
             const cardKey = `${creatureIndex}-${instanceIndex}`;
             initialTabStates[cardKey] = "loot";
           }
         });
         setMonsterCardTabs(initialTabStates);
-        
+
         toast({
           title: "Encounter Generated!",
-          description: `Generated an encounter with ${result.data.total_xp} XP.`,
+          description: `Generated an encounter with ${transformedEncounter.total_xp} XP in ${elapsedSeconds}s`,
         });
-      } else {
-        throw new Error("Failed to generate encounter - no result returned");
       }
     } catch (error: unknown) {
       // Clear encounter on error and set fatal error
       setEncounter(null);
-      setFatalError(error instanceof Error ? error : new Error('Unknown error'));
+
+      // Create detailed error with stack trace
+      const errorObj = error instanceof Error ? error : new Error('Unknown error');
+      const timestamp = new Date().toISOString();
+      const detailedError = new Error(
+        `${errorObj.message}\n\nContext:\n- Timestamp: ${timestamp}\n- Environment: ${params.environment}\n- XP Threshold: ${params.xpThreshold}\n- Max Monsters: ${params.maxMonsters}\n${errorObj.stack ? `\nStack Trace:\n${errorObj.stack}` : ''}`
+      );
+      detailedError.stack = errorObj.stack;
+
+      setFatalError(detailedError);
       cancelGeneration();
-      setGenerationLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`]);
-      
+      setGenerationLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Generation failed: ${errorObj.message}`]);
+
       // Don't show error if operation was cancelled - the cancel handler already showed feedback
       if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('aborted'))) {
         return; // Don't show additional toast - already handled in handleCancel
       }
-      const errorMessage = error instanceof Error ? error.message : "Failed to generate encounter. Check your Notion configuration.";
-      const errorObj = error instanceof Error ? error : new Error(errorMessage);
+      const errorMessage = errorObj.message;
       
       // Check if this is an environment-related error and show detailed info
       if (errorMessage.includes('No creatures found for environment') && errorMessage.includes('Available environments:')) {
         const envListMatch = errorMessage.match(/Available environments: (.+)$/);
         const availableEnvs = envListMatch ? envListMatch[1] : 'Unknown';
-        
+
         toast({
           title: "No Creatures Found",
-          description: <ErrorToastContent 
+          description: <ErrorToastContent
             title="No Creatures Found"
             message={`No creatures available for "${params.environment}". Available: ${availableEnvs}`}
-            error={errorObj}
+            error={detailedError}
           />,
           variant: "destructive"
         });
       } else {
         toast({
           title: "Generation Failed",
-          description: <ErrorToastContent 
+          description: <ErrorToastContent
             title="Generation Failed"
             message={errorMessage}
-            error={errorObj}
+            error={detailedError}
           />,
           variant: "destructive"
         });
@@ -256,24 +340,26 @@ const Index = () => {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gradient-to-b from-background to-muted">
-        <AppSidebar 
+        <AppSidebar
           params={params}
           setParams={setParams}
           onGenerate={handleGenerate}
           onCancel={handleCancel}
           isGenerating={isGenerating}
+          selectedCampaign={selectedCampaign}
+          onCampaignChange={setSelectedCampaign}
         />
         
         <SidebarInset>
-          {/* Header with sidebar trigger */}
-          <header className="h-14 flex items-center border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <SidebarTrigger className="ml-4" />
-            <h1 className="ml-4 text-lg font-semibold">D&D Encounter Generator</h1>
-          </header>
+          {/* Sidebar trigger for proper margin */}
+          <div className="absolute top-4 left-2 z-10">
+            <SidebarTrigger className="h-8 w-8" />
+          </div>
 
-          {/* Main content */}
-          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto w-full">
+          {/* Main content - no header */}
+          <div className="flex flex-1 overflow-hidden h-screen">
+            <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+              <div className="max-w-7xl mx-auto w-full">
                 {/* Fatal Error Display */}
                 {fatalError && (
                   <EdgeFunctionError
@@ -295,20 +381,30 @@ const Index = () => {
                       <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
                         {encounter.encounter_name || 'Generated Encounter'}
                       </h1>
-                      <Button 
-                        onClick={handleSaveEncounter}
-                        className="btn-mystical flex items-center gap-2 ml-auto"
-                        size="sm"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Export to Notion
-                      </Button>
+                      <div className="ml-auto flex items-center gap-3">
+                        <div className="min-w-[200px]">
+                          <SessionSelect
+                            value={selectedSession}
+                            onValueChange={setSelectedSession}
+                            placeholder={selectedCampaign ? "Select session..." : "Select a campaign first..."}
+                            campaignId={selectedCampaign?.id}
+                          />
+                        </div>
+                        <Button
+                          onClick={handleSaveEncounter}
+                          className="btn-mystical flex items-center gap-2"
+                          size="sm"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Export to Notion
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent mb-6"></div>
                     
                     <TooltipProvider>
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-6">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="text-center cursor-help">
@@ -320,7 +416,7 @@ const Index = () => {
                             <p>The environment where this encounter takes place</p>
                           </TooltipContent>
                         </Tooltip>
-                        
+
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="text-center cursor-help">
@@ -332,7 +428,7 @@ const Index = () => {
                             <p>Total experience points awarded for defeating all creatures</p>
                           </TooltipContent>
                         </Tooltip>
-                        
+
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="text-center cursor-help">
@@ -346,7 +442,7 @@ const Index = () => {
                             <p>Total number of individual creatures in this encounter</p>
                           </TooltipContent>
                         </Tooltip>
-                        
+
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="text-center cursor-help">
@@ -358,30 +454,6 @@ const Index = () => {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>Number of different creature types in this encounter</p>
-                          </TooltipContent>
-                        </Tooltip>
-
-                        {/* Vertical divider */}
-                        <div className="hidden lg:flex items-center justify-center">
-                          <div className="w-px h-12 bg-border"></div>
-                        </div>
-                        
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="text-center cursor-help lg:col-span-1">
-                              <div className="text-sm text-muted-foreground mb-1">Session</div>
-                              <div className="flex justify-center">
-                                <SessionSelect
-                                  value={selectedSession}
-                                  onValueChange={setSelectedSession}
-                                  placeholder="Select session..."
-                                  className="max-w-[200px]"
-                                />
-                              </div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>The D&D session this encounter belongs to</p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -477,6 +549,11 @@ const Index = () => {
                                           <Badge variant="outline" className="text-xs">
                                             {creature.creature_type || 'Unknown Type'}
                                           </Badge>
+                                          {creature.creature_subtype && (
+                                            <Badge variant="outline" className="text-xs bg-primary/10">
+                                              {creature.creature_subtype}
+                                            </Badge>
+                                          )}
                                           <Badge variant="outline" className="text-xs">
                                             {creature.alignment || 'Unknown Alignment'}
                                           </Badge>
@@ -560,8 +637,36 @@ const Index = () => {
                                             {activeTab && (
                                               <div className="mt-4 transition-all duration-200 ease-in-out">
                                                 {activeTab === "loot" && (
-                                                  <div className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-lg border border-border/50">
-                                                    No loot data available
+                                                  <div className="py-4 bg-muted/30 rounded-lg border border-border/50">
+                                                    <div className="space-y-3 px-4">
+                                                      {/* Gold Badge */}
+                                                      {creature.gold !== undefined && creature.gold > 0 && (
+                                                        <div className="flex items-center justify-between p-3 rounded-md bg-gradient-to-br from-yellow-500/20 to-amber-600/20 border border-yellow-500/30">
+                                                          <span className="text-sm font-semibold text-foreground">Gold</span>
+                                                          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30 font-bold">
+                                                            {creature.gold} gp
+                                                          </Badge>
+                                                        </div>
+                                                      )}
+                                                      {creature.goldRoll && creature.goldRoll !== '0' && (
+                                                        <div className="text-xs text-muted-foreground text-center">
+                                                          Rolled: {creature.goldRoll}
+                                                        </div>
+                                                      )}
+                                                      {creature.treasure_type && (
+                                                        <div className="flex items-center justify-between p-3 rounded-md bg-card/50 border border-border/50">
+                                                          <span className="text-sm font-semibold text-foreground">Treasure Type</span>
+                                                          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                                                            {creature.treasure_type}
+                                                          </Badge>
+                                                        </div>
+                                                      )}
+                                                      {(!creature.gold || creature.gold === 0) && !creature.treasure_type && (
+                                                        <div className="text-sm text-muted-foreground text-center py-4">
+                                                          No loot available
+                                                        </div>
+                                                      )}
+                                                    </div>
                                                   </div>
                                                 )}
                                                 {activeTab === "abilities" && (
@@ -606,6 +711,10 @@ const Index = () => {
               </Card>
             </div>
           </main>
+
+          {/* Loot Sidebar */}
+          <LootSidebar encounter={encounter} />
+        </div>
 
           {/* Expandable log panel */}
           {encounter && (

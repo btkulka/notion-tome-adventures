@@ -205,9 +205,9 @@ export class ConfigurationManager {
       databases: [
         {
           id: '',
-          name: 'creatures',
-          description: 'D&D Creatures/Monsters database',
-          environmentVariable: 'CREATURES_DATABASE_ID',
+          name: 'monsters',
+          description: 'D&D Monsters database',
+          environmentVariable: 'MONSTERS_DATABASE_ID',
           required: true
         },
         {

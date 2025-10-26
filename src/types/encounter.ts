@@ -26,6 +26,7 @@ export interface GeneratedEncounter {
   environment: string;
   difficulty?: string;
   total_xp: number;
+  total_gold?: number;
   adjusted_xp?: number;
   creatures: Array<{
     id: string;
@@ -36,8 +37,12 @@ export interface GeneratedEncounter {
     total_xp: number;
     image_url?: string;
     creature_type: string;
+    creature_subtype?: string;
     size: string;
     alignment: string;
+    treasure_type?: string;
+    gold?: number;
+    goldRoll?: string;
   }>;
   generation_notes: string;
 }

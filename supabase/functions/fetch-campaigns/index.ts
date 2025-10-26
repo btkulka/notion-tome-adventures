@@ -1,5 +1,5 @@
 import { Client } from 'https://deno.land/x/notion_sdk@v2.2.3/src/mod.ts'
-import { extractSession, isValidSession } from '../_shared/notion-extractors.ts'
+import { extractCampaign, isValidCampaign } from '../_shared/notion-extractors.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,9 +13,9 @@ Deno.serve(async (req) => {
 
   try {
     const notionApiKey = Deno.env.get('NOTION_API_KEY')
-    const sessionsDbId = Deno.env.get('SESSIONS_DATABASE_ID')
+    const campaignsDbId = Deno.env.get('CAMPAIGNS_DATABASE_ID')
 
-    if (!notionApiKey || !sessionsDbId) {
+    if (!notionApiKey || !campaignsDbId) {
       return new Response(
         JSON.stringify({ error: 'Notion configuration missing' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -23,26 +23,26 @@ Deno.serve(async (req) => {
     }
 
     const notion = new Client({ auth: notionApiKey })
-    const { searchQuery, campaignId } = await req.json().catch(() => ({}))
+    const { searchQuery, activeOnly = false } = await req.json().catch(() => ({}))
 
-    console.log('Fetching sessions with search:', searchQuery, 'campaignId:', campaignId)
+    console.log('Fetching campaigns with search:', searchQuery, 'activeOnly:', activeOnly)
 
-    const query: any = { database_id: sessionsDbId }
+    const query: any = { database_id: campaignsDbId }
 
     // Build filters
     const filters: any[] = []
 
     if (searchQuery) {
       filters.push({
-        property: 'Session',
+        property: 'Campaign',
         title: { contains: searchQuery }
       })
     }
 
-    if (campaignId) {
+    if (activeOnly) {
       filters.push({
-        property: 'Campaign',
-        relation: { contains: campaignId }
+        property: 'Active',
+        checkbox: { equals: true }
       })
     }
 
@@ -59,19 +59,19 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${response.results.length} raw pages`)
 
-    // Extract sessions using unified extractor
-    const sessions = response.results
-      .map(page => extractSession(page))
-      .filter(isValidSession)
+    // Extract campaigns using unified extractor
+    const campaigns = response.results
+      .map(page => extractCampaign(page))
+      .filter(isValidCampaign)
 
-    console.log(`Extracted ${sessions.length} valid sessions`)
+    console.log(`Extracted ${campaigns.length} valid campaigns`)
 
     return new Response(
-      JSON.stringify({ sessions }),
+      JSON.stringify({ campaigns }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error fetching sessions:', error)
+    console.error('Error fetching campaigns:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

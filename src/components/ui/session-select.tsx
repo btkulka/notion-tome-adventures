@@ -14,13 +14,15 @@ interface SessionSelectProps {
   onValueChange: (session: NotionSession | null) => void;
   placeholder?: string;
   className?: string;
+  campaignId?: string;  // Filter sessions by campaign
 }
 
 export const SessionSelect: React.FC<SessionSelectProps> = ({
   value,
   onValueChange,
   placeholder = "Select session...",
-  className
+  className,
+  campaignId
 }) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,41 +39,52 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, campaignId]);
 
-  // Load initial sessions on mount
+  // Load initial sessions on mount and when campaign changes
   useEffect(() => {
     loadSessions();
-  }, []);
+  }, [campaignId]);
 
   const loadSessions = async (search?: string) => {
     setIsLoading(true);
-    
-    const result = await fetchSessions(search);
-    
+
+    const result = await fetchSessions(search, campaignId);
+
     if (!result.success) {
       setSessionError(result.error || new Error('Unknown error'));
       setSessions([]);
       setIsLoading(false);
       return;
     }
-    
+
     if (result.data?.sessions) {
       setSessions(result.data.sessions);
       setSessionError(null);
     }
-    
+
     setIsLoading(false);
   };
 
   const filteredSessions = useMemo(() => {
-    if (!searchQuery.trim()) return sessions;
-    
-    const query = searchQuery.toLowerCase();
-    return sessions.filter(session => 
-      session.name.toLowerCase().includes(query) ||
-      (session.description && session.description.toLowerCase().includes(query))
-    );
+    let filtered = sessions;
+
+    // Filter by search query if provided
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = sessions.filter(session =>
+        session.name.toLowerCase().includes(query) ||
+        (session.description && session.description.toLowerCase().includes(query))
+      );
+    }
+
+    // Sort by date in descending order (most recent first)
+    return filtered.sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
   }, [sessions, searchQuery]);
 
   const formatSessionDisplay = (session: NotionSession) => {

@@ -28,6 +28,18 @@ export interface NotionSession {
   name: string
   date?: string
   description?: string
+  campaignRelation?: string
+  playerRelations?: string[]
+  encounterRelations?: string[]
+}
+
+export interface NotionCampaign {
+  id: string
+  name: string
+  description?: string
+  active: boolean
+  sessionRelations?: string[]
+  coverArt?: string
 }
 
 export interface CreatureFilters {
@@ -136,10 +148,17 @@ export const useNotionService = () => {
     )
   }
 
-  const fetchSessions = async (searchQuery?: string) => {
+  const fetchSessions = async (searchQuery?: string, campaignId?: string) => {
     return executeWithErrorHandling(
-      () => callEdgeFunction('fetch-sessions', searchQuery ? { search: searchQuery } : {}),
+      () => callEdgeFunction('fetch-sessions', { searchQuery, campaignId }),
       'fetch sessions'
+    )
+  }
+
+  const fetchCampaigns = async (searchQuery?: string, activeOnly = false) => {
+    return executeWithErrorHandling(
+      () => callEdgeFunction('fetch-campaigns', { searchQuery, activeOnly }),
+      'fetch campaigns'
     )
   }
 
@@ -176,16 +195,17 @@ export const useNotionService = () => {
     // Discovery
     discoverDatabases,
     getSchema,
-    
+
     // Data operations
     fetchCreatures,
     fetchEnvironments,
     fetchSessions,
+    fetchCampaigns,
     generateEncounter,
     saveEncounter,
     debugEnvironments,
     simpleDebug,
-    
+
     // State
     loading,
     error,

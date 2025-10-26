@@ -11,10 +11,11 @@ Deno.serve(async (req) => {
   try {
     const envVars = {
       NOTION_API_KEY: Deno.env.get('NOTION_API_KEY') ? '✓ Set' : '✗ Missing',
-      CREATURES_DATABASE_ID: Deno.env.get('CREATURES_DATABASE_ID') ? '✓ Set' : '✗ Missing',
+      MONSTERS_DATABASE_ID: Deno.env.get('MONSTERS_DATABASE_ID') ? '✓ Set' : '✗ Missing',
       ENVIRONMENTS_DATABASE_ID: Deno.env.get('ENVIRONMENTS_DATABASE_ID') ? '✓ Set' : '✗ Missing',
       SESSIONS_DATABASE_ID: Deno.env.get('SESSIONS_DATABASE_ID') ? '✓ Set' : '✗ Missing',
       ENCOUNTERS_DATABASE_ID: Deno.env.get('ENCOUNTERS_DATABASE_ID') ? '✓ Set' : '✗ Missing',
+      MONSTER_TYPE_DATABASE_ID: Deno.env.get('MONSTER_TYPE_DATABASE_ID') ? '✓ Set' : '✗ Missing',
     };
 
     console.log('Debug - Environment variables:', envVars);

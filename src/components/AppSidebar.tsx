@@ -12,18 +12,19 @@ import {
 import { SelectField, FormSection, FormGrid } from '@/components/ui/form-fields';
 import { NumberInput } from '@/components/ui/number-input';
 import { CRSelect } from '@/components/ui/cr-select';
-import { 
-  getEnvironmentIcon, 
-  getAlignmentIcon, 
-  getCreatureTypeIcon, 
-  getSizeIcon 
+import {
+  getEnvironmentIcon,
+  getAlignmentIcon,
+  getCreatureTypeIcon,
+  getSizeIcon
 } from '@/lib/icon-mappings';
 
-import { useNotionService } from '@/hooks/useNotionService';
+import { useNotionService, NotionCampaign } from '@/hooks/useNotionService';
 import { EncounterParams } from '@/types/encounter';
 import { useToast } from '@/hooks/use-toast';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
 import { EdgeFunctionError } from '@/components/ui/edge-function-error';
+import { CampaignSelect } from '@/components/ui/campaign-select';
 
 // Static data for filters
 const alignments = [
@@ -46,11 +47,13 @@ interface AppSidebarProps {
   onGenerate: () => void;
   onCancel: () => void;
   isGenerating: boolean;
+  selectedCampaign: NotionCampaign | null;
+  onCampaignChange: (campaign: NotionCampaign | null) => void;
 }
 
-export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerating }: AppSidebarProps) {
+export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerating, selectedCampaign, onCampaignChange }: AppSidebarProps) {
   const { open } = useSidebar();
-  const { fetchEnvironments, debugEnvironments, simpleDebug, loading: environmentsLoading, error: environmentsError } = useNotionService();
+  const { fetchEnvironments, loading: environmentsLoading, error: environmentsError } = useNotionService();
   const { toast } = useToast();
   const [environments, setEnvironments] = React.useState<{ id: string; name: string }[]>([]);
   const [envError, setEnvError] = React.useState<Error | null>(null);
@@ -108,50 +111,61 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
     icon: getSizeIcon(size)
   }));
 
-  const handleSimpleDebug = async () => {
-    const result = await simpleDebug();
-    
-    if (!result.success) {
-      toast({
-        title: "Debug Failed", 
-        description: result.error?.message || "Unknown error",
-        variant: "destructive"
-      });
-      return;
-    }
-    toast({
-      title: "Property Keys Debug",
-      description: `Debug result returned. Check console for details.`,
-      variant: "default"
-    });
-  };
 
   return (
     <Sidebar
-      className={open ? "w-80" : "w-14"}
+      className={open ? "w-1/6" : "w-14"}
       collapsible="icon"
     >
-      <SidebarContent className="border-r border-border bg-background">
-        {/* Hero Section */}
+      <SidebarContent className="border-r border-border bg-background flex flex-col h-screen overflow-hidden">
+        {/* Campaign Header */}
         {open && (
-          <div 
-            className="relative h-32 bg-cover bg-center border-b border-border"
-            style={{ backgroundImage: `url(${heroBanner})` }}
+          <div
+            className="relative h-40 bg-cover bg-center border-b border-border"
+            style={{
+              backgroundImage: selectedCampaign?.coverArt
+                ? `url(${selectedCampaign.coverArt})`
+                : `url(${heroBanner})`
+            }}
           >
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/70" />
-            <div className="relative z-10 flex items-center justify-center h-full p-4">
-              <div className="text-center">
+            <div className="relative z-10 flex flex-col items-center justify-center h-full p-4 gap-2">
+              <div className="text-center mb-2">
                 <h2 className="text-lg font-bold text-white drop-shadow-lg">
-                  Encounter Generator
+                  {selectedCampaign?.name || 'Select Campaign'}
                 </h2>
+                {selectedCampaign?.description && (
+                  <p className="text-xs text-white/80 drop-shadow-lg mt-1 line-clamp-2">
+                    {selectedCampaign.description}
+                  </p>
+                )}
+              </div>
+              <div className="w-full max-w-[280px]">
+                <CampaignSelect
+                  value={selectedCampaign}
+                  onValueChange={onCampaignChange}
+                  placeholder="Select campaign..."
+                  activeOnly={false}
+                />
               </div>
             </div>
           </div>
         )}
-        
-        <SidebarGroup>
+
+        {/* Fixed Title Section */}
+        {open && (
+          <div className="px-6 pt-6 pb-4 border-b border-border shrink-0">
+            <h3 className="text-xl font-bold text-foreground flex items-center justify-center gap-2">
+              <Dice6 className="h-5 w-5 text-accent" />
+              Encounter Generator
+            </h3>
+          </div>
+        )}
+
+        {/* Scrollable Parameters Section */}
+        <SidebarGroup className="flex-1 overflow-hidden flex flex-col">
           {open && (
-            <SidebarGroupContent className="px-6 py-6">
+            <SidebarGroupContent className="px-6 py-6 overflow-y-auto flex-1">
               <div className="space-y-8">
                 {/* Error Display */}
                 {envError && (
@@ -161,7 +175,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                     onRetry={loadEnvironments}
                   />
                 )}
-                
+
                 {/* Environment Section */}
                 <SelectField
                   label="Environment"
@@ -246,50 +260,43 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                     />
                   </div>
                 </FormSection>
-
-                <div className="pt-8">
-                  {isGenerating ? (
-                    <div className="space-y-3">
-                      <Button 
-                        disabled
-                        className="w-full btn-mystical text-primary-foreground font-semibold tracking-wide opacity-70"
-                      >
-                        <Dice6 className="mr-2 h-4 w-4 animate-spin" />
-                        Rolling the Dice...
-                      </Button>
-                      <Button 
-                        onClick={onCancel}
-                        variant="outline"
-                        className="w-full border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-200 hover:shadow-lg hover:shadow-destructive/20"
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        Cancel Generation
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <Button 
-                        onClick={onGenerate}
-                        className="w-full btn-mystical text-primary-foreground font-semibold tracking-wide"
-                      >
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Generate Encounter
-                      </Button>
-                      <Button 
-                        onClick={handleSimpleDebug}
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs"
-                      >
-                        Debug Property Keys
-                      </Button>
-                    </div>
-                  )}
-                </div>
               </div>
             </SidebarGroupContent>
           )}
         </SidebarGroup>
+
+        {/* Fixed Generate Button Section */}
+        {open && (
+          <div className="px-6 py-4 border-t border-border shrink-0 bg-background">
+            {isGenerating ? (
+              <div className="space-y-3">
+                <Button
+                  disabled
+                  className="w-full btn-mystical text-primary-foreground font-semibold tracking-wide opacity-70"
+                >
+                  <Dice6 className="mr-2 h-4 w-4 animate-spin" />
+                  Rolling the Dice...
+                </Button>
+                <Button
+                  onClick={onCancel}
+                  variant="outline"
+                  className="w-full border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-200 hover:shadow-lg hover:shadow-destructive/20"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel Generation
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={onGenerate}
+                className="w-full btn-mystical text-primary-foreground font-semibold tracking-wide"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                Generate Encounter
+              </Button>
+            )}
+          </div>
+        )}
       </SidebarContent>
     </Sidebar>
   );
