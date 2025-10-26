@@ -25,9 +25,16 @@ import { LootSidebar } from '@/components/LootSidebar';
 
 const Index = () => {
   const componentMountTimeRef = useRef(performance.now());
+  const isMountedRef = useRef(true);
+  
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   const { toast } = useToast();
-  const { generateEncounter, saveEncounter, loading: generatingEncounter, error: generationError } = useNotionService();
+  const notionService = useNotionService();
   
   const [params, setParams] = useState<EncounterParams>({
     environment: 'Any',
@@ -97,9 +104,10 @@ const Index = () => {
       localStorage.removeItem('selectedCampaign');
     }
   }, [selectedCampaign]);
-  
 
   const handleGenerate = async () => {
+    if (!isMountedRef.current) return;
+    
     if (!params.environment || params.environment === '' || params.xpThreshold <= 0) {
       toast({
         title: "Missing Parameters",
@@ -128,10 +136,11 @@ const Index = () => {
     setEncounter(null);
 
     try {
+      if (!isMountedRef.current) return;
       
       // Mark initial steps as we prepare the request
-      setTimeout(() => markStepComplete('notion-connect'), 200);
-      setTimeout(() => markStepComplete('validate-dbs'), 400);
+      setTimeout(() => isMountedRef.current && markStepComplete('notion-connect'), 200);
+      setTimeout(() => isMountedRef.current && markStepComplete('validate-dbs'), 400);
       
       const notionParams: NotionEncounterParams = {
         environment: params.environment === 'Any' ? 'Any' : params.environment,
@@ -145,9 +154,11 @@ const Index = () => {
       };
       
       // Mark that we're about to fetch creatures
-      setTimeout(() => markStepComplete('fetch-creatures'), 600);
-      const result = await generateEncounter(notionParams, controller.signal);
+      setTimeout(() => isMountedRef.current && markStepComplete('fetch-creatures'), 600);
+      const result = await notionService.generateEncounter(notionParams, controller.signal);
 
+      if (!isMountedRef.current) return;
+      
       // Check if generation failed
       if (!result.success) {
         throw result.error || new Error('Unknown error during encounter generation');
@@ -319,8 +330,10 @@ const Index = () => {
   };
 
   const handleSaveEncounter = async () => {
-    if (!encounter) return;
-    const result = await saveEncounter(encounter);
+    if (!encounter || !isMountedRef.current) return;
+    const result = await notionService.saveEncounter(encounter);
+    
+    if (!isMountedRef.current) return;
     
     if (!result.success) {
       toast({
