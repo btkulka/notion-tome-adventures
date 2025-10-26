@@ -358,7 +358,7 @@ const Index = () => {
 
           {/* Main content - no header */}
           <div className="flex flex-1 overflow-hidden h-screen">
-            <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+            <main className="flex-1 overflow-auto p-6">
               <div className="max-w-7xl mx-auto w-full">
                 {/* Fatal Error Display */}
                 {fatalError && (

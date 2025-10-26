@@ -75,7 +75,7 @@ export function LootSidebar({ encounter }: LootSidebarProps) {
               return (
                 <div
                   key={`${creature.id}-${index}`}
-                  className="p-2 rounded-md bg-card/50 border border-border/50 hover:border-accent/50 transition-colors"
+                  className="px-1 py-2 rounded-md bg-card/50 border border-border/50 hover:border-accent/50 transition-colors"
                 >
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between gap-2">
