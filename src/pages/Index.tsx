@@ -68,8 +68,13 @@ const Index = () => {
 
   // Campaign selection state with persistence
   const [selectedCampaign, setSelectedCampaign] = useState<{id: string, name: string, active: boolean} | null>(() => {
-    const saved = localStorage.getItem('selectedCampaign');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('selectedCampaign');
+      return saved ? JSON.parse(saved) : null;
+    } catch (err) {
+      console.error('Failed to parse selectedCampaign from localStorage:', err);
+      return null;
+    }
   });
   
   // Track component lifecycle

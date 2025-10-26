@@ -57,23 +57,32 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
   const { toast } = useToast();
   const [environments, setEnvironments] = React.useState<{ id: string; name: string }[]>([]);
   const [envError, setEnvError] = React.useState<Error | null>(null);
+  const hasLoadedRef = React.useRef(false);
 
-  const loadEnvironments = async () => {
-    const result = await fetchEnvironments();
+  const loadEnvironments = React.useCallback(async () => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
     
-    if (!result.success) {
-      setEnvError(result.error || new Error('Unknown error'));
+    try {
+      const result = await fetchEnvironments();
+      
+      if (!result.success) {
+        setEnvError(result.error || new Error('Unknown error'));
+        setEnvironments([]);
+        return;
+      }
+      
+      if (result.data && result.data.environments && result.data.environments.length > 0) {
+        setEnvironments(result.data.environments);
+        setEnvError(null);
+      } else {
+        setEnvironments([]);
+      }
+    } catch (err) {
+      setEnvError(err instanceof Error ? err : new Error('Failed to load environments'));
       setEnvironments([]);
-      return;
     }
-    
-    if (result.data && result.data.environments && result.data.environments.length > 0) {
-      setEnvironments(result.data.environments);
-      setEnvError(null);
-    } else {
-      setEnvironments([]);
-    }
-  };
+  }, [fetchEnvironments]);
 
   React.useEffect(() => {
     loadEnvironments();
