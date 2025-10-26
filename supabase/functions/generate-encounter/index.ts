@@ -196,7 +196,7 @@ serve(async (req) => {
     const extractionResults = response.results.map((page, index) => {
       try {
         // Log available properties for first page
-        if (VERBOSE_LOGGING && index === 0) {
+        if (VERBOSE_LOGGING && index === 0 && 'properties' in page) {
           console.log('🔍 First page property names:', Object.keys(page.properties))
           console.log('🔍 First page properties sample:', JSON.stringify(page.properties, null, 2).substring(0, 1000))
         }
@@ -249,7 +249,9 @@ serve(async (req) => {
     // Debug: Log first raw creature's properties to see what fields are available
     if (response.results.length > 0 && VERBOSE_LOGGING) {
       const firstPage = response.results[0]
-      console.log('[DEBUG] First monster page properties:', Object.keys(firstPage.properties))
+      if ('properties' in firstPage) {
+        console.log('[DEBUG] First monster page properties:', Object.keys(firstPage.properties))
+      }
       console.log('[DEBUG] First extracted creature:', JSON.stringify(baseCreatures[0], null, 2))
     }
 

@@ -31,11 +31,11 @@ Deno.serve(async (req) => {
     const debugInfo = {
       database: {
         id: database.id,
-        title: database.title?.[0]?.plain_text || 'Untitled',
-        properties: Object.entries(database.properties).map(([name, prop]: [string, any]) => ({
+        title: 'object' in database && 'title' in database ? database.title?.[0]?.plain_text || 'Untitled' : 'Untitled',
+        properties: 'object' in database && 'properties' in database ? Object.entries(database.properties).map(([name, prop]: [string, any]) => ({
           name,
           type: prop.type,
-        })),
+        })) : [],
       },
       results: query.results.slice(0, 3).map((page: any) => ({
         id: page.id,
@@ -55,8 +55,9 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error('Error in debug:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

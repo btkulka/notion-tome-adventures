@@ -35,18 +35,20 @@ Deno.serve(async (req) => {
 
     const database = await notion.databases.retrieve({ database_id: databaseId });
 
-    const properties = Object.entries(database.properties).map(([name, prop]: [string, any]) => ({
-      name,
-      type: prop.type,
-      id: prop.id,
-      config: prop[prop.type] || {},
-    }));
+    const properties = 'object' in database && 'properties' in database 
+      ? Object.entries(database.properties).map(([name, prop]: [string, any]) => ({
+          name,
+          type: prop.type,
+          id: prop.id,
+          config: prop[prop.type] || {},
+        }))
+      : [];
 
     const schema = {
       id: database.id,
-      title: database.title?.[0]?.plain_text || 'Untitled',
+      title: 'object' in database && 'title' in database ? database.title?.[0]?.plain_text || 'Untitled' : 'Untitled',
       properties,
-      url: database.url,
+      url: 'object' in database && 'url' in database ? database.url : '',
     };
 
     console.log(`Schema retrieved for ${schema.title} with ${properties.length} properties`);
@@ -57,8 +59,9 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error('Error fetching schema:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
