@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -31,46 +31,57 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
   const [campaignError, setCampaignError] = useState<Error | null>(null);
   const { fetchCampaigns } = useNotionService();
   const { toast } = useToast();
+  const hasInitialLoadRef = useRef(false);
+
+  const loadCampaigns = useCallback(async (search?: string) => {
+    setIsLoading(true);
+
+    try {
+      // Always fetch active campaigns only
+      const result = await fetchCampaigns(search, true);
+
+      if (!result.success) {
+        setCampaignError(result.error || new Error('Unknown error'));
+        setCampaigns([]);
+        setIsLoading(false);
+        return;
+      }
+
+      if (result.data?.campaigns) {
+        setCampaigns(result.data.campaigns);
+        setCampaignError(null);
+
+        // Auto-select if only one active campaign and no current selection
+        if (result.data.campaigns.length === 1 && !value && !hasInitialLoadRef.current) {
+          onValueChange(result.data.campaigns[0]);
+        }
+      }
+    } catch (err) {
+      setCampaignError(err instanceof Error ? err : new Error('Failed to load campaigns'));
+      setCampaigns([]);
+    } finally {
+      setIsLoading(false);
+      hasInitialLoadRef.current = true;
+    }
+  }, [fetchCampaigns, value, onValueChange]);
+
+  // Load initial campaigns on mount
+  useEffect(() => {
+    if (!hasInitialLoadRef.current) {
+      loadCampaigns();
+    }
+  }, []);
 
   // Debounced search effect
   useEffect(() => {
+    if (!hasInitialLoadRef.current) return;
+    
     const timeoutId = setTimeout(() => {
       loadCampaigns(searchQuery);
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, activeOnly]);
-
-  // Load initial campaigns on mount
-  useEffect(() => {
-    loadCampaigns();
-  }, [activeOnly]);
-
-  const loadCampaigns = async (search?: string) => {
-    setIsLoading(true);
-
-    // Always fetch active campaigns only
-    const result = await fetchCampaigns(search, true);
-
-    if (!result.success) {
-      setCampaignError(result.error || new Error('Unknown error'));
-      setCampaigns([]);
-      setIsLoading(false);
-      return;
-    }
-
-    if (result.data?.campaigns) {
-      setCampaigns(result.data.campaigns);
-      setCampaignError(null);
-
-      // Auto-select if only one active campaign and no current selection
-      if (result.data.campaigns.length === 1 && !value) {
-        onValueChange(result.data.campaigns[0]);
-      }
-    }
-
-    setIsLoading(false);
-  };
+  }, [searchQuery, loadCampaigns]);
 
   const filteredCampaigns = useMemo(() => {
     let filtered = campaigns;

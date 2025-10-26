@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -31,40 +31,53 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
   const [sessionError, setSessionError] = useState<Error | null>(null);
   const { fetchSessions } = useNotionService();
   const { toast } = useToast();
+  const hasInitialLoadRef = useRef(false);
+  const prevCampaignIdRef = useRef<string | undefined>(undefined);
+
+  const loadSessions = useCallback(async (search?: string) => {
+    setIsLoading(true);
+
+    try {
+      const result = await fetchSessions(search, campaignId);
+
+      if (!result.success) {
+        setSessionError(result.error || new Error('Unknown error'));
+        setSessions([]);
+        setIsLoading(false);
+        return;
+      }
+
+      if (result.data?.sessions) {
+        setSessions(result.data.sessions);
+        setSessionError(null);
+      }
+    } catch (err) {
+      setSessionError(err instanceof Error ? err : new Error('Failed to load sessions'));
+      setSessions([]);
+    } finally {
+      setIsLoading(false);
+      hasInitialLoadRef.current = true;
+    }
+  }, [fetchSessions, campaignId]);
+
+  // Load initial sessions on mount and when campaign changes
+  useEffect(() => {
+    if (!hasInitialLoadRef.current || prevCampaignIdRef.current !== campaignId) {
+      prevCampaignIdRef.current = campaignId;
+      loadSessions();
+    }
+  }, [campaignId]);
 
   // Debounced search effect
   useEffect(() => {
+    if (!hasInitialLoadRef.current) return;
+    
     const timeoutId = setTimeout(() => {
       loadSessions(searchQuery);
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, campaignId]);
-
-  // Load initial sessions on mount and when campaign changes
-  useEffect(() => {
-    loadSessions();
-  }, [campaignId]);
-
-  const loadSessions = async (search?: string) => {
-    setIsLoading(true);
-
-    const result = await fetchSessions(search, campaignId);
-
-    if (!result.success) {
-      setSessionError(result.error || new Error('Unknown error'));
-      setSessions([]);
-      setIsLoading(false);
-      return;
-    }
-
-    if (result.data?.sessions) {
-      setSessions(result.data.sessions);
-      setSessionError(null);
-    }
-
-    setIsLoading(false);
-  };
+  }, [searchQuery, loadSessions]);
 
   const filteredSessions = useMemo(() => {
     let filtered = sessions;

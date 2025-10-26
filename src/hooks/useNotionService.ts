@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { callEdgeFunction } from '@/lib/supabase-client'
 import { NotionDatabase, DatabaseMatch, DatabaseSchema } from './useNotionDiscovery'
 import { NotionEncounterParams, GeneratedEncounter } from '@/types/encounter'
@@ -62,7 +62,7 @@ export const useNotionService = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const executeWithErrorHandling = async <T>(
+  const executeWithErrorHandling = useCallback(async <T>(
     operation: () => Promise<T>,
     operationName: string,
     signal?: AbortSignal
@@ -116,80 +116,82 @@ export const useNotionService = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Discovery operations
-  const discoverDatabases = async () => {
+  const discoverDatabases = useCallback(async () => {
     return executeWithErrorHandling(
       () => callEdgeFunction('discover-notion-databases'),
       'discover databases'
     )
-  }
+  }, [executeWithErrorHandling])
 
-  const getSchema = async (databaseId: string) => {
+  const getSchema = useCallback(async (databaseId: string) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('get-notion-schema', { databaseId }),
       'get database schema'
     )
-  }
+  }, [executeWithErrorHandling])
 
   // Data fetching operations
-  const fetchCreatures = async (filters?: CreatureFilters) => {
+  const fetchCreatures = useCallback(async (filters?: CreatureFilters) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('fetch-creatures', filters),
       'fetch creatures'
     )
-  }
+  }, [executeWithErrorHandling])
 
-  const fetchEnvironments = async () => {
+  const fetchEnvironments = useCallback(async () => {
     return executeWithErrorHandling(
       () => callEdgeFunction('fetch-environments'),
       'fetch environments'
     )
-  }
+  }, [executeWithErrorHandling])
 
-  const fetchSessions = async (searchQuery?: string, campaignId?: string) => {
+  const fetchSessions = useCallback(async (searchQuery?: string, campaignId?: string) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('fetch-sessions', { searchQuery, campaignId }),
       'fetch sessions'
     )
-  }
+  }, [executeWithErrorHandling])
 
-  const fetchCampaigns = async (searchQuery?: string, activeOnly = false) => {
+  const fetchCampaigns = useCallback(async (searchQuery?: string, activeOnly = false) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('fetch-campaigns', { searchQuery, activeOnly }),
       'fetch campaigns'
     )
-  }
+  }, [executeWithErrorHandling])
 
-  const generateEncounter = async (params: NotionEncounterParams, signal?: AbortSignal) => {
+  const generateEncounter = useCallback(async (params: NotionEncounterParams, signal?: AbortSignal) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('generate-encounter', params, signal),
       'generate encounter',
       signal
     )
-  }
+  }, [executeWithErrorHandling])
 
-  const saveEncounter = async (encounter: GeneratedEncounter) => {
+  const saveEncounter = useCallback(async (encounter: GeneratedEncounter) => {
     return executeWithErrorHandling(
       () => callEdgeFunction('save-encounter', encounter),
       'save encounter to Notion'
     )
-  }
+  }, [executeWithErrorHandling])
 
-  const debugEnvironments = async () => {
+  const debugEnvironments = useCallback(async () => {
     return executeWithErrorHandling(
       () => callEdgeFunction('debug-environments'),
       'debug environments'
     )
-  }
+  }, [executeWithErrorHandling])
 
-  const simpleDebug = async () => {
+  const simpleDebug = useCallback(async () => {
     return executeWithErrorHandling(
       () => callEdgeFunction('simple-debug'),
       'simple debug'
     )
-  }
+  }, [executeWithErrorHandling])
+
+  const clearError = useCallback(() => setError(null), [])
 
   return {
     // Discovery
@@ -209,6 +211,6 @@ export const useNotionService = () => {
     // State
     loading,
     error,
-    clearError: () => setError(null),
+    clearError,
   }
 }
