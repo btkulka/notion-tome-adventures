@@ -60,42 +60,34 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
 
   // Load environments once on mount
   React.useEffect(() => {
-    console.log('[AppSidebar] Mount - starting environment load');
     let isMounted = true;
 
     const loadEnvironments = async () => {
-      console.log('[AppSidebar] Loading environments...');
       setEnvironmentsLoading(true);
       try {
         const result = await notionApi.fetchEnvironments();
-        console.log('[AppSidebar] Environment result:', result);
         
         if (!isMounted) return;
         
         if (!result.success) {
-          console.error('[AppSidebar] Environment load failed:', result.error);
           setEnvError(new Error(result.error || 'Unknown error'));
           setEnvironments([]);
           return;
         }
         
         if (result.data && result.data.environments && result.data.environments.length > 0) {
-          console.log('[AppSidebar] Loaded environments:', result.data.environments.length);
           setEnvironments(result.data.environments);
           setEnvError(null);
         } else {
-          console.log('[AppSidebar] No environments returned');
           setEnvironments([]);
         }
       } catch (err) {
-        console.error('[AppSidebar] Environment load error:', err);
         if (!isMounted) return;
         setEnvError(err instanceof Error ? err : new Error('Failed to load environments'));
         setEnvironments([]);
       } finally {
         if (isMounted) {
           setEnvironmentsLoading(false);
-          console.log('[AppSidebar] Environment load complete');
         }
       }
     };
@@ -103,7 +95,6 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
     loadEnvironments();
 
     return () => {
-      console.log('[AppSidebar] Unmount');
       isMounted = false;
     };
   }, []); // Empty deps - run once on mount

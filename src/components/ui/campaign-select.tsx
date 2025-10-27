@@ -48,23 +48,18 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
 
   // Load campaigns once on mount
   useEffect(() => {
-    console.log('[CampaignSelect] Checking if should load, loadedRef:', loadedRef.current);
     if (loadedRef.current) return;
     loadedRef.current = true;
 
     const loadCampaigns = async () => {
-      console.log('[CampaignSelect] Loading campaigns...');
       setIsLoading(true);
       try {
         const { data, error } = await supabase.functions.invoke('fetch-campaigns', {
           body: { searchQuery: '', activeOnly }
         });
 
-        console.log('[CampaignSelect] Response:', { data, error });
-
         if (error) throw error;
         if (data?.campaigns) {
-          console.log('[CampaignSelect] Loaded campaigns:', data.campaigns.length);
           setItems(data.campaigns);
         }
       } catch (err) {
@@ -72,7 +67,6 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
         toast.error('Failed to load campaigns');
       } finally {
         setIsLoading(false);
-        console.log('[CampaignSelect] Load complete');
       }
     };
 
