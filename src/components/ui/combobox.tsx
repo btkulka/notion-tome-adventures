@@ -51,12 +51,24 @@ export function Combobox<T extends ComboboxItem>({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const hasInitialLoadRef = useRef(false);
+  
+  // Use refs to avoid dependency issues
+  const fetchItemsRef = useRef(fetchItems);
+  const onValueChangeRef = useRef(onValueChange);
+  const valueRef = useRef(value);
+  
+  // Keep refs updated
+  useEffect(() => {
+    fetchItemsRef.current = fetchItems;
+    onValueChangeRef.current = onValueChange;
+    valueRef.current = value;
+  });
 
   const loadItems = useCallback(async (search?: string) => {
     setIsLoading(true);
 
     try {
-      const result = await fetchItems(search);
+      const result = await fetchItemsRef.current(search);
 
       if (!result.success) {
         setError(result.error || new Error('Unknown error'));
@@ -70,8 +82,8 @@ export function Combobox<T extends ComboboxItem>({
         setError(null);
 
         // Auto-select if only one item and no current selection
-        if (autoSelectSingle && result.data.items.length === 1 && !value && !hasInitialLoadRef.current) {
-          onValueChange(result.data.items[0]);
+        if (autoSelectSingle && result.data.items.length === 1 && !valueRef.current && !hasInitialLoadRef.current) {
+          onValueChangeRef.current(result.data.items[0]);
         }
       }
     } catch (err) {
@@ -84,14 +96,14 @@ export function Combobox<T extends ComboboxItem>({
         onInitialLoad?.();
       }
     }
-  }, [fetchItems, value, onValueChange, autoSelectSingle, onInitialLoad]);
+  }, [autoSelectSingle, onInitialLoad]);
 
   // Load initial items on mount
   useEffect(() => {
     if (!hasInitialLoadRef.current) {
       loadItems();
     }
-  }, []);
+  }, [loadItems]);
 
   // Debounced search effect
   useEffect(() => {
@@ -102,7 +114,7 @@ export function Combobox<T extends ComboboxItem>({
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, loadItems]);
 
   const filteredItems = useMemo(() => {
     let filtered = items;
