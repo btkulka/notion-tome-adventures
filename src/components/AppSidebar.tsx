@@ -61,13 +61,18 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
   // Load environments once on mount
   React.useEffect(() => {
     let isMounted = true;
+    const abortController = new AbortController();
 
     const loadEnvironments = async () => {
+      console.log('🌍 AppSidebar: Loading environments');
       setEnvironmentsLoading(true);
       try {
         const result = await notionApi.fetchEnvironments();
         
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.log('🚫 AppSidebar: Component unmounted, ignoring result');
+          return;
+        }
         
         if (!result.success) {
           setEnvError(new Error(result.error || 'Unknown error'));
@@ -83,6 +88,13 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
         }
       } catch (err) {
         if (!isMounted) return;
+        
+        // Don't set error if aborted
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.log('🚫 AppSidebar: Environment fetch aborted');
+          return;
+        }
+        
         setEnvError(err instanceof Error ? err : new Error('Failed to load environments'));
         setEnvironments([]);
       } finally {
@@ -95,7 +107,9 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
     loadEnvironments();
 
     return () => {
+      console.log('🧹 AppSidebar: Cleanup - aborting environment fetch');
       isMounted = false;
+      abortController.abort();
     };
   }, []); // Empty deps - run once on mount
 

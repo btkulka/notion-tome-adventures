@@ -26,10 +26,18 @@ import { LootSidebar } from '@/components/LootSidebar';
 const Index = () => {
   const componentMountTimeRef = useRef(performance.now());
   const isMountedRef = useRef(true);
+  const timeoutIdsRef = useRef<NodeJS.Timeout[]>([]);
   
   useEffect(() => {
+    console.log('📍 Index component mounted');
+    
     return () => {
+      console.log('🧹 Index component cleanup - clearing timeouts');
       isMountedRef.current = false;
+      
+      // Clear all pending timeouts
+      timeoutIdsRef.current.forEach(id => clearTimeout(id));
+      timeoutIdsRef.current = [];
     };
   }, []);
   
@@ -138,9 +146,16 @@ const Index = () => {
     try {
       if (!isMountedRef.current) return;
       
-      // Mark initial steps as we prepare the request
-      setTimeout(() => isMountedRef.current && markStepComplete('notion-connect'), 200);
-      setTimeout(() => isMountedRef.current && markStepComplete('validate-dbs'), 400);
+      // Mark initial steps as we prepare the request with tracked timeouts
+      const timeout1 = setTimeout(() => {
+        if (isMountedRef.current) markStepComplete('notion-connect');
+      }, 200);
+      timeoutIdsRef.current.push(timeout1);
+      
+      const timeout2 = setTimeout(() => {
+        if (isMountedRef.current) markStepComplete('validate-dbs');
+      }, 400);
+      timeoutIdsRef.current.push(timeout2);
       
       const notionParams: NotionEncounterParams = {
         environment: params.environment === 'Any' ? 'Any' : params.environment,
@@ -153,8 +168,11 @@ const Index = () => {
         size: params.size === 'Any' ? undefined : params.size,
       };
       
-      // Mark that we're about to fetch creatures
-      setTimeout(() => isMountedRef.current && markStepComplete('fetch-creatures'), 600);
+      // Mark that we're about to fetch creatures with tracked timeout
+      const timeout3 = setTimeout(() => {
+        if (isMountedRef.current) markStepComplete('fetch-creatures');
+      }, 600);
+      timeoutIdsRef.current.push(timeout3);
       const result = await notionService.generateEncounter(notionParams, controller.signal);
 
       if (!isMountedRef.current) return;

@@ -47,34 +47,38 @@ export const useProgressiveGeneration = () => {
       clearInterval(progressIntervalRef.current);
     }
 
-    const startProgress = progressState.currentProgress;
-    const progressDiff = targetProgress - startProgress;
     const steps = 60; // 60 FPS-like updates
     const stepDuration = duration / steps;
-    const progressStep = progressDiff / steps;
-
     let currentStep = 0;
 
+    // Use functional state updates to avoid stale closures
     progressIntervalRef.current = setInterval(() => {
       currentStep++;
-      const newProgress = Math.min(
-        startProgress + (progressStep * currentStep),
-        targetProgress
-      );
+      
+      setProgressState(prev => {
+        const startProgress = prev.currentProgress;
+        const progressDiff = targetProgress - startProgress;
+        const progressStep = progressDiff / steps;
+        const newProgress = Math.min(
+          startProgress + (progressStep * currentStep),
+          targetProgress
+        );
 
-      setProgressState(prev => ({
-        ...prev,
-        currentProgress: newProgress
-      }));
-
-      if (currentStep >= steps || newProgress >= targetProgress) {
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
+        // Stop interval if complete
+        if (currentStep >= steps || newProgress >= targetProgress) {
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
         }
-      }
+
+        return {
+          ...prev,
+          currentProgress: newProgress
+        };
+      });
     }, stepDuration);
-  }, [progressState.currentProgress]);
+  }, []); // No dependencies - uses functional updates
 
   // Add subtle pseudo-loading between major steps
   const addPseudoLoading = useCallback((baseProgress: number, range: number = 3) => {
@@ -82,28 +86,29 @@ export const useProgressiveGeneration = () => {
       clearInterval(progressIntervalRef.current);
     }
 
-    const startProgress = progressState.currentProgress;
     const maxProgress = Math.min(baseProgress + range, 100);
     let direction = 1;
-    let currentProg = startProgress;
 
+    // Use functional state updates to avoid stale closures
     progressIntervalRef.current = setInterval(() => {
-      currentProg += direction * 0.2;
-      
-      if (currentProg >= maxProgress) {
-        currentProg = maxProgress;
-        direction = -1;
-      } else if (currentProg <= baseProgress) {
-        currentProg = baseProgress;
-        direction = 1;
-      }
+      setProgressState(prev => {
+        let currentProg = prev.currentProgress + (direction * 0.2);
+        
+        if (currentProg >= maxProgress) {
+          currentProg = maxProgress;
+          direction = -1;
+        } else if (currentProg <= baseProgress) {
+          currentProg = baseProgress;
+          direction = 1;
+        }
 
-      setProgressState(prev => ({
-        ...prev,
-        currentProgress: currentProg
-      }));
+        return {
+          ...prev,
+          currentProgress: currentProg
+        };
+      });
     }, 100);
-  }, [progressState.currentProgress]);
+  }, []); // No dependencies - uses functional updates
 
   const startGeneration = useCallback(() => {
     currentStepIndexRef.current = 0;
@@ -198,11 +203,15 @@ export const useProgressiveGeneration = () => {
     currentStepIndexRef.current = 0;
   }, []);
 
-  // Cleanup on unmount
+  // Cleanup on unmount and HMR
   useEffect(() => {
+    console.log('🎯 useProgressiveGeneration mounted');
+    
     return () => {
+      console.log('🧹 useProgressiveGeneration cleanup - clearing intervals');
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
       }
     };
   }, []);
