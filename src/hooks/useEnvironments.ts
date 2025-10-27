@@ -43,7 +43,7 @@ export function useEnvironments(): UseEnvironmentsReturn {
         setIsUsingDefaults(false);
       } else {
         if (result.error) {
-          setError(result.error.message);
+          setError(result.error);
         }
         setDefaultEnvironments();
       }
@@ -53,7 +53,7 @@ export function useEnvironments(): UseEnvironmentsReturn {
     } finally {
       setLoading(false);
     }
-  }, [notionService.fetchEnvironments, setDefaultEnvironments]);
+  }, [setDefaultEnvironments]);
 
   useEffect(() => {
     loadEnvironments();

@@ -160,8 +160,8 @@ const Index = () => {
       if (!isMountedRef.current) return;
       
       // Check if generation failed
-      if (!result.success) {
-        throw result.error || new Error('Unknown error during encounter generation');
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Unknown error during encounter generation');
       }
 
       // Mark processing steps as complete
@@ -338,7 +338,7 @@ const Index = () => {
     if (!result.success) {
       toast({
         title: "Save Failed",
-        description: result.error?.message || "Failed to save encounter to Notion",
+        description: result.error || "Failed to save encounter to Notion",
         variant: "destructive",
       });
       return;

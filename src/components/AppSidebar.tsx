@@ -71,7 +71,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
         if (!isMounted) return;
         
         if (!result.success) {
-          setEnvError(result.error || new Error('Unknown error'));
+          setEnvError(new Error(result.error || 'Unknown error'));
           setEnvironments([]);
           return;
         }
@@ -108,7 +108,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
         setEnvironments(result.data.environments);
         setEnvError(null);
       } else {
-        setEnvError(result.error || new Error('Failed to load environments'));
+        setEnvError(new Error(result.error || 'Failed to load environments'));
       }
       setEnvironmentsLoading(false);
     });

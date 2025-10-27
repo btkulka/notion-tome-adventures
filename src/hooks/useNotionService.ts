@@ -1,4 +1,3 @@
-import { useState, useCallback } from 'react'
 import { callEdgeFunction } from '@/lib/supabase-client'
 import { NotionDatabase, DatabaseMatch, DatabaseSchema } from './useNotionDiscovery'
 import { NotionEncounterParams, GeneratedEncounter } from '@/types/encounter'
@@ -54,151 +53,149 @@ export interface CreatureFilters {
 export interface EdgeFunctionResult<T> {
   success: boolean
   data?: T
-  error?: Error
-  operationName: string
+  error?: string
 }
 
+// Simplified service - NO SHARED STATE, just functions
 export const useNotionService = () => {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-
-  const executeWithErrorHandling = useCallback(async <T>(
-    operation: () => Promise<T>,
-    operationName: string,
-    signal?: AbortSignal
-  ): Promise<EdgeFunctionResult<T>> => {
+  const discoverDatabases = async (): Promise<EdgeFunctionResult<{ databases: NotionDatabase[], matches: DatabaseMatch[] }>> => {
     try {
-      setLoading(true)
-      setError(null)
-      
-      // Check if already aborted
-      if (signal?.aborted) {
-        const abortError = new DOMException('Operation was aborted', 'AbortError');
-        setError(abortError as Error);
-        return { success: false, error: abortError as Error, operationName };
-      }
-      
-      const result = await operation()
-      
-      // Check if aborted after operation
-      if (signal?.aborted) {
-        const abortError = new DOMException('Operation was aborted', 'AbortError');
-        setError(abortError as Error);
-        return { success: false, error: abortError as Error, operationName };
-      }
-      
-      return { success: true, data: result, operationName }
-    } catch (err: unknown) {
-      // Handle abort errors specially
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        setError(err as Error);
-        return { success: false, error: err as Error, operationName }
-      }
-      
-      // Also handle other cancellation patterns
-      if (err instanceof Error && err.message.includes('aborted')) {
-        const abortError = new DOMException('Operation was aborted', 'AbortError');
-        setError(abortError as Error);
-        return { success: false, error: abortError as Error, operationName }
-      }
-      
-      let error: Error;
-      
-      if (err instanceof Error) {
-        error = err;
-      } else {
-        error = new Error(`Failed to ${operationName}`);
-      }
-      
-      setError(error)
-      
-      return { success: false, error, operationName }
-    } finally {
-      setLoading(false)
+      const result = await callEdgeFunction('discover-notion-databases');
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to discover databases'
+      };
     }
-  }, [])
+  };
 
-  // Discovery operations
-  const discoverDatabases = useCallback(async () => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('discover-notion-databases'),
-      'discover databases'
-    )
-  }, [executeWithErrorHandling])
+  const getSchema = async (databaseId: string): Promise<EdgeFunctionResult<DatabaseSchema>> => {
+    try {
+      const result = await callEdgeFunction('get-notion-schema', { databaseId });
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to get schema'
+      };
+    }
+  };
 
-  const getSchema = useCallback(async (databaseId: string) => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('get-notion-schema', { databaseId }),
-      'get database schema'
-    )
-  }, [executeWithErrorHandling])
+  const fetchCreatures = async (filters?: CreatureFilters): Promise<EdgeFunctionResult<{ creatures: NotionCreature[] }>> => {
+    try {
+      const result = await callEdgeFunction('fetch-creatures', filters);
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to fetch creatures'
+      };
+    }
+  };
 
-  // Data fetching operations
-  const fetchCreatures = useCallback(async (filters?: CreatureFilters) => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('fetch-creatures', filters),
-      'fetch creatures'
-    )
-  }, [executeWithErrorHandling])
+  const fetchEnvironments = async (): Promise<EdgeFunctionResult<{ environments: NotionEnvironment[] }>> => {
+    try {
+      const result = await callEdgeFunction('fetch-environments');
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to fetch environments'
+      };
+    }
+  };
 
-  const fetchEnvironments = useCallback(async () => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('fetch-environments'),
-      'fetch environments'
-    )
-  }, [executeWithErrorHandling])
+  const fetchSessions = async (searchQuery?: string, campaignId?: string): Promise<EdgeFunctionResult<{ sessions: NotionSession[] }>> => {
+    try {
+      const result = await callEdgeFunction('fetch-sessions', { searchQuery, campaignId });
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to fetch sessions'
+      };
+    }
+  };
 
-  const fetchSessions = useCallback(async (searchQuery?: string, campaignId?: string) => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('fetch-sessions', { searchQuery, campaignId }),
-      'fetch sessions'
-    )
-  }, [executeWithErrorHandling])
+  const fetchCampaigns = async (searchQuery?: string, activeOnly?: boolean): Promise<EdgeFunctionResult<{ campaigns: NotionCampaign[] }>> => {
+    try {
+      const result = await callEdgeFunction('fetch-campaigns', { searchQuery, activeOnly });
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to fetch campaigns'
+      };
+    }
+  };
 
-  const fetchCampaigns = useCallback(async (searchQuery?: string, activeOnly = false) => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('fetch-campaigns', { searchQuery, activeOnly }),
-      'fetch campaigns'
-    )
-  }, [executeWithErrorHandling])
+  const generateEncounter = async (params: NotionEncounterParams, signal?: AbortSignal): Promise<EdgeFunctionResult<any>> => {
+    try {
+      if (signal?.aborted) {
+        throw new DOMException('Operation was aborted', 'AbortError');
+      }
+      
+      const result = await callEdgeFunction('generate-encounter', params, signal);
+      
+      if (signal?.aborted) {
+        throw new DOMException('Operation was aborted', 'AbortError');
+      }
+      
+      return { success: true, data: result };
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return { success: false, error: 'Operation was aborted' };
+      }
+      if (err instanceof Error && err.message.includes('aborted')) {
+        return { success: false, error: 'Operation was aborted' };
+      }
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to generate encounter'
+      };
+    }
+  };
 
-  const generateEncounter = useCallback(async (params: NotionEncounterParams, signal?: AbortSignal) => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('generate-encounter', params, signal),
-      'generate encounter',
-      signal
-    )
-  }, [executeWithErrorHandling])
+  const saveEncounter = async (encounter: GeneratedEncounter): Promise<EdgeFunctionResult<{ pageUrl: string }>> => {
+    try {
+      const result = await callEdgeFunction('save-encounter', { encounter });
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to save encounter'
+      };
+    }
+  };
 
-  const saveEncounter = useCallback(async (encounter: GeneratedEncounter) => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('save-encounter', encounter),
-      'save encounter to Notion'
-    )
-  }, [executeWithErrorHandling])
+  const debugEnvironments = async (): Promise<EdgeFunctionResult<any>> => {
+    try {
+      const result = await callEdgeFunction('debug-environments');
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to debug environments'
+      };
+    }
+  };
 
-  const debugEnvironments = useCallback(async () => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('debug-environments'),
-      'debug environments'
-    )
-  }, [executeWithErrorHandling])
-
-  const simpleDebug = useCallback(async () => {
-    return executeWithErrorHandling(
-      () => callEdgeFunction('simple-debug'),
-      'simple debug'
-    )
-  }, [executeWithErrorHandling])
-
-  const clearError = useCallback(() => setError(null), [])
+  const simpleDebug = async (): Promise<EdgeFunctionResult<any>> => {
+    try {
+      const result = await callEdgeFunction('simple-debug');
+      return { success: true, data: result };
+    } catch (err) {
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to debug'
+      };
+    }
+  };
 
   return {
-    // Discovery
     discoverDatabases,
     getSchema,
-
-    // Data operations
     fetchCreatures,
     fetchEnvironments,
     fetchSessions,
@@ -207,10 +204,5 @@ export const useNotionService = () => {
     saveEncounter,
     debugEnvironments,
     simpleDebug,
-
-    // State
-    loading,
-    error,
-    clearError,
-  }
-}
+  };
+};
