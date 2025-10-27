@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ErrorBoundary } from "react-error-boundary";
 import React, { useState, Suspense, lazy } from "react";
+import { PerformanceMonitor } from "@/debug/PerformanceMonitor";
 
 const Index = lazy(() => import("./pages/Index"));
 
@@ -64,6 +65,7 @@ const App = () => {
       >
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
+            <PerformanceMonitor />
             <Toaster />
             <Sonner />
             <BrowserRouter>

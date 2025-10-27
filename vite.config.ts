@@ -11,10 +11,24 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: true,
       clientPort: 8080,
+      timeout: 30000, // Increase timeout
     },
     watch: {
       usePolling: false,
+      ignored: ['**/node_modules/**', '**/.git/**'],
     },
+  },
+  build: {
+    sourcemap: true,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Log circular dependencies
+        if (warning.code === 'CIRCULAR_DEPENDENCY') {
+          console.error('Circular dependency:', warning.message);
+        }
+        warn(warning);
+      }
+    }
   },
   plugins: [
     react(),
