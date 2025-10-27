@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Select,
   SelectContent,
@@ -6,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useNotionService } from '@/hooks/useNotionService';
 import { UI_CONSTANTS } from '@/lib/constants';
 
 interface CRSelectProps {

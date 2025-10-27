@@ -11,15 +11,22 @@ const rootElement = document.getElementById("root");
 
 if (rootElement) {
   try {
+    console.log('[STARTUP] Removing initial loader');
     // Remove initial loader
     const initialLoader = document.getElementById('initial-loader');
     if (initialLoader) {
       initialLoader.style.display = 'none';
     }
     
+    console.log('[STARTUP] Creating React root');
     const root = createRoot(rootElement);
+    
+    console.log('[STARTUP] Rendering App component');
     root.render(<App />);
+    
+    console.log('[STARTUP] App rendered successfully');
   } catch (error) {
+    console.error('[STARTUP ERROR]', error);
     
     // Display user-friendly error
     rootElement.innerHTML = `
