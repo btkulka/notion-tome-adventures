@@ -81,7 +81,7 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, loadCampaigns]);
+  }, [searchQuery]); // Remove loadCampaigns to prevent infinite loop
 
   const filteredCampaigns = useMemo(() => {
     let filtered = campaigns;

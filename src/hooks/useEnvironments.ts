@@ -57,7 +57,8 @@ export function useEnvironments(): UseEnvironmentsReturn {
 
   useEffect(() => {
     loadEnvironments();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - loadEnvironments called once on mount
 
   // Create environment options with 'Any' and sorted list
   const environmentOptions = ['Any', ...environments.map(env => env.name)]

@@ -77,7 +77,7 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, loadSessions]);
+  }, [searchQuery]); // Remove loadSessions to prevent infinite loop
 
   const filteredSessions = useMemo(() => {
     let filtered = sessions;

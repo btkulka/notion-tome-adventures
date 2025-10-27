@@ -1,38 +1,16 @@
-import { createClient } from '@supabase/supabase-js'
+// Re-export the auto-generated Supabase client as the single source of truth
+export { supabase } from '@/integrations/supabase/client'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
-const supabaseProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined
+const SUPABASE_URL = "https://xhrobkdzjabllhftksvt.supabase.co"
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhocm9ia2R6amFibGxoZnRrc3Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwMjg3MzksImV4cCI6MjA3MjYwNDczOX0.c6qWZxBKdB9r9_wMidj4_BX8cQrbl54gknrRLGZpEyk"
 
 // Resolve the correct base URL for Edge Functions
-function resolveFunctionsBaseUrl(): string | null {
-  const url = supabaseUrl?.trim()
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    // Hosted Supabase projects live at <ref>.supabase.co and functions at <ref>.functions.supabase.co
-    if (u.hostname.endsWith('.supabase.co')) {
-      const projectRef = u.hostname.split('.')[0]
-      return `${u.protocol}//${projectRef}.functions.supabase.co`
-    }
-    // Local dev (e.g., http://127.0.0.1:54321) proxies functions under /functions/v1
-    return `${url.replace(/\/$/, '')}/functions/v1`
-  } catch {
-    return null
-  }
+function resolveFunctionsBaseUrl(): string {
+  const projectRef = 'xhrobkdzjabllhftksvt'
+  return `https://${projectRef}.functions.supabase.co`
 }
 
 const functionsBaseUrl = resolveFunctionsBaseUrl()
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('[Supabase] Env not set');
-}
-
-export const supabase = createClient(
-  // Only instantiate with a real URL/key; otherwise use obvious placeholders to avoid DNS lookups
-  supabaseUrl || 'http://invalid.local',
-  supabaseAnonKey || 'invalid-key'
-)
 
 // Helper function to call Edge Functions
 export async function callEdgeFunction(functionName: string, body?: unknown, signal?: AbortSignal) {
@@ -49,17 +27,12 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
 
     // Use direct fetch for better AbortSignal support when signal is provided
     if (signal) {
-      // Fail fast with a clear message if env is missing
-      if (!functionsBaseUrl || !supabaseAnonKey) {
-        throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.')
-      }
-
       const response = await fetch(`${functionsBaseUrl}/${functionName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
         },
         body: body ? JSON.stringify(body) : undefined,
         signal, // Direct signal support
@@ -80,9 +53,7 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
       data = await response.json();
     } else {
       // Use Supabase client for non-cancellable requests
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.')
-      }
+      const { supabase } = await import('@/integrations/supabase/client');
       const result = await supabase.functions.invoke(functionName, {
         body: body ? JSON.stringify(body) : undefined,
       });

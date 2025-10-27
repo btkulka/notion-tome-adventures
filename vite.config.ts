@@ -10,6 +10,10 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     hmr: {
       overlay: true,
+      clientPort: 8080,
+    },
+    watch: {
+      usePolling: false,
     },
   },
   plugins: [

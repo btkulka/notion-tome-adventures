@@ -86,7 +86,8 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
 
   React.useEffect(() => {
     loadEnvironments();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - loadEnvironments called once, guarded by hasLoadedRef
 
   // Create select options with icons for each filter type
   const environmentOptions = ['Any', ...environments.map(env => env.name)]
