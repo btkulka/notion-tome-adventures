@@ -32,16 +32,20 @@ export const useCampaignSelect = (activeOnly = false) => {
   // Initial load
   useEffect(() => {
     loadItems();
-  }, [loadItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Search debounce
   useEffect(() => {
+    if (!searchQuery) return;
+    
     const timeout = setTimeout(() => {
       loadItems(searchQuery);
     }, 300);
     
     return () => clearTimeout(timeout);
-  }, [searchQuery, loadItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   const retry = useCallback(() => {
     loadItems(searchQuery);

@@ -37,19 +37,21 @@ export const useSessionSelect = (campaignId?: string) => {
       prevCampaignIdRef.current = campaignId;
       setSearchQuery('');
       loadItems('', campaignId);
-    } else {
-      loadItems(searchQuery, campaignId);
     }
-  }, [campaignId, loadItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignId]);
 
   // Search debounce
   useEffect(() => {
+    if (!searchQuery) return;
+    
     const timeout = setTimeout(() => {
       loadItems(searchQuery, campaignId);
     }, 300);
     
     return () => clearTimeout(timeout);
-  }, [searchQuery, campaignId, loadItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, campaignId]);
 
   const retry = useCallback(() => {
     loadItems(searchQuery, campaignId);
