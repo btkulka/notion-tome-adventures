@@ -53,41 +53,66 @@ interface AppSidebarProps {
 
 export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerating, selectedCampaign, onCampaignChange }: AppSidebarProps) {
   const { open } = useSidebar();
-  const { fetchEnvironments, loading: environmentsLoading, error: environmentsError } = useNotionService();
+  const notionService = useNotionService();
   const { toast } = useToast();
   const [environments, setEnvironments] = React.useState<{ id: string; name: string }[]>([]);
   const [envError, setEnvError] = React.useState<Error | null>(null);
-  const hasLoadedRef = React.useRef(false);
+  const [environmentsLoading, setEnvironmentsLoading] = React.useState(false);
 
-  const loadEnvironments = React.useCallback(async () => {
-    if (hasLoadedRef.current) return;
-    hasLoadedRef.current = true;
-    
-    try {
-      const result = await fetchEnvironments();
-      
-      if (!result.success) {
-        setEnvError(result.error || new Error('Unknown error'));
+  // Load environments once on mount
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadEnvironments = async () => {
+      setEnvironmentsLoading(true);
+      try {
+        const result = await notionService.fetchEnvironments();
+        
+        if (!isMounted) return;
+        
+        if (!result.success) {
+          setEnvError(result.error || new Error('Unknown error'));
+          setEnvironments([]);
+          return;
+        }
+        
+        if (result.data && result.data.environments && result.data.environments.length > 0) {
+          setEnvironments(result.data.environments);
+          setEnvError(null);
+        } else {
+          setEnvironments([]);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setEnvError(err instanceof Error ? err : new Error('Failed to load environments'));
         setEnvironments([]);
-        return;
+      } finally {
+        if (isMounted) {
+          setEnvironmentsLoading(false);
+        }
       }
-      
-      if (result.data && result.data.environments && result.data.environments.length > 0) {
+    };
+
+    loadEnvironments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Empty deps - run once on mount
+
+  const retryLoadEnvironments = () => {
+    setEnvError(null);
+    setEnvironmentsLoading(true);
+    notionService.fetchEnvironments().then(result => {
+      if (result.success && result.data?.environments) {
         setEnvironments(result.data.environments);
         setEnvError(null);
       } else {
-        setEnvironments([]);
+        setEnvError(result.error || new Error('Failed to load environments'));
       }
-    } catch (err) {
-      setEnvError(err instanceof Error ? err : new Error('Failed to load environments'));
-      setEnvironments([]);
-    }
-  }, [fetchEnvironments]);
-
-  React.useEffect(() => {
-    loadEnvironments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - loadEnvironments called once, guarded by hasLoadedRef
+      setEnvironmentsLoading(false);
+    });
+  };
 
   // Create select options with icons for each filter type
   const environmentOptions = ['Any', ...environments.map(env => env.name)]
@@ -182,7 +207,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                   <EdgeFunctionError
                     error={envError}
                     operationName="fetch environments"
-                    onRetry={loadEnvironments}
+                    onRetry={retryLoadEnvironments}
                   />
                 )}
 
@@ -193,14 +218,14 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
                   onValueChange={(value) => setParams(prev => ({ ...prev, environment: value }))}
                   options={environmentOptions}
                   loading={environmentsLoading}
-                  disabled={environmentsLoading || !!environmentsError}
+                  disabled={environmentsLoading || !!envError}
                   placeholder={
                     environmentsLoading ? "Loading environments..." : 
-                    environmentsError ? "Error loading environments" :
+                    envError ? "Error loading environments" :
                     "Select environment"
                   }
                   skeletonOptions={['Forest', 'Desert', 'Mountain', 'Coastal', 'Urban', 'Swamp']}
-                  errorMessage={environmentsError ? 
+                  errorMessage={envError ? 
                     "Using default environments. Configure Notion integration for custom data." : 
                     undefined
                   }
