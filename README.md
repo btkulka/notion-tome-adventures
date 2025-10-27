@@ -68,14 +68,14 @@ npm run dev
 ## Development Configuration
 
 ### Local Development
-- **Default Port**: 8081
+- **Default Port**: 8080
 - **Supabase Local**: http://localhost:54321
-- **Frontend Dev**: `npm run dev -- --port 8081`
+- **Frontend Dev**: `npm run dev -- --port 8080`
 
 ### Common Commands
 ```sh
-# Start development server on port 8081
-npm run dev -- --port 8081
+# Start development server on port 8080
+npm run dev -- --port 8080
 
 # Run debug scripts
 node scripts/debug/debug-simple.js
@@ -85,7 +85,7 @@ node scripts/setup/setup-creature-fix.js
 ```
 
 ### Environment Notes
-- Always develop locally on port 8081
+- Always develop locally on port 8080
 - Supabase functions are in `/supabase/functions/`
 - Debug scripts are in `/scripts/debug/`
 

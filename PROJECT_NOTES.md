@@ -1,8 +1,8 @@
 # Project Notes & Reminders
 
 ## Development Environment
-- **Always use port 8081** for local development
-- Default commands now use port 8081 automatically
+- **Always use port 8080** for local development
+- Default commands now use port 8080 automatically
 - Supabase local: http://localhost:54321
 
 ## Quick Reference Commands
@@ -36,7 +36,7 @@ node scripts/debug/discover-databases.js
 - Use `debug-simple.js` for basic connectivity tests
 - Use `discover-databases.js` to find Notion databases
 - Check Supabase function logs for API issues
-- Always test locally on port 8081 before deploying
+- Always test locally on port 8080 before deploying
 
 ## Project Structure Reminders
 - `/src/components/` - React components

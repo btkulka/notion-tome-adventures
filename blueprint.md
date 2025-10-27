@@ -29,7 +29,7 @@ This is a React-based D&D encounter generator that exclusively uses Notion datab
 
 ### Frontend (React + TypeScript + Vite)
 - **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite (dev server runs on port 8081)
+- **Build Tool**: Vite (dev server runs on port 8080)
 - **UI Components**: shadcn/ui components with Tailwind CSS
 - **State Management**: React hooks (useState, useEffect)
 - **Routing**: React Router
@@ -192,7 +192,7 @@ supabase/
 - Review edge function logs for specific errors
 
 ### CORS Errors
-- Ensure frontend dev server uses port 8081
+- Ensure frontend dev server uses port 8080
 - Check edge function CORS configuration
 - Verify deployed functions have correct headers
 
