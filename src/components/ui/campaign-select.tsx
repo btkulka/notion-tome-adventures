@@ -60,7 +60,7 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
   );
 
   return (
-    <Combobox<NotionCampaign>
+    <Combobox
       value={value}
       onValueChange={onValueChange}
       placeholder={placeholder}

@@ -83,7 +83,7 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
   );
 
   return (
-    <Combobox<NotionSession>
+    <Combobox
       key={comboboxKeyRef.current}
       value={value}
       onValueChange={onValueChange}
