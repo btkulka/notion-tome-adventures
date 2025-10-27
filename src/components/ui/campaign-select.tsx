@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Sword } from 'lucide-react';
-import { Combobox } from '@/components/ui/combobox';
-import { useNotionService, NotionCampaign } from '@/hooks/useNotionService';
+import { SimpleCombobox } from '@/components/ui/simple-combobox';
+import { NotionCampaign } from '@/hooks/useNotionService';
+import { useCampaignSelect } from '@/hooks/useCampaignSelect';
 
 interface CampaignSelectProps {
   value: NotionCampaign | null;
@@ -18,63 +19,61 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
   className,
   activeOnly = false
 }) => {
-  const { fetchCampaigns } = useNotionService();
+  const {
+    items,
+    searchQuery,
+    setSearchQuery,
+    isLoading,
+    error,
+    retry
+  } = useCampaignSelect(activeOnly);
 
-  const fetchItems = async (search?: string) => {
-    const result = await fetchCampaigns(search, true); // Always fetch active campaigns only
-    return {
-      success: result.success,
-      data: result.data?.campaigns ? { items: result.data.campaigns } : undefined,
-      error: result.error,
-    };
-  };
-
-  const filterItems = (campaigns: NotionCampaign[], query: string) => {
-    const lowerQuery = query.toLowerCase();
-    return campaigns.filter(campaign =>
-      campaign.name.toLowerCase().includes(lowerQuery) ||
-      (campaign.description && campaign.description.toLowerCase().includes(lowerQuery))
-    );
-  };
-
-  const sortItems = (campaigns: NotionCampaign[]) => {
-    // Active campaigns appear first
-    return campaigns.sort((a, b) => {
+  // Filter and sort items locally
+  const filteredItems = useMemo(() => {
+    let filtered = items;
+    
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(campaign =>
+        campaign.name.toLowerCase().includes(lowerQuery) ||
+        (campaign.description && campaign.description.toLowerCase().includes(lowerQuery))
+      );
+    }
+    
+    return filtered.sort((a, b) => {
       if (a.active && !b.active) return -1;
       if (!a.active && b.active) return 1;
       return a.name.localeCompare(b.name);
     });
-  };
-
-  const formatDisplay = (campaign: NotionCampaign) => campaign.name;
-
-  const renderItem = (campaign: NotionCampaign) => (
-    <>
-      <div className="font-medium truncate">{campaign.name}</div>
-      {campaign.description && (
-        <div className="text-xs text-muted-foreground truncate mt-1">
-          {campaign.description}
-        </div>
-      )}
-    </>
-  );
+  }, [items, searchQuery]);
 
   return (
-    <Combobox
+    <SimpleCombobox
+      items={filteredItems}
       value={value}
       onValueChange={onValueChange}
-      placeholder={placeholder}
-      className={className}
+      isLoading={isLoading}
+      error={error}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      onRetry={retry}
       icon={Sword}
+      placeholder={placeholder}
       searchPlaceholder="Search campaigns..."
       emptyMessage="No campaigns found."
       loadingMessage="Loading campaigns..."
-      formatDisplay={formatDisplay}
-      renderItem={renderItem}
-      fetchItems={fetchItems}
-      filterItems={filterItems}
-      sortItems={sortItems}
-      autoSelectSingle={true}
+      formatDisplay={(campaign) => campaign.name}
+      renderItem={(campaign) => (
+        <>
+          <div className="font-medium truncate">{campaign.name}</div>
+          {campaign.description && (
+            <div className="text-xs text-muted-foreground truncate mt-1">
+              {campaign.description}
+            </div>
+          )}
+        </>
+      )}
+      className={className}
     />
   );
 };

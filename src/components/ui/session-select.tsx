@@ -1,7 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Calendar } from 'lucide-react';
-import { Combobox } from '@/components/ui/combobox';
-import { useNotionService, NotionSession } from '@/hooks/useNotionService';
+import { SimpleCombobox } from '@/components/ui/simple-combobox';
+import { NotionSession } from '@/hooks/useNotionService';
+import { useSessionSelect } from '@/hooks/useSessionSelect';
 
 interface SessionSelectProps {
   value: NotionSession | null;
@@ -18,44 +19,35 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
   className,
   campaignId
 }) => {
-  const { fetchSessions } = useNotionService();
-  const prevCampaignIdRef = useRef<string | undefined>(undefined);
-  const comboboxKeyRef = useRef(0);
+  const {
+    items,
+    searchQuery,
+    setSearchQuery,
+    isLoading,
+    error,
+    retry
+  } = useSessionSelect(campaignId);
 
-  // When campaign changes, force re-render of combobox to reload sessions
-  useEffect(() => {
-    if (prevCampaignIdRef.current !== campaignId) {
-      prevCampaignIdRef.current = campaignId;
-      comboboxKeyRef.current += 1;
+  // Filter and sort items locally
+  const filteredItems = useMemo(() => {
+    let filtered = items;
+    
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(session =>
+        session.name.toLowerCase().includes(lowerQuery) ||
+        (session.description && session.description.toLowerCase().includes(lowerQuery))
+      );
     }
-  }, [campaignId]);
-
-  const fetchItems = async (search?: string) => {
-    const result = await fetchSessions(search, campaignId);
-    return {
-      success: result.success,
-      data: result.data?.sessions ? { items: result.data.sessions } : undefined,
-      error: result.error,
-    };
-  };
-
-  const filterItems = (sessions: NotionSession[], query: string) => {
-    const lowerQuery = query.toLowerCase();
-    return sessions.filter(session =>
-      session.name.toLowerCase().includes(lowerQuery) ||
-      (session.description && session.description.toLowerCase().includes(lowerQuery))
-    );
-  };
-
-  const sortItems = (sessions: NotionSession[]) => {
+    
     // Sort by date in descending order (most recent first)
-    return sessions.sort((a, b) => {
+    return filtered.sort((a, b) => {
       if (!a.date && !b.date) return 0;
       if (!a.date) return 1;
       if (!b.date) return -1;
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
-  };
+  }, [items, searchQuery]);
 
   const formatDisplay = (session: NotionSession) => {
     const parts = [session.name];
@@ -66,39 +58,38 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
     return parts.join(' ');
   };
 
-  const renderItem = (session: NotionSession) => (
-    <>
-      <div className="font-medium truncate">{session.name}</div>
-      {session.date && (
-        <div className="text-xs text-muted-foreground">
-          {new Date(session.date).toLocaleDateString()}
-        </div>
-      )}
-      {session.description && (
-        <div className="text-xs text-muted-foreground truncate mt-1">
-          {session.description}
-        </div>
-      )}
-    </>
-  );
-
   return (
-    <Combobox
-      key={comboboxKeyRef.current}
+    <SimpleCombobox
+      items={filteredItems}
       value={value}
       onValueChange={onValueChange}
-      placeholder={placeholder}
-      className={className}
+      isLoading={isLoading}
+      error={error}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      onRetry={retry}
       icon={Calendar}
+      placeholder={placeholder}
       searchPlaceholder="Search sessions..."
       emptyMessage="No sessions found."
       loadingMessage="Loading sessions..."
       formatDisplay={formatDisplay}
-      renderItem={renderItem}
-      fetchItems={fetchItems}
-      filterItems={filterItems}
-      sortItems={sortItems}
-      autoSelectSingle={false}
+      renderItem={(session) => (
+        <>
+          <div className="font-medium truncate">{session.name}</div>
+          {session.date && (
+            <div className="text-xs text-muted-foreground">
+              {new Date(session.date).toLocaleDateString()}
+            </div>
+          )}
+          {session.description && (
+            <div className="text-xs text-muted-foreground truncate mt-1">
+              {session.description}
+            </div>
+          )}
+        </>
+      )}
+      className={className}
     />
   );
 };
