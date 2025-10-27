@@ -49,27 +49,36 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
 
   // Load sessions when campaign changes
   useEffect(() => {
+    console.log('[SessionSelect] Campaign changed:', campaignId);
     const campaignChanged = prevCampaignIdRef.current !== campaignId;
     prevCampaignIdRef.current = campaignId;
 
-    if (!campaignChanged && items.length > 0) return;
+    if (!campaignChanged && items.length > 0) {
+      console.log('[SessionSelect] Campaign unchanged and items exist, skipping load');
+      return;
+    }
 
     const loadSessions = async () => {
+      console.log('[SessionSelect] Loading sessions for campaign:', campaignId);
       setIsLoading(true);
       try {
         const { data, error } = await supabase.functions.invoke('fetch-sessions', {
           body: { searchQuery: '', campaignId }
         });
 
+        console.log('[SessionSelect] Response:', { data, error });
+
         if (error) throw error;
         if (data?.sessions) {
+          console.log('[SessionSelect] Loaded sessions:', data.sessions.length);
           setItems(data.sessions);
         }
       } catch (err) {
+        console.error('[SessionSelect] Error:', err);
         toast.error('Failed to load sessions');
-        console.error(err);
       } finally {
         setIsLoading(false);
+        console.log('[SessionSelect] Load complete');
       }
     };
 
