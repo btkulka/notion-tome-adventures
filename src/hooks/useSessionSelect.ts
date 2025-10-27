@@ -7,14 +7,19 @@ export const useSessionSelect = (campaignId?: string) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { fetchSessions } = useNotionService();
+  const isMountedRef = useRef(true);
   const prevCampaignIdRef = useRef<string | undefined>(undefined);
 
   const loadItems = useCallback(async (search = '', campId?: string) => {
+    if (!isMountedRef.current) return;
+    
     setIsLoading(true);
     setError(null);
     
     try {
       const result = await fetchSessions(search, campId);
+      
+      if (!isMountedRef.current) return;
       
       if (result.success && result.data?.sessions) {
         setItems(result.data.sessions);
@@ -23,35 +28,42 @@ export const useSessionSelect = (campaignId?: string) => {
         setItems([]);
       }
     } catch (err) {
+      if (!isMountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to load sessions');
       setItems([]);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [fetchSessions]);
 
-  // Initial load and campaign change
+  // Campaign change handler - only when campaign changes
   useEffect(() => {
+    isMountedRef.current = true;
+    
     // When campaign changes, clear search and reload
     if (prevCampaignIdRef.current !== campaignId) {
       prevCampaignIdRef.current = campaignId;
       setSearchQuery('');
       loadItems('', campaignId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaignId]);
+    
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [campaignId]); // Only campaignId dep
 
-  // Search debounce
+  // Search debounce - only when search changes
   useEffect(() => {
-    if (!searchQuery) return;
+    if (!searchQuery) return; // Don't search empty query
     
     const timeout = setTimeout(() => {
       loadItems(searchQuery, campaignId);
     }, 300);
     
     return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, campaignId]);
+  }, [searchQuery]); // Only searchQuery dep
 
   const retry = useCallback(() => {
     loadItems(searchQuery, campaignId);
