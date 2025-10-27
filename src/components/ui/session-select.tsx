@@ -145,14 +145,13 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="truncate">{formatSessionDisplay(value)}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-4 w-4 p-0 hover:bg-destructive/20 hover:text-destructive shrink-0"
+              <button
+                type="button"
+                className="h-4 w-4 p-0 hover:bg-destructive/20 hover:text-destructive shrink-0 rounded transition-colors"
                 onClick={handleClear}
               >
                 <X className="h-3 w-3" />
-              </Button>
+              </button>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-muted-foreground">
