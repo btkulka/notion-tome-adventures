@@ -1,5 +1,4 @@
 import { callEdgeFunction } from '@/lib/supabase-client'
-import { NotionDatabase, DatabaseMatch, DatabaseSchema } from './useNotionDiscovery'
 import { NotionEncounterParams, GeneratedEncounter } from '@/types/encounter'
 
 export interface NotionCreature {
@@ -56,9 +55,26 @@ export interface EdgeFunctionResult<T> {
   error?: string
 }
 
-// Simplified service - NO SHARED STATE, just functions
-export const useNotionService = () => {
-  const discoverDatabases = async (): Promise<EdgeFunctionResult<{ databases: NotionDatabase[], matches: DatabaseMatch[] }>> => {
+export interface NotionDatabase {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface DatabaseMatch {
+  databaseId: string;
+  databaseName: string;
+  matchedType: string;
+  confidence: number;
+}
+
+export interface DatabaseSchema {
+  properties: Record<string, any>;
+}
+
+// Plain API functions - NO HOOKS, NO STATE
+export const notionApi = {
+  discoverDatabases: async (): Promise<EdgeFunctionResult<{ databases: NotionDatabase[], matches: DatabaseMatch[] }>> => {
     try {
       const result = await callEdgeFunction('discover-notion-databases');
       return { success: true, data: result };
@@ -68,9 +84,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to discover databases'
       };
     }
-  };
+  },
 
-  const getSchema = async (databaseId: string): Promise<EdgeFunctionResult<DatabaseSchema>> => {
+  getSchema: async (databaseId: string): Promise<EdgeFunctionResult<DatabaseSchema>> => {
     try {
       const result = await callEdgeFunction('get-notion-schema', { databaseId });
       return { success: true, data: result };
@@ -80,9 +96,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to get schema'
       };
     }
-  };
+  },
 
-  const fetchCreatures = async (filters?: CreatureFilters): Promise<EdgeFunctionResult<{ creatures: NotionCreature[] }>> => {
+  fetchCreatures: async (filters?: CreatureFilters): Promise<EdgeFunctionResult<{ creatures: NotionCreature[] }>> => {
     try {
       const result = await callEdgeFunction('fetch-creatures', filters);
       return { success: true, data: result };
@@ -92,9 +108,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to fetch creatures'
       };
     }
-  };
+  },
 
-  const fetchEnvironments = async (): Promise<EdgeFunctionResult<{ environments: NotionEnvironment[] }>> => {
+  fetchEnvironments: async (): Promise<EdgeFunctionResult<{ environments: NotionEnvironment[] }>> => {
     try {
       const result = await callEdgeFunction('fetch-environments');
       return { success: true, data: result };
@@ -104,9 +120,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to fetch environments'
       };
     }
-  };
+  },
 
-  const fetchSessions = async (searchQuery?: string, campaignId?: string): Promise<EdgeFunctionResult<{ sessions: NotionSession[] }>> => {
+  fetchSessions: async (searchQuery?: string, campaignId?: string): Promise<EdgeFunctionResult<{ sessions: NotionSession[] }>> => {
     try {
       const result = await callEdgeFunction('fetch-sessions', { searchQuery, campaignId });
       return { success: true, data: result };
@@ -116,9 +132,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to fetch sessions'
       };
     }
-  };
+  },
 
-  const fetchCampaigns = async (searchQuery?: string, activeOnly?: boolean): Promise<EdgeFunctionResult<{ campaigns: NotionCampaign[] }>> => {
+  fetchCampaigns: async (searchQuery?: string, activeOnly?: boolean): Promise<EdgeFunctionResult<{ campaigns: NotionCampaign[] }>> => {
     try {
       const result = await callEdgeFunction('fetch-campaigns', { searchQuery, activeOnly });
       return { success: true, data: result };
@@ -128,9 +144,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to fetch campaigns'
       };
     }
-  };
+  },
 
-  const generateEncounter = async (params: NotionEncounterParams, signal?: AbortSignal): Promise<EdgeFunctionResult<any>> => {
+  generateEncounter: async (params: NotionEncounterParams, signal?: AbortSignal): Promise<EdgeFunctionResult<any>> => {
     try {
       if (signal?.aborted) {
         throw new DOMException('Operation was aborted', 'AbortError');
@@ -155,9 +171,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to generate encounter'
       };
     }
-  };
+  },
 
-  const saveEncounter = async (encounter: GeneratedEncounter): Promise<EdgeFunctionResult<{ pageUrl: string }>> => {
+  saveEncounter: async (encounter: GeneratedEncounter): Promise<EdgeFunctionResult<{ pageUrl: string }>> => {
     try {
       const result = await callEdgeFunction('save-encounter', { encounter });
       return { success: true, data: result };
@@ -167,9 +183,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to save encounter'
       };
     }
-  };
+  },
 
-  const debugEnvironments = async (): Promise<EdgeFunctionResult<any>> => {
+  debugEnvironments: async (): Promise<EdgeFunctionResult<any>> => {
     try {
       const result = await callEdgeFunction('debug-environments');
       return { success: true, data: result };
@@ -179,9 +195,9 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to debug environments'
       };
     }
-  };
+  },
 
-  const simpleDebug = async (): Promise<EdgeFunctionResult<any>> => {
+  simpleDebug: async (): Promise<EdgeFunctionResult<any>> => {
     try {
       const result = await callEdgeFunction('simple-debug');
       return { success: true, data: result };
@@ -191,18 +207,8 @@ export const useNotionService = () => {
         error: err instanceof Error ? err.message : 'Failed to debug'
       };
     }
-  };
-
-  return {
-    discoverDatabases,
-    getSchema,
-    fetchCreatures,
-    fetchEnvironments,
-    fetchSessions,
-    fetchCampaigns,
-    generateEncounter,
-    saveEncounter,
-    debugEnvironments,
-    simpleDebug,
-  };
+  }
 };
+
+// Legacy hook for backwards compatibility - just returns the api
+export const useNotionService = () => notionApi;

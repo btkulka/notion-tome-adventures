@@ -19,7 +19,7 @@ import {
   getSizeIcon
 } from '@/lib/icon-mappings';
 
-import { useNotionService, NotionCampaign } from '@/hooks/useNotionService';
+import { notionApi, NotionCampaign } from '@/hooks/useNotionService';
 import { EncounterParams } from '@/types/encounter';
 import { useToast } from '@/hooks/use-toast';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
@@ -53,7 +53,6 @@ interface AppSidebarProps {
 
 export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerating, selectedCampaign, onCampaignChange }: AppSidebarProps) {
   const { open } = useSidebar();
-  const notionService = useNotionService();
   const { toast } = useToast();
   const [environments, setEnvironments] = React.useState<{ id: string; name: string }[]>([]);
   const [envError, setEnvError] = React.useState<Error | null>(null);
@@ -66,7 +65,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
     const loadEnvironments = async () => {
       setEnvironmentsLoading(true);
       try {
-        const result = await notionService.fetchEnvironments();
+        const result = await notionApi.fetchEnvironments();
         
         if (!isMounted) return;
         
@@ -103,7 +102,7 @@ export function AppSidebar({ params, setParams, onGenerate, onCancel, isGenerati
   const retryLoadEnvironments = () => {
     setEnvError(null);
     setEnvironmentsLoading(true);
-    notionService.fetchEnvironments().then(result => {
+    notionApi.fetchEnvironments().then(result => {
       if (result.success && result.data?.environments) {
         setEnvironments(result.data.environments);
         setEnvError(null);

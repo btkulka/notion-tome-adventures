@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DND_CONSTANTS } from '@/lib/constants';
-import { useNotionService } from '@/hooks/useNotionService';
+import { notionApi } from '@/hooks/useNotionService';
 
 export interface Environment {
   id: string;
@@ -20,7 +20,6 @@ export function useEnvironments(): UseEnvironmentsReturn {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUsingDefaults, setIsUsingDefaults] = useState(false);
-  const notionService = useNotionService();
   const hasLoadedRef = useRef(false);
 
   const setDefaultEnvironments = useCallback(() => {
@@ -36,7 +35,7 @@ export function useEnvironments(): UseEnvironmentsReturn {
     setError(null);
     
     try {
-      const result = await notionService.fetchEnvironments();
+      const result = await notionApi.fetchEnvironments();
       
       if (result.success && result.data?.environments?.length > 0) {
         setEnvironments(result.data.environments);
