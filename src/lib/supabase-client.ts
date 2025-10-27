@@ -12,63 +12,38 @@ function resolveFunctionsBaseUrl(): string {
 
 const functionsBaseUrl = resolveFunctionsBaseUrl()
 
-// Helper function to call Edge Functions
+// Helper function to call Edge Functions - always uses direct fetch to avoid circular dependencies
 export async function callEdgeFunction(functionName: string, body?: unknown, signal?: AbortSignal) {
-  const callStartTime = performance.now();
-  
   try {
-    
     // Check if already aborted before starting
     if (signal?.aborted) {
       throw new DOMException('Operation was aborted', 'AbortError');
     }
 
-    let data, error;
+    const response = await fetch(`${functionsBaseUrl}/${functionName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal,
+    });
 
-    // Use direct fetch for better AbortSignal support when signal is provided
-    if (signal) {
-      const response = await fetch(`${functionsBaseUrl}/${functionName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: body ? JSON.stringify(body) : undefined,
-        signal, // Direct signal support
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage;
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || errorData.message || errorText;
-        } catch {
-          errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorData.message || errorText;
+      } catch {
+        errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
       }
-
-      data = await response.json();
-    } else {
-      // Use Supabase client for non-cancellable requests
-      const { supabase } = await import('@/integrations/supabase/client');
-      const result = await supabase.functions.invoke(functionName, {
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      
-      data = result.data;
-      error = result.error;
+      throw new Error(errorMessage);
     }
 
-    // Check for errors from Supabase client
-    if (error) {
-      throw error;
-    }
-
-    return data;
-
+    return await response.json();
   } catch (error) {
     throw error
   }
