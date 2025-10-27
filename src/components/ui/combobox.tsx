@@ -57,12 +57,10 @@ export function Combobox<T extends ComboboxItem>({
   const onValueChangeRef = useRef(onValueChange);
   const valueRef = useRef(value);
   
-  // Keep refs updated
-  useEffect(() => {
-    fetchItemsRef.current = fetchItems;
-    onValueChangeRef.current = onValueChange;
-    valueRef.current = value;
-  });
+  // Keep refs updated - this runs on every render but doesn't cause re-renders
+  fetchItemsRef.current = fetchItems;
+  onValueChangeRef.current = onValueChange;
+  valueRef.current = value;
 
   const loadItems = useCallback(async (search?: string) => {
     setIsLoading(true);
