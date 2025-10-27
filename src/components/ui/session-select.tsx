@@ -132,12 +132,11 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
       )}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-        <Button
-          variant="outline"
+        <button
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between bg-background/50 border-border/50 hover:bg-background/80",
+            "flex h-10 w-full items-center justify-between rounded-md border border-border/50 bg-background/50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-background/80",
             className
           )}
         >
@@ -145,13 +144,13 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="truncate">{formatSessionDisplay(value)}</span>
-              <button
-                type="button"
-                className="h-4 w-4 p-0 hover:bg-destructive/20 hover:text-destructive shrink-0 rounded transition-colors"
+              <span
+                role="button"
+                className="h-4 w-4 p-0 hover:bg-destructive/20 hover:text-destructive shrink-0 rounded transition-colors inline-flex items-center justify-center"
                 onClick={handleClear}
               >
                 <X className="h-3 w-3" />
-              </button>
+              </span>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -160,7 +159,7 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
             </div>
           )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+        </button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
