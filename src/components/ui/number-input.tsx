@@ -14,17 +14,19 @@ interface NumberInputProps {
   step?: number;
   placeholder?: string;
   className?: string;
+  goldText?: boolean;
 }
 
-export function NumberInput({ 
-  label, 
-  value, 
-  onChange, 
-  min = 0, 
-  max = 999999, 
-  step = 1, 
+export function NumberInput({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 999999,
+  step = 1,
   placeholder,
-  className 
+  className,
+  goldText = false
 }: NumberInputProps) {
   const handleIncrement = () => {
     const newValue = Math.min(value + step, max);
@@ -43,10 +45,7 @@ export function NumberInput({
   };
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <label className={UI_CONSTANTS.FIELD_LABEL_STYLES}>
-        {label}
-      </label>
+    <div className={cn("space-y-1", className)}>
       <div className="relative flex">
         <Input
           type="number"
@@ -56,7 +55,11 @@ export function NumberInput({
           max={max}
           step={step}
           placeholder={placeholder}
-          className={cn(UI_CONSTANTS.FIELD_STYLES, "pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none")}
+          className={cn(
+            UI_CONSTANTS.FIELD_STYLES,
+            "pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+            goldText && "text-yellow-600 dark:text-yellow-500"
+          )}
         />
         <div className="absolute right-1 top-1 bottom-1 flex flex-col">
           <Button
@@ -81,6 +84,9 @@ export function NumberInput({
           </Button>
         </div>
       </div>
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        {label}
+      </label>
     </div>
   );
 }

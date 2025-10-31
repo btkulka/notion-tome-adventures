@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Scroll, Coins, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Scroll, Coins } from 'lucide-react';
 import { GeneratedEncounter } from '@/types/encounter';
 
 interface LootSidebarProps {
@@ -10,8 +9,6 @@ interface LootSidebarProps {
 }
 
 export function LootSidebar({ encounter }: LootSidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
   if (!encounter || !encounter.creatures || encounter.creatures.length === 0) {
     return null;
   }
@@ -19,31 +16,8 @@ export function LootSidebar({ encounter }: LootSidebarProps) {
   // Calculate total gold
   const totalGold = encounter.total_gold || 0;
 
-  if (isCollapsed) {
-    return (
-      <div className="relative border-l border-border bg-background/50 h-screen">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsCollapsed(false)}
-          className="absolute top-4 -left-4 z-10 h-8 w-8 rounded-full bg-background border border-border shadow-lg hover:bg-accent"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative w-1/6 border-l border-border bg-background/50 overflow-y-auto h-screen">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setIsCollapsed(true)}
-        className="absolute top-4 -left-4 z-10 h-8 w-8 rounded-full bg-background border border-border shadow-lg hover:bg-accent"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
+    <div className="w-1/6 border-l border-border bg-background/50 overflow-y-auto h-screen">
       <Card className="h-full rounded-none border-0 bg-transparent">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">

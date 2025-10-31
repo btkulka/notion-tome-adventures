@@ -35,6 +35,7 @@ interface SelectFieldProps extends BaseFieldProps {
   loading?: boolean;
   errorMessage?: string;
   skeletonOptions?: string[];
+  labelBelow?: boolean; // New prop to position label below
 }
 
 export function SelectField({
@@ -47,7 +48,8 @@ export function SelectField({
   disabled = false,
   loading = false,
   errorMessage,
-  skeletonOptions
+  skeletonOptions,
+  labelBelow = false
 }: SelectFieldProps) {
   const selectedOption = options.find(opt => opt.value === value);
 
@@ -63,13 +65,15 @@ export function SelectField({
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <Label className={UI_CONSTANTS.FIELD_LABEL_STYLES}>
-        {label}
-      </Label>
-      
-      <Select 
-        value={value} 
+    <div className={cn(labelBelow ? "space-y-1" : "space-y-2", className)}>
+      {!labelBelow && (
+        <Label className={UI_CONSTANTS.FIELD_LABEL_STYLES}>
+          {label}
+        </Label>
+      )}
+
+      <Select
+        value={value}
         onValueChange={onValueChange}
         disabled={disabled}
       >
@@ -83,7 +87,7 @@ export function SelectField({
             )}
           </SelectValue>
         </SelectTrigger>
-        
+
         <SelectContent>
           {options.map(option => (
             <SelectItem key={option.value} value={option.value}>
@@ -95,7 +99,13 @@ export function SelectField({
           ))}
         </SelectContent>
       </Select>
-      
+
+      {labelBelow && (
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {label}
+        </label>
+      )}
+
       {errorMessage && (
         <p className="text-xs text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
           {errorMessage}

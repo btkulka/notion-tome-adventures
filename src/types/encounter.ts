@@ -1,21 +1,23 @@
 export interface EncounterParams {
-  environment: string;
+  environment: string[];
   xpThreshold: number;
   maxMonsters: number;
-  alignment: string;
-  creatureType: string;
-  size: string;
+  alignment: string[];
+  creatureType: string[];
+  creatureSubtype: string[];
+  size: string[];
   minCR: number;
   maxCR: number;
 }
 
 export interface NotionEncounterParams {
-  environment: string;
+  environment: string[];
   xpThreshold: number;
   maxMonsters: number;
-  alignment?: string;
-  creatureType?: string;
-  size?: string;
+  alignment?: string[];
+  creatureType?: string[];
+  creatureSubtype?: string[];
+  size?: string[];
   includeEnvironmentCreatures?: boolean;
   minCR?: string;
   maxCR?: string;

@@ -40,6 +40,25 @@ export interface NotionCampaign {
   coverArt?: string
 }
 
+export interface NotionMagicItem {
+  id: string
+  name: string
+  rarityRelation?: string
+  baseWeaponRelation?: string
+  baseArmorRelation?: string
+  itemUrl?: string
+  imageUrl?: string
+  tags?: string[]
+  consumable: boolean
+  wondrous: boolean
+  attunement: boolean
+  source?: string
+  classRestriction?: string[]
+  archived: boolean
+  value?: number
+  rarity?: string
+}
+
 export interface CreatureFilters {
   environment?: string
   minCR?: string
@@ -49,10 +68,21 @@ export interface CreatureFilters {
   size?: string
 }
 
+export interface MagicItemFilters {
+  searchQuery?: string
+  rarity?: string
+  includeArchived?: boolean
+}
+
 export interface EdgeFunctionResult<T> {
   success: boolean
   data?: T
   error?: string
+  metadata?: {
+    total?: number
+    successful?: number
+    failed?: number
+  }
 }
 
 export interface NotionDatabase {
@@ -101,10 +131,14 @@ export const notionApi = {
   fetchCreatures: async (filters?: CreatureFilters): Promise<EdgeFunctionResult<{ creatures: NotionCreature[] }>> => {
     try {
       const result = await callEdgeFunction('fetch-creatures', filters);
-      return { success: true, data: result };
+      return {
+        success: true,
+        data: result,
+        metadata: result.metadata
+      };
     } catch (err) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: err instanceof Error ? err.message : 'Failed to fetch creatures'
       };
     }
@@ -113,9 +147,13 @@ export const notionApi = {
   fetchEnvironments: async (): Promise<EdgeFunctionResult<{ environments: NotionEnvironment[] }>> => {
     try {
       const result = await callEdgeFunction('fetch-environments');
-      return { success: true, data: result };
+      return {
+        success: true,
+        data: result,
+        metadata: result.metadata
+      };
     } catch (err) {
-      return { 
+      return {
         success: false, 
         error: err instanceof Error ? err.message : 'Failed to fetch environments'
       };
@@ -137,11 +175,31 @@ export const notionApi = {
   fetchCampaigns: async (searchQuery?: string, activeOnly?: boolean): Promise<EdgeFunctionResult<{ campaigns: NotionCampaign[] }>> => {
     try {
       const result = await callEdgeFunction('fetch-campaigns', { searchQuery, activeOnly });
-      return { success: true, data: result };
+      return {
+        success: true,
+        data: result,
+        metadata: result.metadata
+      };
     } catch (err) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: err instanceof Error ? err.message : 'Failed to fetch campaigns'
+      };
+    }
+  },
+
+  fetchMagicItems: async (filters?: MagicItemFilters): Promise<EdgeFunctionResult<{ magicItems: NotionMagicItem[] }>> => {
+    try {
+      const result = await callEdgeFunction('fetch-magic-items', filters);
+      return {
+        success: true,
+        data: result,
+        metadata: result.metadata
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to fetch magic items'
       };
     }
   },

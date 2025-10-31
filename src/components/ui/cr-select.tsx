@@ -13,6 +13,7 @@ interface CRSelectProps {
   onValueChange: (value: number) => void;
   label: string;
   placeholder?: string;
+  goldText?: boolean;
 }
 
 // Standard D&D 5e Challenge Ratings
@@ -53,17 +54,14 @@ const STANDARD_CRS = [
   { value: 30, label: '30' }
 ];
 
-export function CRSelect({ value, onValueChange, label, placeholder }: CRSelectProps) {
+export function CRSelect({ value, onValueChange, label, placeholder, goldText = false }: CRSelectProps) {
   return (
-    <div className="space-y-2">
-      <label className={UI_CONSTANTS.FIELD_LABEL_STYLES}>
-        {label}
-      </label>
-      <Select 
-        value={value.toString()} 
+    <div className="space-y-1">
+      <Select
+        value={value.toString()}
         onValueChange={(val) => onValueChange(parseFloat(val))}
       >
-        <SelectTrigger className={UI_CONSTANTS.FIELD_STYLES}>
+        <SelectTrigger className={`${UI_CONSTANTS.FIELD_STYLES} ${goldText ? 'text-yellow-600 dark:text-yellow-500' : ''}`}>
           <SelectValue placeholder={placeholder || `Select ${label}`} />
         </SelectTrigger>
         <SelectContent>
@@ -74,6 +72,9 @@ export function CRSelect({ value, onValueChange, label, placeholder }: CRSelectP
           ))}
         </SelectContent>
       </Select>
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        {label}
+      </label>
     </div>
   );
 }

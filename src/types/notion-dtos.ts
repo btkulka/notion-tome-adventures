@@ -105,11 +105,47 @@ export interface EncounterDTO extends NotionPageBase {
   generation_notes: string;
 }
 
+/**
+ * Magic Item DTO
+ * Maps from Notion properties:
+ * - name: 'Name' | 'Item Name' | 'Magic Item'
+ * - rarityRelation: 'Rarity' | 'Magic Item Rarity' (relation)
+ * - baseWeaponRelation: 'Base Weapon' | 'Weapon' (relation)
+ * - baseArmorRelation: 'Base Armor' | 'Armor' (relation)
+ * - itemUrl: 'URL' | 'Item URL' | 'Link'
+ * - imageUrl: 'Image URL' | 'Image' | 'ImageURL'
+ * - tags: 'Tags' | 'Type' (multi-select)
+ * - consumable: 'Consumable' (checkbox)
+ * - wondrous: 'Wondrous' (checkbox)
+ * - attunement: 'Attunement' | 'Requires Attunement' (checkbox)
+ * - source: 'Source' | 'Book' (select)
+ * - classRestriction: 'Class Restriction' | 'Class' (multi-select)
+ * - archived: 'Archived' (checkbox)
+ * - value: 'Value' | 'Gold Value' | 'GP' (number/formula)
+ */
+export interface MagicItemDTO extends NotionPageBase {
+  name: string;
+  rarityRelation?: string;
+  baseWeaponRelation?: string;
+  baseArmorRelation?: string;
+  itemUrl?: string;
+  imageUrl?: string;
+  tags?: string[];
+  consumable: boolean;
+  wondrous: boolean;
+  attunement: boolean;
+  source?: string;
+  classRestriction?: string[];
+  archived: boolean;
+  value?: number;
+  rarity?: string; // Cached from rarity relation
+}
+
 // =============================================================================
 // UNION TYPES
 // =============================================================================
 
-export type NotionDTO = CreatureDTO | EnvironmentDTO | SessionDTO | EncounterDTO;
+export type NotionDTO = CreatureDTO | EnvironmentDTO | SessionDTO | EncounterDTO | MagicItemDTO;
 
 // =============================================================================
 // D&D HELPER TYPES

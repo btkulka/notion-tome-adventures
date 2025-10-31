@@ -197,8 +197,25 @@ export function extractText(properties: any, propertyNames: string[], debug = fa
 export function extractNumber(properties: any, propertyNames: string[], defaultValue: number = 0): number {
   for (const name of propertyNames) {
     const prop = properties[name];
+
+    // Debug logging for Value field
+    if (name === 'Value' && prop) {
+      console.log(`[extractNumber] Found ${name} property:`, {
+        type: prop.type,
+        hasNumber: !!prop.number,
+        hasFormula: !!prop.formula,
+        formulaType: prop.formula?.type,
+        formulaNumber: prop.formula?.number,
+        rawProp: JSON.stringify(prop).substring(0, 200)
+      });
+    }
+
     if (prop?.type === 'number' && typeof prop.number === 'number') {
       return prop.number;
+    }
+    // Handle formula fields that return numbers
+    if (prop?.type === 'formula' && prop.formula?.type === 'number' && typeof prop.formula.number === 'number') {
+      return prop.formula.number;
     }
   }
   return defaultValue;
@@ -541,6 +558,66 @@ export function extractCampaign(page: any): CampaignDTO {
   };
 }
 
+/**
+ * Extracts a complete MagicItemDTO from a Notion page
+ * Uses EXACT property names from Magic Items table
+ */
+export function extractMagicItem(page: any): MagicItemDTO {
+  const props = page.properties;
+  const base = extractBaseProperties(page);
+
+  // Magic Items table properties - use exact property name: "Name"
+  const name = extractText(props, ['Name', 'Item Name', 'Magic Item']);
+
+  // Extract relations
+  const rarityRelationIds = extractRelation(props, ['Rarity', 'Magic Item Rarity']);
+  const rarityRelation = rarityRelationIds.length > 0 ? rarityRelationIds[0] : undefined;
+
+  const baseWeaponRelationIds = extractRelation(props, ['Base Weapon', 'Weapon']);
+  const baseWeaponRelation = baseWeaponRelationIds.length > 0 ? baseWeaponRelationIds[0] : undefined;
+
+  const baseArmorRelationIds = extractRelation(props, ['Base Armor', 'Armor']);
+  const baseArmorRelation = baseArmorRelationIds.length > 0 ? baseArmorRelationIds[0] : undefined;
+
+  // Extract URLs
+  const itemUrl = extractUrl(props, ['URL', 'Item URL', 'Link']);
+  const imageUrl = extractUrl(props, ['Image URL', 'Image', 'ImageURL']);
+
+  // Extract tags
+  const tags = extractMultiSelect(props, ['Tags', 'Type']);
+
+  // Extract checkboxes
+  const consumable = extractCheckbox(props, ['Consumable']);
+  const wondrous = extractCheckbox(props, ['Wondrous']);
+  const attunement = extractCheckbox(props, ['Attunement', 'Requires Attunement']);
+  const archived = extractCheckbox(props, ['Archived']);
+
+  // Extract select fields
+  const source = extractSelect(props, ['Source', 'Book']);
+  const classRestriction = extractMultiSelect(props, ['Class Restriction', 'Class']);
+
+  // Extract value (formula or number)
+  const value = extractNumber(props, ['Value', 'Gold Value', 'GP']);
+
+  return {
+    ...base,
+    name,
+    rarityRelation,
+    baseWeaponRelation,
+    baseArmorRelation,
+    itemUrl: itemUrl || undefined,
+    imageUrl: imageUrl || undefined,
+    tags: tags.length > 0 ? tags : undefined,
+    consumable,
+    wondrous,
+    attunement,
+    source: source || undefined,
+    classRestriction: classRestriction.length > 0 ? classRestriction : undefined,
+    archived,
+    value: value || undefined,
+  };
+}
+
 // =============================================================================
 // RELATION RESOLUTION HELPERS
 // =============================================================================
@@ -823,4 +900,11 @@ export function isValidSession(session: SessionDTO): boolean {
 
 export function isValidCampaign(campaign: CampaignDTO): boolean {
   return !!campaign.name;
+}
+
+/**
+ * Validates that a magic item has required fields
+ */
+export function isValidMagicItem(magicItem: MagicItemDTO): boolean {
+  return !!magicItem.name;
 }

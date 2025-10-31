@@ -69,14 +69,36 @@ serve(async (req) => {
 
     console.log(`📋 Found ${response.results.length} raw pages`)
 
-    // Extract environments using unified extractor
+    // Extract environments using unified extractor and track failures
+    let failedCount = 0
     const environments = response.results
-      .map(page => extractEnvironment(page))
-      .filter(isValidEnvironment)
+      .map((page, index) => {
+        try {
+          const environment = extractEnvironment(page)
+          if (!isValidEnvironment(environment)) {
+            console.warn(`[${index}] Invalid environment (missing name):`, page.id)
+            failedCount++
+            return null
+          }
+          return environment
+        } catch (error) {
+          console.error(`[${index}] Error extracting environment from page ${page.id}:`, error)
+          failedCount++
+          return null
+        }
+      })
+      .filter(Boolean)
 
-    console.log(`✅ Extracted ${environments.length} valid environments`)
-    
-    return createSuccessResponse({ environments })
+    console.log(`✅ Extracted ${environments.length} valid environments, ${failedCount} failed`)
+
+    return createSuccessResponse({
+      environments,
+      metadata: {
+        total: response.results.length,
+        successful: environments.length,
+        failed: failedCount
+      }
+    })
     
   } catch (error) {
     console.error('❌ Error in fetch-environments:', error)

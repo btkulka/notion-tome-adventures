@@ -59,15 +59,37 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${response.results.length} raw pages`)
 
-    // Extract campaigns using unified extractor
+    // Extract campaigns using unified extractor and track failures
+    let failedCount = 0
     const campaigns = response.results
-      .map(page => extractCampaign(page))
-      .filter(isValidCampaign)
+      .map((page, index) => {
+        try {
+          const campaign = extractCampaign(page)
+          if (!isValidCampaign(campaign)) {
+            console.warn(`[${index}] Invalid campaign (missing name):`, page.id)
+            failedCount++
+            return null
+          }
+          return campaign
+        } catch (error) {
+          console.error(`[${index}] Error extracting campaign from page ${page.id}:`, error)
+          failedCount++
+          return null
+        }
+      })
+      .filter(Boolean)
 
-    console.log(`Extracted ${campaigns.length} valid campaigns`)
+    console.log(`Extracted ${campaigns.length} valid campaigns, ${failedCount} failed`)
 
     return new Response(
-      JSON.stringify({ campaigns }),
+      JSON.stringify({
+        campaigns,
+        metadata: {
+          total: response.results.length,
+          successful: campaigns.length,
+          failed: failedCount
+        }
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {

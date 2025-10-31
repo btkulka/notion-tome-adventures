@@ -148,26 +148,35 @@ serve(async (req) => {
     // Note: CR, Type, and Environment filtering is done post-query after resolving relations
 
     // Alignment filter (direct property - select/tag)
-    if (params.alignment && params.alignment !== 'Any') {
-      // Normalize "True Neutral" to "Neutral" for Notion compatibility
-      const notionAlignment = params.alignment === 'True Neutral' ? 'Neutral' : params.alignment
-
-      filters.push({
-        property: 'Alignment',
-        select: {
-          equals: notionAlignment
+    if (params.alignment && params.alignment.length > 0 && !params.alignment.includes('Any')) {
+      const alignmentFilters = params.alignment.map(align => {
+        // Normalize "True Neutral" to "Neutral" for Notion compatibility
+        const notionAlignment = align === 'True Neutral' ? 'Neutral' : align
+        return {
+          property: 'Alignment',
+          select: { equals: notionAlignment }
         }
       })
+
+      if (alignmentFilters.length === 1) {
+        filters.push(alignmentFilters[0])
+      } else if (alignmentFilters.length > 1) {
+        filters.push({ or: alignmentFilters })
+      }
     }
 
     // Size filter (direct property - select/tag)
-    if (params.size && params.size !== 'Any') {
-      filters.push({
+    if (params.size && params.size.length > 0 && !params.size.includes('Any')) {
+      const sizeFilters = params.size.map(s => ({
         property: 'Size',
-        select: {
-          equals: params.size
-        }
-      })
+        select: { equals: s }
+      }))
+
+      if (sizeFilters.length === 1) {
+        filters.push(sizeFilters[0])
+      } else if (sizeFilters.length > 1) {
+        filters.push({ or: sizeFilters })
+      }
     }
     
     const queryParams: any = {
@@ -404,25 +413,40 @@ serve(async (req) => {
     // Filter by creature type (now using resolved type names)
     // If no type specified or creature has no type relation, include it
     let typeFiltered = enrichedCreatures
-    if (params.creatureType && params.creatureType !== 'Any') {
+    if (params.creatureType && params.creatureType.length > 0 && !params.creatureType.includes('Any')) {
       typeFiltered = enrichedCreatures.filter(c =>
-        c.type?.toLowerCase().includes(params.creatureType.toLowerCase())
+        c.type && params.creatureType.some((paramType: string) =>
+          c.type.toLowerCase().includes(paramType.toLowerCase())
+        )
       )
-      console.log(`🐉 ${typeFiltered.length} creatures after type filtering (${params.creatureType})`)
+      console.log(`🐉 ${typeFiltered.length} creatures after type filtering (${params.creatureType.join(', ')})`)
       console.log(`   Creatures without type data: ${enrichedCreatures.filter(c => !c.type).length}`)
+    }
+
+    // Filter by creature subtype if specified
+    let subtypeFiltered = typeFiltered
+    if (params.creatureSubtype && params.creatureSubtype.length > 0) {
+      subtypeFiltered = typeFiltered.filter(c =>
+        c.subtype && params.creatureSubtype.some((paramSubtype: string) =>
+          c.subtype.toLowerCase().includes(paramSubtype.toLowerCase())
+        )
+      )
+      console.log(`🦎 ${subtypeFiltered.length} creatures after subtype filtering (${params.creatureSubtype.join(', ')})`)
     }
 
     // Filter by environment (now using resolved environment names)
     // If no environment specified or creature has no environment relations, include it
-    let environmentFiltered = typeFiltered
-    if (params.environment && params.environment !== 'Any') {
-      environmentFiltered = typeFiltered.filter(c =>
+    let environmentFiltered = subtypeFiltered
+    if (params.environment && params.environment.length > 0 && !params.environment.includes('Any')) {
+      environmentFiltered = subtypeFiltered.filter(c =>
         c.environment?.some((env: string) =>
-          env.toLowerCase().includes(params.environment.toLowerCase())
+          params.environment.some((paramEnv: string) =>
+            env.toLowerCase().includes(paramEnv.toLowerCase())
+          )
         )
       )
-      console.log(`🌍 ${environmentFiltered.length} creatures after environment filtering (${params.environment})`)
-      console.log(`   Creatures without environment data: ${typeFiltered.filter(c => !c.environment || c.environment.length === 0).length}`)
+      console.log(`🌍 ${environmentFiltered.length} creatures after environment filtering (${params.environment.join(', ')})`)
+      console.log(`   Creatures without environment data: ${subtypeFiltered.filter(c => !c.environment || c.environment.length === 0).length}`)
     }
 
     // Filter by CR range (now using resolved CR values)
@@ -438,16 +462,34 @@ serve(async (req) => {
       return crValue >= minCRValue && crValue <= maxCRValue
     })
 
+    const creaturesWithoutCR = environmentFiltered.filter(c => !c.cr)
     console.log(`🎯 ${filteredCreatures.length} creatures after CR filtering`)
-    console.log(`   Creatures without CR data: ${environmentFiltered.filter(c => !c.cr).length}`)
-    
+    console.log(`   Creatures without CR data: ${creaturesWithoutCR.length}`)
+
     if (filteredCreatures.length === 0) {
+      // Build diagnostic message
+      const diagnosticInfo = {
+        totalFetched: response.results.length,
+        validExtractions: baseCreatures.length,
+        afterTypeFilter: typeFiltered.length,
+        afterSubtypeFilter: subtypeFiltered.length,
+        afterEnvironmentFilter: environmentFiltered.length,
+        creaturesWithoutCR: creaturesWithoutCR.length,
+        sampleCreaturesWithoutCR: creaturesWithoutCR.slice(0, 5).map(c => ({
+          name: c.name,
+          hasCRRelation: !!c.crRelation,
+          crRelationId: c.crRelation
+        }))
+      }
+
+      console.error('❌ No creatures available after filtering:', diagnosticInfo)
+
       return createSuccessResponse({
         encounter: {
           creatures: [],
           totalXP: 0,
           difficulty: 'No creatures found',
-          notes: 'Try adjusting your filters to find matching creatures.'
+          notes: `Diagnostic: Found ${response.results.length} monsters in database, but ${creaturesWithoutCR.length} are missing CR data. Check that your Challenge Rating relations are properly linked in Notion.`
         }
       })
     }
@@ -598,7 +640,7 @@ serve(async (req) => {
       totalXP,
       totalGold,
       difficulty,
-      environment: params.environment || 'Any',
+      environment: params.environment && params.environment.length > 0 ? params.environment.join(', ') : 'Any',
       notes: `Generated encounter with ${totalMonsterCount} monster(s) of ${creaturesWithGold.length} type(s)`
     }
     

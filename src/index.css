@@ -331,4 +331,23 @@ All colors MUST be HSL.
     writing-mode: vertical-rl;
     text-orientation: mixed;
   }
+
+  /* Shimmer animation for magic items */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    }
+    50% {
+      box-shadow: 0 0 20px currentColor;
+    }
+  }
 }
