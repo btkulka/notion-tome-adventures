@@ -17,6 +17,7 @@ import { EncounterView } from '@/components/EncounterView';
 import { MagicItemsView } from '@/components/MagicItemsView';
 import { EmptyTabView } from '@/components/EmptyTabView';
 import { FloatingProgressBar } from '@/components/floating-progress-bar';
+import { generateEncounterTreasure } from '@/lib/treasure-generator';
 
 const Index = () => {
   const componentMountTimeRef = useRef(performance.now());
@@ -158,6 +159,16 @@ const Index = () => {
     createNewTab('empty', 'New Tab', { type: 'empty' });
   };
 
+  const handleTitleChange = (tabId: string, newTitle: string) => {
+    setTabs(prevTabs =>
+      prevTabs.map(tab =>
+        tab.id === tabId
+          ? { ...tab, title: newTitle, data: tab.data.type === 'encounter' && tab.data.encounter ? { ...tab.data, encounter: { ...tab.data.encounter, encounter_name: newTitle } } : tab.data }
+          : tab
+      )
+    );
+  };
+
   const handleGenerate = async () => {
     console.log('handleGenerate called');
 
@@ -239,8 +250,16 @@ const Index = () => {
       const encounterData = (result.data as any)?.encounter;
 
       if (!encounterData || !Array.isArray(encounterData.creatures)) {
+        console.error('Invalid encounter data structure:', encounterData);
         throw new Error('Failed to generate encounter - invalid or missing data structure.');
       }
+
+      console.log(`Encounter generation returned ${encounterData.creatures.length} creatures`);
+      console.log('Encounter data:', {
+        totalXP: encounterData.totalXP,
+        difficulty: encounterData.difficulty,
+        notes: encounterData.notes
+      });
 
       if (encounterData.creatures.length === 0) {
         // If no creatures found and environment is NOT "Any", try again with "Any"
@@ -269,13 +288,28 @@ const Index = () => {
               // Success with fallback! Continue with this data
               console.log('Successfully generated encounter with "Any" environment');
 
+              // Fetch magic items for treasure generation
+              console.log('Fetching magic items for treasure generation...');
+              const magicItemsResult = await notionService.fetchMagicItems({});
+              const availableMagicItems = magicItemsResult.success && magicItemsResult.data?.magicItems
+                ? magicItemsResult.data.magicItems
+                : [];
+
+              console.log(`Fetched ${availableMagicItems.length} magic items for treasure generation`);
+
+              // Generate treasure for creatures
+              const creaturesWithTreasure = generateEncounterTreasure(
+                fallbackEncounterData.creatures,
+                availableMagicItems
+              );
+
               const transformedEncounter: GeneratedEncounter = {
                 encounter_name: `Any Environment Encounter`,
                 environment: fallbackEncounterData.environment || 'Any',
                 difficulty: fallbackEncounterData.difficulty,
                 total_xp: fallbackEncounterData.totalXP || 0,
                 total_gold: fallbackEncounterData.totalGold || 0,
-                creatures: fallbackEncounterData.creatures.map((creature: any) => ({
+                creatures: creaturesWithTreasure.map((creature: any) => ({
                   id: creature.id,
                   name: creature.name || 'Unknown Creature',
                   quantity: creature.quantity || 1,
@@ -288,8 +322,11 @@ const Index = () => {
                   size: creature.size || 'Medium',
                   alignment: creature.alignment || 'Unaligned',
                   treasure_type: creature.treasure_type,
-                  gold: creature.totalGold || creature.gold || 0,
-                  goldRoll: creature.goldRoll
+                  gold: creature.gold || 0,
+                  goldRoll: creature.goldRoll,
+                  individualGold: creature.individualGold,
+                  goldRolls: creature.goldRolls,
+                  treasure: creature.treasure || []
                 })),
                 generation_notes: fallbackEncounterData.notes || ''
               };
@@ -311,6 +348,12 @@ const Index = () => {
               });
 
               completeGeneration();
+
+              // Remove Welcome tab after first successful generation
+              const welcomeTab = tabs.find(tab => tab.type === 'empty' && tab.title === 'Welcome');
+              if (welcomeTab) {
+                setTabs(prevTabs => prevTabs.filter(tab => tab.id !== welcomeTab.id));
+              }
 
               toast({
                 title: "Encounter Generated!",
@@ -340,13 +383,28 @@ const Index = () => {
         throw new Error(`No creatures found matching your criteria.\n\n${hintText}${diagnosticNotes}\n\nCommon fixes:\n- Open your Monsters table in Notion\n- Check the "CR" column and ensure each monster has a linked Challenge Rating\n- The CR field should link to your "Challenge Ratings" table`);
       }
 
+      // Fetch magic items for treasure generation
+      console.log('Fetching magic items for treasure generation...');
+      const magicItemsResult = await notionService.fetchMagicItems({});
+      const availableMagicItems = magicItemsResult.success && magicItemsResult.data?.magicItems
+        ? magicItemsResult.data.magicItems
+        : [];
+
+      console.log(`Fetched ${availableMagicItems.length} magic items for treasure generation`);
+
+      // Generate treasure for creatures
+      const creaturesWithTreasure = generateEncounterTreasure(
+        encounterData.creatures,
+        availableMagicItems
+      );
+
       const transformedEncounter: GeneratedEncounter = {
         encounter_name: `${environmentName} Encounter`,
         environment: encounterData.environment || environmentName,
         difficulty: encounterData.difficulty,
         total_xp: encounterData.totalXP || 0,
         total_gold: encounterData.totalGold || 0,
-        creatures: encounterData.creatures.map((creature: any) => ({
+        creatures: creaturesWithTreasure.map((creature: any) => ({
           id: creature.id,
           name: creature.name || 'Unknown Creature',
           quantity: creature.quantity || 1,
@@ -359,8 +417,11 @@ const Index = () => {
           size: creature.size || 'Medium',
           alignment: creature.alignment || 'Unaligned',
           treasure_type: creature.treasure_type,
-          gold: creature.totalGold || creature.gold || 0,
-          goldRoll: creature.goldRoll
+          gold: creature.gold || 0,
+          goldRoll: creature.goldRoll,
+          individualGold: creature.individualGold,
+          goldRolls: creature.goldRolls,
+          treasure: creature.treasure || []
         })),
         generation_notes: encounterData.notes || ''
       };
@@ -384,6 +445,12 @@ const Index = () => {
       });
 
       completeGeneration();
+
+      // Remove Welcome tab after first successful generation
+      const welcomeTab = tabs.find(tab => tab.type === 'empty' && tab.title === 'Welcome');
+      if (welcomeTab) {
+        setTabs(prevTabs => prevTabs.filter(tab => tab.id !== welcomeTab.id));
+      }
 
       toast({
         title: "Encounter Generated!",
@@ -418,8 +485,8 @@ const Index = () => {
     }
   };
 
-  const handleGenerateMagicItems = async (rarities: string[], maxItems: number) => {
-    console.log('handleGenerateMagicItems called with rarities:', rarities, 'maxItems:', maxItems);
+  const handleGenerateMagicItems = async (rarities: string[], maxItems: number, minGold: number, maxGold: number) => {
+    console.log('handleGenerateMagicItems called with rarities:', rarities, 'maxItems:', maxItems, 'gold range:', minGold, '-', maxGold);
 
     if (!isMountedRef.current) {
       console.log('Component not mounted, returning');
@@ -483,8 +550,14 @@ const Index = () => {
       // Filter out items without value
       const itemsWithValue = allItems.filter(item => item.value && item.value > 0);
 
+      // Filter by gold value range
+      const itemsInGoldRange = itemsWithValue.filter(item =>
+        item.value >= minGold && item.value <= maxGold
+      );
+
       console.log('Items with value > 0:', itemsWithValue.length);
       console.log('Items without value:', allItems.length - itemsWithValue.length);
+      console.log('Items in gold range', minGold, '-', maxGold, ':', itemsInGoldRange.length);
 
       if (itemsWithValue.length === 0) {
         // Provide more diagnostic info
@@ -495,6 +568,10 @@ const Index = () => {
         }));
         console.error('Sample items without value:', sampleWithoutValue);
         throw new Error(`No magic items found with gold values. Total items: ${allItems.length}, Items with value: ${itemsWithValue.length}. Check that your Magic Items table has the Value field properly configured as a number or formula.`);
+      }
+
+      if (itemsInGoldRange.length === 0) {
+        throw new Error(`No magic items found in gold range ${minGold}-${maxGold} gp. Try adjusting your gold filters.`);
       }
 
       // Weighted random selection based on rarity
@@ -531,8 +608,8 @@ const Index = () => {
         return weight;
       };
 
-      // Create weighted pool
-      const weightedItems = itemsWithValue.map(item => ({
+      // Create weighted pool from items in gold range
+      const weightedItems = itemsInGoldRange.map(item => ({
         item,
         weight: getWeight(item)
       }));
@@ -588,6 +665,12 @@ const Index = () => {
       });
 
       completeGeneration();
+
+      // Remove Welcome tab after first successful generation
+      const welcomeTab = tabs.find(tab => tab.type === 'empty' && tab.title === 'Welcome');
+      if (welcomeTab) {
+        setTabs(prevTabs => prevTabs.filter(tab => tab.id !== welcomeTab.id));
+      }
 
       toast({
         title: "Magic Items Generated!",
@@ -662,7 +745,7 @@ const Index = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gradient-to-b from-background to-muted">
+      <div className="min-h-screen flex w-full">
         <AppSidebar
           params={params}
           setParams={setParams}
@@ -676,7 +759,7 @@ const Index = () => {
 
         <SidebarInset className="flex flex-col">
           {/* Tab Bar - Fixed at top */}
-          <div className="flex-none border-b border-border bg-muted/30 pl-4 pr-2">
+          <div className="flex-none border-b border-border bg-muted/30 backdrop-blur-md pl-4 pr-2 sticky top-0 z-50">
             <TabBar
               tabs={tabs}
               activeTabId={activeTabId}
@@ -695,18 +778,18 @@ const Index = () => {
                 {!activeTab ? (
                   <EmptyTabView />
                 ) : (
-                  <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 shadow-mystical">
-                    <CardHeader className="p-4 sm:p-6 lg:p-8">
-                      <CardTitle className="flex items-center gap-2 text-xl lg:text-2xl">
-                        <Scroll className="h-5 w-5 lg:h-6 lg:w-6 text-accent" />
-                        {activeTab.title}
-                      </CardTitle>
-                      {activeTab.type === 'empty' && (
+                  <Card className="bg-gradient-to-br from-card/60 to-card/40 backdrop-blur-md border-border/50 shadow-mystical">
+                    {activeTab.type === 'empty' && (
+                      <CardHeader className="p-4 sm:p-6 lg:p-8">
+                        <CardTitle className="flex items-center gap-2 text-xl lg:text-2xl">
+                          <Scroll className="h-5 w-5 lg:h-6 lg:w-6 text-accent" />
+                          {activeTab.title}
+                        </CardTitle>
                         <CardDescription>
                           Configure parameters in the sidebar and generate content from your Notion databases
                         </CardDescription>
-                      )}
-                    </CardHeader>
+                      </CardHeader>
+                    )}
                     <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8">
                       {isGenerating ? (
                         <EncounterSkeleton />
@@ -738,9 +821,14 @@ const Index = () => {
                           setSelectedSession={setSelectedSession}
                           selectedCampaign={selectedCampaign}
                           onSaveEncounter={handleSaveEncounter}
+                          onTitleChange={(newTitle) => handleTitleChange(activeTab.id, newTitle)}
                         />
                       ) : activeTab.data.type === 'magic-items' && activeTab.data.items.length > 0 ? (
-                        <MagicItemsView items={activeTab.data.items} />
+                        <MagicItemsView
+                          items={activeTab.data.items}
+                          title={activeTab.title}
+                          onTitleChange={(newTitle) => handleTitleChange(activeTab.id, newTitle)}
+                        />
                       ) : (
                         <EmptyTabView />
                       )}

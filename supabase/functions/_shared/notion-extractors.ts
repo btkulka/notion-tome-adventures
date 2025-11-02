@@ -628,22 +628,76 @@ export function extractMagicItem(page: any): MagicItemDTO {
  * @param relationIds - Array of page IDs to fetch
  * @returns Promise resolving to array of page objects
  */
+/**
+ * Retry helper with exponential backoff
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 300
+): Promise<T | null> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isLastAttempt = i === maxRetries - 1;
+      const isRateLimit = error?.code === 'rate_limited' || error?.status === 429;
+
+      if (isLastAttempt || (!isRateLimit && i > 0)) {
+        // If last attempt or non-rate-limit error after first retry, give up
+        throw error;
+      }
+
+      // Exponential backoff with jitter
+      const delay = baseDelay * Math.pow(2, i) + Math.random() * 100;
+      console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  return null;
+}
+
 export async function resolveRelations(notion: any, relationIds: string[]): Promise<any[]> {
   if (!relationIds || relationIds.length === 0) {
     return [];
   }
 
   try {
-    // Fetch all related pages in parallel
-    const pagePromises = relationIds.map(id =>
-      notion.pages.retrieve({ page_id: id }).catch((err: Error) => {
-        console.warn(`Failed to fetch related page ${id}:`, err.message);
-        return null;
-      })
-    );
+    // Batch requests in smaller groups to avoid rate limiting
+    const BATCH_SIZE = 10;
+    const batches: string[][] = [];
 
-    const pages = await Promise.all(pagePromises);
-    return pages.filter(Boolean);  // Filter out failed fetches
+    for (let i = 0; i < relationIds.length; i += BATCH_SIZE) {
+      batches.push(relationIds.slice(i, i + BATCH_SIZE));
+    }
+
+    console.log(`Fetching ${relationIds.length} relations in ${batches.length} batches of ${BATCH_SIZE}...`);
+
+    const allPages: any[] = [];
+
+    for (const batch of batches) {
+      const pagePromises = batch.map(id =>
+        retryWithBackoff(
+          () => notion.pages.retrieve({ page_id: id }),
+          3,
+          300
+        ).catch((err: Error) => {
+          console.warn(`Failed to fetch related page ${id} after retries:`, err.message);
+          return null;
+        })
+      );
+
+      const batchPages = await Promise.all(pagePromises);
+      allPages.push(...batchPages.filter(Boolean));
+
+      // Add small delay between batches to avoid rate limiting
+      if (batches.length > 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    console.log(`Successfully fetched ${allPages.length}/${relationIds.length} relation pages`);
+    return allPages;
   } catch (error) {
     console.error('Error resolving relations:', error);
     return [];

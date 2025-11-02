@@ -1,16 +1,52 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Coins } from 'lucide-react';
 import { MagicItemCard } from '@/components/MagicItemCard';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 interface MagicItemsViewProps {
   items: any[];
+  title?: string;
+  onTitleChange?: (newTitle: string) => void;
 }
 
-export function MagicItemsView({ items }: MagicItemsViewProps) {
+export function MagicItemsView({ items, title = "Magic Items Summary", onTitleChange }: MagicItemsViewProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
   // Calculate total gold value
   const totalGold = items.reduce((sum, item) => sum + (item.value || 0), 0);
   const itemCount = items.length;
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const handleTitleClick = () => {
+    setIsEditingTitle(true);
+  };
+
+  const handleTitleBlur = () => {
+    setIsEditingTitle(false);
+    if (titleValue.trim() && titleValue !== title && onTitleChange) {
+      onTitleChange(titleValue.trim());
+    } else {
+      setTitleValue(title);
+    }
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTitleBlur();
+    } else if (e.key === 'Escape') {
+      setTitleValue(title);
+      setIsEditingTitle(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -20,7 +56,23 @@ export function MagicItemsView({ items }: MagicItemsViewProps) {
           <div className="flex items-center gap-3">
             <Sparkles className="h-6 w-6 text-yellow-500" />
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Magic Items Summary</h3>
+              {isEditingTitle ? (
+                <Input
+                  ref={titleInputRef}
+                  value={titleValue}
+                  onChange={(e) => setTitleValue(e.target.value)}
+                  onBlur={handleTitleBlur}
+                  onKeyDown={handleTitleKeyDown}
+                  className="text-lg font-semibold h-auto px-2 py-1 border-2"
+                />
+              ) : (
+                <h3
+                  onClick={handleTitleClick}
+                  className="text-lg font-semibold text-foreground cursor-pointer transition-all duration-200 hover:bg-primary/5 hover:shadow-[0_0_10px_rgba(var(--primary),0.3)] rounded px-2 -mx-2 py-1"
+                >
+                  {title}
+                </h3>
+              )}
               <p className="text-sm text-muted-foreground">{itemCount} items generated</p>
             </div>
           </div>

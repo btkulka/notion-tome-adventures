@@ -37,7 +37,7 @@ export function TabBar({ tabs, activeTabId, onTabClick, onTabClose, onNewTab }: 
               'hover:bg-background/80',
               isActive
                 ? 'bg-background text-foreground border-t border-x border-border'
-                : 'bg-transparent text-muted-foreground hover:text-foreground'
+                : 'bg-transparent text-muted-foreground hover:text-foreground border border-border/30'
             )}
           >
             {getTabIcon(tab.type)}

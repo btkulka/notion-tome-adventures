@@ -1,3 +1,5 @@
+@import url('https://cdn.jsdelivr.net/npm/@theleagueof/junction@1.0.0/fonts/webfonts/junction.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,7 +11,7 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Fantasy D&D Theme - Deep mystical colors */
-    --background: 240 15% 8%;
+    --background: 0 0% 0% / 0;
     --foreground: 45 90% 85%;
 
     --card: 255 15% 12%;
@@ -114,6 +116,29 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 100vh;
+    height: 100vw;
+    background-image: url('/src/assets/dark-parchment.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transform: translate(-50%, -50%) rotate(90deg);
+    filter: brightness(0.9);
+    z-index: -1;
+  }
+
+  /* Junction font for all headings */
+  h1, h2, h3, h4, h5, h6,
+  .font-bold, .font-semibold {
+    font-family: 'Junction', sans-serif !important;
   }
 
   /* Custom Scrollbar Styling - Dark with Purple/Gold Accents */
@@ -348,6 +373,15 @@ All colors MUST be HSL.
     }
     50% {
       box-shadow: 0 0 20px currentColor;
+    }
+  }
+
+  @keyframes gradient-pulse {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
     }
   }
 }

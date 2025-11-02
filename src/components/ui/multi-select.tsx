@@ -96,7 +96,7 @@ export function MultiSelect({
           >
             <div className="flex items-center gap-2 flex-1 min-w-0">
               {value.length === 0 ? (
-                <span className="truncate">{placeholder}</span>
+                <span className="truncate text-muted-foreground/70">Any</span>
               ) : (
                 <div className="flex items-center gap-1 flex-wrap">
                   {displayOptions.map((option) => (

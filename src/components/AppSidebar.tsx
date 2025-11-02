@@ -60,7 +60,7 @@ interface AppSidebarProps {
   params: EncounterParams;
   setParams: React.Dispatch<React.SetStateAction<EncounterParams>>;
   onGenerate: () => void;
-  onGenerateMagicItems?: (rarities: string[], maxItems: number) => void;
+  onGenerateMagicItems?: (rarities: string[], maxItems: number, minGold: number, maxGold: number) => void;
   onCancel: () => void;
   isGenerating: boolean;
   selectedCampaign: NotionCampaign | null;
@@ -85,6 +85,8 @@ export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems
   // Magic Item Generator State
   const [selectedRarities, setSelectedRarities] = React.useState<string[]>([]);
   const [maxItems, setMaxItems] = React.useState(5);
+  const [minGoldValue, setMinGoldValue] = React.useState(0);
+  const [maxGoldValue, setMaxGoldValue] = React.useState(100000);
 
   // Load creature subtypes once on mount
   React.useEffect(() => {
@@ -251,7 +253,7 @@ export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems
       className={open ? "w-1/6" : "w-14"}
       collapsible="icon"
     >
-      <SidebarContent className="border-r border-border bg-background flex flex-col h-screen overflow-hidden">
+      <SidebarContent className="border-r border-border flex flex-col h-screen overflow-hidden">
         {/* Campaign Header */}
         {open && (
           <div
@@ -274,7 +276,7 @@ export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems
                   value={selectedCampaign}
                   onValueChange={onCampaignChange}
                   placeholder="Select campaign..."
-                  activeOnly={false}
+                  activeOnly={true}
                   className="w-full"
                 />
               </div>
@@ -488,6 +490,25 @@ export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems
                         max={20}
                         goldText
                       />
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <NumberInput
+                          label="Min Gold Value"
+                          value={minGoldValue}
+                          onChange={setMinGoldValue}
+                          min={0}
+                          max={maxGoldValue}
+                          goldText
+                        />
+                        <NumberInput
+                          label="Max Gold Value"
+                          value={maxGoldValue}
+                          onChange={setMaxGoldValue}
+                          min={minGoldValue}
+                          max={1000000}
+                          goldText
+                        />
+                      </div>
                     </FormSection>
                   </>
                 )}
@@ -498,7 +519,7 @@ export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems
 
         {/* Fixed Generate Button Section */}
         {open && (
-          <div className="px-6 py-4 border-t border-border shrink-0 bg-background">
+          <div className="px-6 py-4 border-t border-border shrink-0">
             {isGenerating ? (
               <div className="space-y-3">
                 <Button
@@ -534,9 +555,9 @@ export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems
                     console.log('Calling onGenerate');
                     onGenerate();
                   } else if (generatorType === 'magic-item') {
-                    console.log('Calling onGenerateMagicItems with rarities:', selectedRarities, 'maxItems:', maxItems);
+                    console.log('Calling onGenerateMagicItems with rarities:', selectedRarities, 'maxItems:', maxItems, 'gold range:', minGoldValue, '-', maxGoldValue);
                     if (onGenerateMagicItems) {
-                      onGenerateMagicItems(selectedRarities, maxItems);
+                      onGenerateMagicItems(selectedRarities, maxItems, minGoldValue, maxGoldValue);
                     } else {
                       console.error('onGenerateMagicItems is not defined');
                     }

@@ -77,8 +77,7 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
   const filteredItems = items.filter(campaign => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    return campaign.name.toLowerCase().includes(query) ||
-           (campaign.description && campaign.description.toLowerCase().includes(query));
+    return campaign.name.toLowerCase().includes(query);
   }).sort((a, b) => {
     if (a.active && !b.active) return -1;
     if (!a.active && b.active) return 1;
@@ -151,11 +150,6 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
                       />
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">{campaign.name}</div>
-                        {campaign.description && (
-                          <div className="text-xs text-muted-foreground truncate mt-1">
-                            {campaign.description}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </CommandItem>

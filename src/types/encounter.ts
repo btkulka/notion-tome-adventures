@@ -23,6 +23,18 @@ export interface NotionEncounterParams {
   maxCR?: string;
 }
 
+export interface MagicItemTreasure {
+  id: string;
+  name: string;
+  rarity?: string;
+  value?: number;
+  consumable: boolean;
+  wondrous: boolean;
+  attunement: boolean;
+  imageUrl?: string;
+  itemUrl?: string;
+}
+
 export interface GeneratedEncounter {
   encounter_name: string;
   environment: string;
@@ -45,6 +57,10 @@ export interface GeneratedEncounter {
     treasure_type?: string;
     gold?: number;
     goldRoll?: string;
+    individualGold?: number[];
+    goldRolls?: string[];
+    treasure?: MagicItemTreasure[];
+    treasurePerInstance?: MagicItemTreasure[][];
   }>;
   generation_notes: string;
 }
