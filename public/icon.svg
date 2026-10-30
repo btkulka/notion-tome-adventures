@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>notion-tome-adventures</title>
+  <defs>
+    <clipPath id="sq"><rect width="256" height="256" rx="57"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2d1042"/><stop offset="1" stop-color="#12081c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="128" cy="124" r="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a936e2" stop-opacity="0.42"/><stop offset="1" stop-color="#730da5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eebd2b" stop-opacity="0.34"/><stop offset="1" stop-color="#eebd2b" stop-opacity="0.08"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.38"/><stop offset="0.3" stop-color="#ffffff" stop-opacity="0.05"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.03"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#sq)">
+    <rect width="256" height="256" fill="url(#bg)"/>
+    <rect width="256" height="256" fill="url(#glow)"/>
+    <polygon points="128,90 84,166 172,166" fill="url(#face)"/>
+    <g fill="none" stroke="#eebd2b" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="128,52 194,90 194,166 128,204 62,166 62,90" stroke-width="7"/>
+      <polygon points="128,90 84,166 172,166" stroke-width="5"/>
+      <path d="M128 52 L128 90 M62 90 L128 90 M194 90 L128 90 M62 90 L84 166 M194 90 L172 166 M62 166 L84 166 M194 166 L172 166 M128 204 L84 166 M128 204 L172 166" stroke-width="4" stroke-opacity="0.8"/>
+    </g>
+    <rect x="0.5" y="0.5" width="255" height="255" rx="56.5" fill="none" stroke="url(#edge)" stroke-width="1"/>
+  </g>
+</svg>
