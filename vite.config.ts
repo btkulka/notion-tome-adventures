@@ -7,10 +7,10 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 1974,
     hmr: {
       overlay: true,
-      clientPort: 8080,
+      clientPort: 1974,
       timeout: 30000, // Increase timeout
     },
     watch: {

@@ -1,5 +1,6 @@
 import { Client } from 'https://deno.land/x/notion_sdk@v2.2.3/src/mod.ts'
 import { extractCreature, isValidCreature } from '../_shared/notion-extractors.ts'
+import { requireDm } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +11,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
+
+  const caller = await requireDm(req)
+  if (caller instanceof Response) return caller
 
   try {
     const notionApiKey = Deno.env.get('NOTION_API_KEY')

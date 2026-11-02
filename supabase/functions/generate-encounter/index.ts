@@ -13,6 +13,7 @@ import {
   CR_VALUES,
   type CreatureDTO
 } from '../_shared/notion-extractors.ts'
+import { requireDm } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -116,6 +117,9 @@ function createSuccessResponse(data: unknown): Response {
 serve(async (req) => {
   const corsResponse = handleCORS(req)
   if (corsResponse) return corsResponse
+
+  const caller = await requireDm(req)
+  if (caller instanceof Response) return caller
 
   try {
     const VERBOSE_LOGGING = Deno.env.get('VERBOSE_LOGGING') !== 'false' // Default to true

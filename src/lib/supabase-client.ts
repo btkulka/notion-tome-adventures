@@ -1,5 +1,7 @@
+import { supabase } from '@/integrations/supabase/client'
+
 // Re-export the auto-generated Supabase client as the single source of truth
-export { supabase } from '@/integrations/supabase/client'
+export { supabase }
 
 const SUPABASE_URL = "https://xhrobkdzjabllhftksvt.supabase.co"
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhocm9ia2R6amFibGxoZnRrc3Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwMjg3MzksImV4cCI6MjA3MjYwNDczOX0.c6qWZxBKdB9r9_wMidj4_BX8cQrbl54gknrRLGZpEyk"
@@ -20,11 +22,14 @@ export async function callEdgeFunction(functionName: string, body?: unknown, sig
       throw new DOMException('Operation was aborted', 'AbortError');
     }
 
+    // Functions check the signed-in user's JWT; the anon key alone is rejected.
+    const { data: { session } } = await supabase.auth.getSession();
+
     const response = await fetch(`${functionsBaseUrl}/${functionName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${session?.access_token ?? SUPABASE_ANON_KEY}`,
         'apikey': SUPABASE_ANON_KEY,
       },
       body: body ? JSON.stringify(body) : undefined,

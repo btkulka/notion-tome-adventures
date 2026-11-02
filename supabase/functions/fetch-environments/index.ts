@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { Client } from 'https://deno.land/x/notion_sdk@v2.2.3/src/mod.ts'
 import { extractEnvironment, isValidEnvironment } from '../_shared/notion-extractors.ts'
+import { requireDm } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,6 +49,9 @@ function createSuccessResponse(data: unknown): Response {
 serve(async (req) => {
   const corsResponse = handleCORS(req)
   if (corsResponse) return corsResponse
+
+  const caller = await requireDm(req)
+  if (caller instanceof Response) return caller
 
   try {
     console.log('🌍 Fetching environments...')

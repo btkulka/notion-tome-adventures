@@ -55,33 +55,62 @@ export const difficultyUtils = {
   },
 
   /**
-   * Calculate XP thresholds for a party
+   * Calculate XP thresholds for a party of same-level characters
    */
-  calculatePartyThresholds(partyLevel: number, partySize: number = 4): {
-    easy: number;
-    medium: number;
-    hard: number;
-    deadly: number;
-  } {
-    const baseThresholds = {
-      1: { easy: 25, medium: 50, hard: 75, deadly: 100 },
-      2: { easy: 50, medium: 100, hard: 150, deadly: 200 },
-      3: { easy: 75, medium: 150, hard: 225, deadly: 400 },
-      4: { easy: 125, medium: 250, hard: 375, deadly: 500 },
-      5: { easy: 250, medium: 500, hard: 750, deadly: 1100 },
-      // Add more levels as needed
-    };
+  calculatePartyThresholds(partyLevel: number, partySize: number = 4): PartyThresholds {
+    return difficultyUtils.thresholdsForLevels(Array(partySize).fill(partyLevel));
+  },
 
-    const thresholds = baseThresholds[partyLevel as keyof typeof baseThresholds] || baseThresholds[5];
-    
-    return {
-      easy: thresholds.easy * partySize,
-      medium: thresholds.medium * partySize,
-      hard: thresholds.hard * partySize,
-      deadly: thresholds.deadly * partySize
-    };
+  /**
+   * Sum each character's XP thresholds (DMG p.82), so mixed-level parties work.
+   * Levels are clamped to 1–20.
+   */
+  thresholdsForLevels(levels: number[]): PartyThresholds {
+    return levels.reduce<PartyThresholds>(
+      (sum, level) => {
+        const row = XP_THRESHOLDS_BY_LEVEL[Math.min(20, Math.max(1, Math.round(level))) - 1];
+        return {
+          easy: sum.easy + row.easy,
+          medium: sum.medium + row.medium,
+          hard: sum.hard + row.hard,
+          deadly: sum.deadly + row.deadly,
+        };
+      },
+      { easy: 0, medium: 0, hard: 0, deadly: 0 }
+    );
   }
 };
+
+export interface PartyThresholds {
+  easy: number;
+  medium: number;
+  hard: number;
+  deadly: number;
+}
+
+/** Character XP thresholds by level, levels 1–20 (DMG p.82). */
+const XP_THRESHOLDS_BY_LEVEL: PartyThresholds[] = [
+  { easy: 25, medium: 50, hard: 75, deadly: 100 },
+  { easy: 50, medium: 100, hard: 150, deadly: 200 },
+  { easy: 75, medium: 150, hard: 225, deadly: 400 },
+  { easy: 125, medium: 250, hard: 375, deadly: 500 },
+  { easy: 250, medium: 500, hard: 750, deadly: 1100 },
+  { easy: 300, medium: 600, hard: 900, deadly: 1400 },
+  { easy: 350, medium: 750, hard: 1100, deadly: 1700 },
+  { easy: 450, medium: 900, hard: 1400, deadly: 2100 },
+  { easy: 550, medium: 1100, hard: 1600, deadly: 2400 },
+  { easy: 600, medium: 1200, hard: 1900, deadly: 2800 },
+  { easy: 800, medium: 1600, hard: 2400, deadly: 3600 },
+  { easy: 1000, medium: 2000, hard: 3000, deadly: 4500 },
+  { easy: 1100, medium: 2200, hard: 3400, deadly: 5100 },
+  { easy: 1250, medium: 2500, hard: 3800, deadly: 5700 },
+  { easy: 1400, medium: 2800, hard: 4300, deadly: 6400 },
+  { easy: 1600, medium: 3200, hard: 4800, deadly: 7200 },
+  { easy: 2000, medium: 3900, hard: 5900, deadly: 8800 },
+  { easy: 2100, medium: 4200, hard: 6300, deadly: 9500 },
+  { easy: 2400, medium: 4900, hard: 7300, deadly: 10900 },
+  { easy: 2800, medium: 5700, hard: 8500, deadly: 12700 },
+];
 
 /**
  * Creature filtering utilities

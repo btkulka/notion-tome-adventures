@@ -1,5 +1,8 @@
 project_id = "xhrobkdzjabllhftksvt"
 
+# Every function checks the caller's Supabase user JWT itself (see
+# functions/_shared/auth.ts), so the gateway check stays off.
+
 [functions.generate-encounter]
 verify_jwt = false
 
@@ -10,6 +13,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.fetch-sessions]
+verify_jwt = false
+
+[functions.fetch-campaigns]
+verify_jwt = false
+
+[functions.fetch-magic-items]
 verify_jwt = false
 
 [functions.discover-notion-databases]
@@ -25,4 +34,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.simple-debug]
+verify_jwt = false
+
+[functions.locations]
+verify_jwt = false
+
+[functions.characters]
+verify_jwt = false
+
+[functions.setup-suite-notion]
 verify_jwt = false

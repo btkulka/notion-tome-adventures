@@ -14,13 +14,369 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      assets: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          prompt: string | null
+          seed: number | null
+          storage_path: string
+          workflow: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          prompt?: string | null
+          seed?: number | null
+          storage_path: string
+          workflow?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          prompt?: string | null
+          seed?: number | null
+          storage_path?: string
+          workflow?: string | null
+        }
+        Relationships: []
+      }
+      campaign_invites: {
+        Row: {
+          campaign_id: string
+          code: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          max_uses: number | null
+          uses: number
+        }
+        Insert: {
+          campaign_id: string
+          code: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          max_uses?: number | null
+          uses?: number
+        }
+        Update: {
+          campaign_id?: string
+          code?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          max_uses?: number | null
+          uses?: number
+        }
+        Relationships: []
+      }
+      campaign_members: {
+        Row: {
+          campaign_id: string
+          character_notion_id: string | null
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          character_notion_id?: string | null
+          joined_at?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          character_notion_id?: string | null
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dm_allowlist: {
+        Row: {
+          created_at: string
+          discord_id: string
+          note: string | null
+        }
+        Insert: {
+          created_at?: string
+          discord_id: string
+          note?: string | null
+        }
+        Update: {
+          created_at?: string
+          discord_id?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
+      live_sessions: {
+        Row: {
+          active_map_id: string | null
+          campaign_id: string
+          notion_session_id: string | null
+          party_map_id: string | null
+          party_x: number
+          party_y: number
+          status: string
+          updated_at: string
+          weather: string
+          world_minutes: number
+        }
+        Insert: {
+          active_map_id?: string | null
+          campaign_id: string
+          notion_session_id?: string | null
+          party_map_id?: string | null
+          party_x?: number
+          party_y?: number
+          status?: string
+          updated_at?: string
+          weather?: string
+          world_minutes?: number
+        }
+        Update: {
+          active_map_id?: string | null
+          campaign_id?: string
+          notion_session_id?: string | null
+          party_map_id?: string | null
+          party_x?: number
+          party_y?: number
+          status?: string
+          updated_at?: string
+          weather?: string
+          world_minutes?: number
+        }
+        Relationships: []
+      }
+      map_fog: {
+        Row: {
+          explored: string
+          map_id: string
+          updated_at: string
+        }
+        Insert: {
+          explored: string
+          map_id: string
+          updated_at?: string
+        }
+        Update: {
+          explored?: string
+          map_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      map_objects: {
+        Row: {
+          created_at: string
+          data: Json
+          hidden: boolean
+          id: string
+          map_id: string
+          rot: number
+          type: string
+          updated_at: string
+          x: number
+          y: number
+          z: number
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          hidden?: boolean
+          id?: string
+          map_id: string
+          rot?: number
+          type: string
+          updated_at?: string
+          x?: number
+          y?: number
+          z?: number
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          hidden?: boolean
+          id?: string
+          map_id?: string
+          rot?: number
+          type?: string
+          updated_at?: string
+          x?: number
+          y?: number
+          z?: number
+        }
+        Relationships: []
+      }
+      maps: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          created_by: string | null
+          gen_params: Json | null
+          height: number
+          id: string
+          kind: string
+          name: string
+          parent_map_id: string | null
+          parent_pin_id: string | null
+          scale: number
+          seed: number
+          settings: Json
+          terrain: Json
+          thumbnail_path: string | null
+          updated_at: string
+          version: number
+          width: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          created_by?: string | null
+          gen_params?: Json | null
+          height: number
+          id?: string
+          kind: string
+          name: string
+          parent_map_id?: string | null
+          parent_pin_id?: string | null
+          scale?: number
+          seed?: number
+          settings?: Json
+          terrain: Json
+          thumbnail_path?: string | null
+          updated_at?: string
+          version?: number
+          width: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          created_by?: string | null
+          gen_params?: Json | null
+          height?: number
+          id?: string
+          kind?: string
+          name?: string
+          parent_map_id?: string | null
+          parent_pin_id?: string | null
+          scale?: number
+          seed?: number
+          settings?: Json
+          terrain?: Json
+          thumbnail_path?: string | null
+          updated_at?: string
+          version?: number
+          width?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          discord_id: string | null
+          discord_username: string | null
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          discord_id?: string | null
+          discord_username?: string | null
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          discord_id?: string | null
+          discord_username?: string | null
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      travel_log: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          encounter: Json | null
+          from_x: number
+          from_y: number
+          id: string
+          map_id: string
+          miles: number
+          minutes: number
+          pace: string
+          path: Json
+          started_at: number
+          to_x: number
+          to_y: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          encounter?: Json | null
+          from_x: number
+          from_y: number
+          id?: string
+          map_id: string
+          miles: number
+          minutes: number
+          pace: string
+          path: Json
+          started_at: number
+          to_x: number
+          to_y: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          encounter?: Json | null
+          from_x?: number
+          from_y?: number
+          id?: string
+          map_id?: string
+          miles?: number
+          minutes?: number
+          pace?: string
+          path?: Json
+          started_at?: number
+          to_x?: number
+          to_y?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_campaign: { Args: { cid: string }; Returns: undefined }
+      claim_character: { Args: { character_id: string; cid: string }; Returns: undefined }
+      is_campaign_dm: { Args: { cid: string }; Returns: boolean }
+      is_campaign_member: { Args: { cid: string }; Returns: boolean }
+      is_dm: { Args: Record<PropertyKey, never>; Returns: boolean }
+      join_campaign: { Args: { invite_code: string }; Returns: string }
+      map_campaign: { Args: { mid: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
