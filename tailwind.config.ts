@@ -19,9 +19,26 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				'junction': ['Junction', 'sans-serif'],
+				display: ['Cinzel', 'Trajan Pro', 'serif'],
+				text: ['Spectral', 'Georgia', 'serif'],
+				// Old name kept so existing components pick up the display face.
+				junction: ['Cinzel', 'Trajan Pro', 'serif'],
 			},
 			colors: {
+				ink: { 0: '#0A0A0B', 1: '#121113', 2: '#1A181B', 3: '#232026' },
+				rule: '#2E2A30',
+				bone: { DEFAULT: '#E6DDC8', 2: '#B2A78F', 3: '#8F8572' },
+				gilt: { DEFAULT: '#C4A35A', hi: '#DEC27F', deep: '#6E5A31' },
+				blood: { DEFAULT: '#A63A35', text: '#D7766F' },
+				tier: {
+					ash: '#8C8B8F',
+					bone: '#D6CFBE',
+					verdant: '#5A9A6A',
+					azure: '#557FBF',
+					amethyst: '#8D6FBF',
+					ember: '#C27838',
+					blood: '#B03E3A',
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',

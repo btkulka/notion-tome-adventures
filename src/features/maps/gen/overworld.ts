@@ -4,7 +4,7 @@
  *
  * Pipeline: warped fBm heightmap → land-shape mask → sea level by quantile →
  * ridged mountains → priority-flood (drainage + lakes) → rivers → climate →
- * biomes → stepped heights → settlements → roads.
+ * biomes → stepped heights → settlements → roads → names.
  */
 import { createNoise2D, type NoiseFunction2D } from 'simplex-noise';
 import { MAX_STEP, SEA_STEP } from '../constants';
@@ -12,7 +12,8 @@ import { Biome, type BiomeId } from '../terrain/biomes';
 import { createTerrain } from '../terrain/codec';
 import type { LandShape, OverworldGenParams, PinType, TerrainGrid, TilePoint } from '../types';
 import { MinHeap } from './heap';
-import { placeName } from './names';
+import { labelRegions, labelSpot } from '../terrain/regions';
+import { placeName, regionName, riverName } from './names';
 import { aStar, NEIGHBORS_8 } from './pathfind';
 import { mulberry32 } from './prng';
 
@@ -23,12 +24,39 @@ export interface GeneratedSettlement {
   name: string;
 }
 
+/** A region's name, standing on the tile where it reads best. */
+export interface GeneratedLabel {
+  x: number;
+  y: number;
+  text: string;
+}
+
 export interface GeneratedOverworld {
   terrain: TerrainGrid;
   rivers: TilePoint[][];
+  /** One per river, in the same order. */
+  riverNames: string[];
   roads: TilePoint[][];
   settlements: GeneratedSettlement[];
+  labels: GeneratedLabel[];
 }
+
+/** Smallest region (in tiles) worth a name, by its main biome. Beaches never get one. */
+const NAMED_REGION_SIZE: Partial<Record<BiomeId, number>> = {
+  [Biome.Ocean]: 80,
+  [Biome.Lake]: 6,
+  [Biome.Grassland]: 70,
+  [Biome.Forest]: 24,
+  [Biome.Taiga]: 24,
+  [Biome.Jungle]: 24,
+  [Biome.Swamp]: 14,
+  [Biome.Desert]: 30,
+  [Biome.Hills]: 20,
+  [Biome.Mountain]: 18,
+  [Biome.Snow]: 20,
+};
+/** Names per map: about one per 450 tiles, 5 to 14. */
+const namedRegions = (width: number, height: number) => Math.min(14, Math.max(5, Math.round((width * height) / 450)));
 
 export const DEFAULT_GEN_PARAMS: Omit<OverworldGenParams, 'seed'> = {
   width: 64,
@@ -54,7 +82,7 @@ const WATER_FRACTION: Record<LandShape, number> = {
 };
 
 /** How much a road prefers each biome (lower is easier). Water is impassable. */
-const ROAD_COST: Partial<Record<BiomeId, number>> = {
+export const ROAD_COST: Partial<Record<BiomeId, number>> = {
   [Biome.Beach]: 1.2,
   [Biome.Grassland]: 1,
   [Biome.Forest]: 1.8,
@@ -66,6 +94,33 @@ const ROAD_COST: Partial<Record<BiomeId, number>> = {
   [Biome.Mountain]: 6,
   [Biome.Snow]: 3,
 };
+
+/** Land biomes the DM can switch off when generating. Water follows the land shape. */
+export const PICKABLE_BIOMES: BiomeId[] = [
+  Biome.Grassland, Biome.Forest, Biome.Taiga, Biome.Jungle, Biome.Swamp,
+  Biome.Desert, Biome.Beach, Biome.Hills, Biome.Mountain, Biome.Snow,
+];
+
+/** Biomes that can cover low ground. A region needs at least one. */
+export const LOWLAND_BIOMES: BiomeId[] = [Biome.Grassland, Biome.Forest, Biome.Taiga, Biome.Jungle, Biome.Swamp, Biome.Desert, Biome.Snow];
+
+/** Where each lowland biome sits in (temperature, moisture), both ranked 0..1 across the land. */
+const CLIMATE: Partial<Record<BiomeId, [number, number]>> = {
+  [Biome.Snow]: [0.05, 0.4],
+  [Biome.Taiga]: [0.22, 0.75],
+  [Biome.Grassland]: [0.5, 0.3],
+  [Biome.Forest]: [0.5, 0.7],
+  [Biome.Swamp]: [0.62, 0.95],
+  [Biome.Desert]: [0.88, 0.1],
+  [Biome.Jungle]: [0.88, 0.8],
+};
+
+/** The biomes a region may use, or null when nothing is switched off. */
+export function allowedBiomes(params: Pick<OverworldGenParams, 'biomes'>): Set<BiomeId> | null {
+  if (!params.biomes) return null;
+  const allowed = new Set(params.biomes.filter((b): b is BiomeId => PICKABLE_BIOMES.includes(b as BiomeId)));
+  return PICKABLE_BIOMES.every((b) => allowed.has(b)) ? null : allowed;
+}
 
 /** Depth (in land-height rank) a depression must have before it holds a lake. */
 const LAKE_DEPTH = 0.09;
@@ -224,7 +279,21 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
     }
   }
 
-  // 6. Biomes and stepped heights.
+  // 6. Biomes and stepped heights. When the DM has switched biomes off, the
+  //    lowland is split by ranked climate so every biome left on gets land; the
+  //    sliders still lean the split toward hot or wet.
+  const allowed = allowedBiomes(params);
+  const climateRank = { temperature: new Float32Array(size), moisture: new Float32Array(size) };
+  if (allowed) {
+    const land: number[] = [];
+    for (let i = 0; i < size; i++) if (!isOcean(i) && !lake[i]) land.push(i);
+    for (const key of ['temperature', 'moisture'] as const) {
+      const values = key === 'temperature' ? temperature : moisture;
+      const order = [...land].sort((a, b) => values[a] - values[b]);
+      order.forEach((i, rank) => (climateRank[key][i] = order.length > 1 ? rank / (order.length - 1) : 0.5));
+    }
+  }
+  const lean = [(params.temperature - 0.5) * 0.5, (params.moisture - 0.5) * 0.5] as const;
   const terrain = createTerrain(W, H);
   const landStep = (t: number) => SEA_STEP + 1 + Math.round(Math.pow(Math.min(1, Math.max(0, t)), 2) * (MAX_STEP - SEA_STEP - 1));
   for (let y = 0; y < H; y++) {
@@ -241,7 +310,9 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
         continue;
       }
       terrain.heights[i] = landStep(h[i]);
-      terrain.biomes[i] = landBiome(h[i], temperature[i], moisture[i], thresholds);
+      terrain.biomes[i] = allowed
+        ? pickedBiome(h[i], temperature[i], climateRank.temperature[i] + lean[0], climateRank.moisture[i] + lean[1], thresholds, allowed)
+        : landBiome(h[i], temperature[i], moisture[i], thresholds);
     }
   }
   limitSlopes(terrain, isWaterTile);
@@ -262,6 +333,7 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
+      if (allowed?.has(Biome.Beach) === false) continue;
       if (isWaterTile(i) || terrain.heights[i] !== SEA_STEP + 1 || temperature[i] < 0.2) continue;
       if (terrain.biomes[i] === Biome.Mountain || terrain.biomes[i] === Biome.Swamp) continue;
       const touchesSea = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
@@ -303,7 +375,21 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
     }
   }
 
-  return { terrain, rivers, roads, settlements };
+  // 9. Names for the rivers and the larger regions. Drawn last so they never
+  // change the land a seed makes.
+  const taken = new Set(settlements.map((s) => s.name));
+  const riverNames = rivers.map(() => riverName(rand, taken));
+  const regions = labelRegions(terrain);
+  const labels = regions.regions
+    .filter((r) => r.size >= (NAMED_REGION_SIZE[r.biome] ?? Infinity))
+    .sort((a, b) => b.size - a.size)
+    .slice(0, namedRegions(W, H))
+    .map((r) => {
+      const spot = labelSpot(regions, r.id);
+      return { x: spot % W, y: Math.floor(spot / W), text: regionName(r.biome, rand, taken) };
+    });
+
+  return { terrain, rivers, riverNames, roads, settlements, labels };
 }
 
 /** `rank` is the tile's land-height rank (0 lowest, 1 highest). */
@@ -325,6 +411,43 @@ function landBiome(
   if (wet > 0.72 && rank < 0.2) return Biome.Swamp;
   if (wet > 0.6) return Biome.Jungle;
   return wet > 0.35 ? Biome.Grassland : Biome.Desert;
+}
+
+/**
+ * Biome for a land tile when only some biomes are allowed. High ground keeps
+ * its band if hills, mountains or snow are on; otherwise it joins the lowland,
+ * which goes to the allowed biome nearest in ranked climate (`t`, `w`). Swamp
+ * only claims low ground.
+ */
+function pickedBiome(
+  rank: number,
+  temp: number,
+  t: number,
+  w: number,
+  thresholds: { snow: number; mountain: number; hills: number },
+  allowed: Set<BiomeId>,
+): BiomeId {
+  const cold = temp < 0.15;
+  if (rank > thresholds.mountain) {
+    if (allowed.has(Biome.Snow) && (rank > thresholds.snow || cold)) return Biome.Snow;
+    if (allowed.has(Biome.Mountain)) return Biome.Mountain;
+    if (allowed.has(Biome.Hills)) return Biome.Hills;
+  } else if (rank > thresholds.hills) {
+    if (allowed.has(Biome.Hills)) return cold && allowed.has(Biome.Snow) ? Biome.Snow : Biome.Hills;
+    if (allowed.has(Biome.Mountain) && rank > (thresholds.hills + thresholds.mountain) / 2) return Biome.Mountain;
+  }
+  let best: BiomeId | null = null;
+  let bestDistance = Infinity;
+  for (const biome of LOWLAND_BIOMES) {
+    if (!allowed.has(biome)) continue;
+    const [ct, cw] = CLIMATE[biome]!;
+    const distance = (t - ct) ** 2 + (w - cw) ** 2 + (biome === Biome.Swamp ? Math.max(0, rank - 0.3) * 2 : 0);
+    if (distance < bestDistance) {
+      best = biome;
+      bestDistance = distance;
+    }
+  }
+  return best ?? (allowed.has(Biome.Hills) ? Biome.Hills : allowed.has(Biome.Mountain) ? Biome.Mountain : Biome.Grassland);
 }
 
 /**
@@ -402,7 +525,9 @@ function placeSettlements(
     [Biome.Taiga]: -0.1,
     [Biome.Jungle]: -0.2,
   };
-  const excluded = new Set<number>([Biome.Mountain, Biome.Snow, Biome.Swamp]);
+  // A DM who picked only harsh biomes still gets settlements in snow and swamp.
+  const excluded = new Set<number>(allowedBiomes(params) ? [Biome.Mountain] : [Biome.Mountain, Biome.Snow, Biome.Swamp]);
+  if (allowedBiomes(params)) biomeBonus[Biome.Snow] = biomeBonus[Biome.Swamp] = -0.3;
   const near = (x: number, y: number, test: (i: number) => boolean) =>
     NEIGHBORS_8.some(([dx, dy]) => {
       const nx = x + dx;

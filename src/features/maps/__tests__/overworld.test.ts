@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SEA_STEP } from '../constants';
-import { DEFAULT_GEN_PARAMS, generateOverworld } from '../gen/overworld';
+import { DEFAULT_GEN_PARAMS, generateOverworld, PICKABLE_BIOMES } from '../gen/overworld';
 import { Biome, isWater } from '../terrain/biomes';
 import type { OverworldGenParams } from '../types';
 
@@ -122,5 +122,38 @@ describe('generateOverworld', () => {
     expect(result.settlements).toEqual([]);
     expect(result.roads).toEqual([]);
     expect(result.rivers).toEqual([]);
+  });
+});
+
+describe('picking biomes', () => {
+  const landBiomes = (biomes: Uint8Array) => new Set([...biomes].filter((b) => !isWater(b)));
+
+  it('treats every biome picked the same as no pick', () => {
+    const a = generateOverworld(params());
+    const b = generateOverworld(params({ biomes: [...PICKABLE_BIOMES] }));
+    expect(b.terrain.biomes).toEqual(a.terrain.biomes);
+    expect(b.settlements).toEqual(a.settlements);
+  });
+
+  it('uses only the picked biomes, and every picked lowland biome gets land', () => {
+    const picked = [Biome.Desert, Biome.Jungle, Biome.Mountain];
+    // A temperate climate would naturally make neither desert nor jungle.
+    const { terrain, settlements } = generateOverworld(params({ biomes: picked, temperature: 0.4, mountains: 0.6 }));
+    const used = landBiomes(terrain.biomes);
+    for (const b of used) expect(picked).toContain(b);
+    expect(used.has(Biome.Desert)).toBe(true);
+    expect(used.has(Biome.Jungle)).toBe(true);
+    expect(settlements.length).toBeGreaterThan(0);
+  });
+
+  it('still settles a frozen region of snow and taiga', () => {
+    const { terrain, settlements } = generateOverworld(params({ biomes: [Biome.Snow, Biome.Taiga] }));
+    for (const b of landBiomes(terrain.biomes)) expect([Biome.Snow, Biome.Taiga]).toContain(b);
+    expect(settlements.length).toBeGreaterThan(0);
+  });
+
+  it('leaves the coast unsanded when beaches are off', () => {
+    const { terrain } = generateOverworld(params({ biomes: PICKABLE_BIOMES.filter((b) => b !== Biome.Beach) }));
+    expect(terrain.biomes.includes(Biome.Beach)).toBe(false);
   });
 });

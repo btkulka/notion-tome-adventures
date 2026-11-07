@@ -1,13 +1,102 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ErrorBoundary } from "react-error-boundary";
-import React, { useState, Suspense, lazy } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import { PerformanceMonitor } from "@/debug/PerformanceMonitor";
+import { AuthProvider } from "@/features/auth/AuthProvider";
+import { FullScreenSpinner, Notice, RequireAuth, RequireDm } from "@/features/auth/guards";
+import { keepAcrossHmr } from "@/lib/hmr";
 
-const Index = lazy(() => import("./pages/Index"));
+// Outlives App so an edit that remounts it doesn't throw away every cached query.
+const queryClient = keepAcrossHmr(import.meta.hot, "queryClient", () => new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+}));
+
+/**
+ * A route in its own chunk that can be fetched ahead of time. Once the chunk has
+ * arrived the route renders straight away; only a route that is still loading
+ * suspends (and router transitions keep the old screen up meanwhile).
+ */
+function lazyRoute(load: () => Promise<{ default: React.ComponentType }>) {
+  let loaded: React.ComponentType | null = null;
+  let pending: Promise<unknown> | null = null;
+  const preload = () =>
+    (pending ??= load().then(
+      (m) => {
+        loaded = m.default;
+      },
+      (err) => {
+        pending = null;
+        throw err;
+      }
+    ));
+  const Lazy = lazy(() => preload().then(() => ({ default: loaded! })));
+  // Picked once per mount: swapping Lazy for the loaded component later would remount the page.
+  const Screen = () => {
+    const [Page] = useState(() => loaded ?? Lazy);
+    return <Page />;
+  };
+  return Object.assign(Screen, { preload });
+}
+
+const Index = lazyRoute(() => import("./pages/Index"));
+const LoginPage = lazyRoute(() => import("@/features/auth/LoginPage"));
+const JoinPage = lazyRoute(() => import("@/features/auth/JoinPage"));
+const HomeRedirect = lazyRoute(() => import("@/features/suite/HomeRedirect"));
+const SuiteShell = lazyRoute(() => import("@/features/suite/SuiteShell"));
+const MapLibraryPage = lazyRoute(() => import("@/features/maps/MapLibraryPage"));
+const MapEditorPage = lazyRoute(() => import("@/features/maps/MapEditorPage"));
+const DmTablePage = lazyRoute(() => import("@/features/table/DmTablePage"));
+const PlayerPage = lazyRoute(() => import("@/features/table/PlayerPage"));
+const CharactersPage = lazyRoute(() => import("@/features/characters/CharactersPage"));
+const CampaignPage = lazyRoute(() => import("@/features/suite/CampaignPage"));
+const SettingsPage = lazyRoute(() => import("@/features/settings/SettingsPage"));
+const DatabasePage = lazyRoute(() => import("@/features/database/DatabasePage"));
+const TreasurePage = lazyRoute(() => import("@/features/tools/TreasurePage"));
+
+/** What the first screen at a path needs, fetched while the session check is out. */
+function firstScreen(path: string) {
+  if (path === "/login") return [LoginPage];
+  if (path.startsWith("/join/")) return [JoinPage];
+  if (path.startsWith("/play/")) return path.endsWith("/characters") ? [CharactersPage] : [PlayerPage];
+  const suite: [string, { preload: () => Promise<unknown> }][] = [
+    ["/table", DmTablePage],
+    ["/tools/encounters", Index],
+    ["/generate", Index],
+    ["/tools/treasure", TreasurePage],
+    ["/maps/", MapEditorPage],
+    ["/maps", MapLibraryPage],
+    ["/database", DatabasePage],
+    ["/campaign", CampaignPage],
+    ["/settings", SettingsPage],
+  ];
+  const page = suite.find(([prefix]) => path.startsWith(prefix))?.[1];
+  // "/" sends a DM to the table, the likelier of the two.
+  return path === "/" ? [HomeRedirect, SuiteShell, DmTablePage] : [SuiteShell, ...(page ? [page] : [])];
+}
+
+const ALL_ROUTES = [
+  Index, LoginPage, JoinPage, HomeRedirect, SuiteShell, MapLibraryPage, MapEditorPage, DmTablePage,
+  PlayerPage, CharactersPage, CampaignPage, SettingsPage, DatabasePage, TreasurePage,
+];
+
+const ignore = () => undefined;
+for (const route of firstScreen(window.location.pathname)) route.preload().catch(ignore);
+// Then everything else, so switching tools never waits on a chunk.
+window.addEventListener("load", () => {
+  const later = () => ALL_ROUTES.forEach((route) => route.preload().catch(ignore));
+  if ("requestIdleCallback" in window) window.requestIdleCallback(later, { timeout: 4000 });
+  else setTimeout(later, 1500);
+}, { once: true });
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
   return (
@@ -33,27 +122,10 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 }
 
 function LoadingFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    </div>
-  );
+  return <FullScreenSpinner />;
 }
 
 const App = () => {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: 1,
-        refetchOnWindowFocus: false,
-        staleTime: 5 * 60 * 1000,
-      },
-    },
-  }));
-
   try {
     return (
       <ErrorBoundary 
@@ -68,20 +140,35 @@ const App = () => {
             <PerformanceMonitor />
             <Toaster />
             <Sonner />
-            <BrowserRouter>
+            <BrowserRouter future={{ v7_startTransition: true }}>
+              <AuthProvider>
               <Suspense fallback={<LoadingFallback />}>
                 <Routes>
-                  <Route path="/" element={<Index />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/join/:code" element={<RequireAuth><JoinPage /></RequireAuth>} />
+                  <Route path="/" element={<RequireAuth><HomeRedirect /></RequireAuth>} />
+                  <Route path="/play/:campaignId" element={<RequireAuth><PlayerPage /></RequireAuth>} />
+                  <Route path="/play/:campaignId/characters" element={<RequireAuth><CharactersPage /></RequireAuth>} />
+                  <Route element={<RequireDm><SuiteShell /></RequireDm>}>
+                    <Route path="/table" element={<DmTablePage />} />
+                    <Route path="/tools/encounters" element={<Index />} />
+                    <Route path="/tools/treasure" element={<TreasurePage />} />
+                    <Route path="/generate" element={<Navigate to="/tools/encounters" replace />} />
+                    <Route path="/maps" element={<MapLibraryPage />} />
+                    <Route path="/maps/:mapId" element={<MapEditorPage />} />
+                    <Route path="/database" element={<DatabasePage />} />
+                    <Route path="/database/:tableKey" element={<DatabasePage />} />
+                    <Route path="/campaign" element={<CampaignPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
                   <Route path="*" element={
-                    <div className="min-h-screen flex items-center justify-center bg-background">
-                      <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-2">404 - Page Not Found</h1>
-                        <p className="text-muted-foreground">The requested page does not exist.</p>
-                      </div>
-                    </div>
+                    <Notice title="Nothing here" action={<a href="/" className="t-btn self-start">Back to the table</a>}>
+                      <p className="m-0">This page isn't in the tome.</p>
+                    </Notice>
                   } />
                 </Routes>
               </Suspense>
+              </AuthProvider>
             </BrowserRouter>
           </TooltipProvider>
         </QueryClientProvider>

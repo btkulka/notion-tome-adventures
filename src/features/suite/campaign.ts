@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { callEdgeFunction } from '@/lib/supabase-client';
-import type { Profile } from '@/features/auth/AuthProvider';
+import { api, callEdgeFunction } from '@/lib/api';
 
 /** Same shape and storage key the generator page uses, so both stay in sync. */
 export interface SelectedCampaign {
@@ -52,8 +50,7 @@ export function useSelectedCampaign(): [SelectedCampaign | null, (campaign: Sele
 
 /** Makes the signed-in DM the owner of a Notion campaign. Safe to call repeatedly. */
 export async function claimCampaign(campaignId: string): Promise<void> {
-  const { error } = await supabase.rpc('claim_campaign', { cid: campaignId });
-  if (error) throw new Error(error.message);
+  await api(`/api/campaigns/${encodeURIComponent(campaignId)}/claim`, { method: 'POST' });
 }
 
 // --- Roster ---------------------------------------------------------------
@@ -61,47 +58,26 @@ export async function claimCampaign(campaignId: string): Promise<void> {
 export interface CampaignMember {
   userId: string;
   role: 'dm' | 'player';
-  characterNotionId: string | null;
-  profile: Profile | null;
+  /** The character they play now (src/features/characters). */
+  characterId: string | null;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
 }
+
+const campaignPath = (campaignId: string) => `/api/campaigns/${encodeURIComponent(campaignId)}`;
 
 export async function listMembers(campaignId: string): Promise<CampaignMember[]> {
-  const { data: rows, error } = await supabase
-    .from('campaign_members')
-    .select('*')
-    .eq('campaign_id', campaignId)
-    .order('joined_at');
-  if (error) throw new Error(error.message);
-  const ids = rows.map((r) => r.user_id);
-  const { data: profiles, error: profileError } = ids.length
-    ? await supabase.from('profiles').select('*').in('id', ids)
-    : { data: [], error: null };
-  if (profileError) throw new Error(profileError.message);
-  return rows.map((r) => ({
-    userId: r.user_id,
-    role: r.role as CampaignMember['role'],
-    characterNotionId: r.character_notion_id,
-    profile: (profiles?.find((p) => p.id === r.user_id) as Profile) ?? null,
-  }));
+  return (await api<{ members: CampaignMember[] }>(`${campaignPath(campaignId)}/members`)).members;
 }
 
+/** The DM hands a player a character to play; it becomes theirs. */
 export async function assignCharacter(campaignId: string, userId: string, characterId: string | null): Promise<void> {
-  const { error } = await supabase
-    .from('campaign_members')
-    .update({ character_notion_id: characterId })
-    .eq('campaign_id', campaignId)
-    .eq('user_id', userId);
-  if (error) throw new Error(error.message);
-}
-
-export async function claimCharacter(campaignId: string, characterId: string): Promise<void> {
-  const { error } = await supabase.rpc('claim_character', { cid: campaignId, character_id: characterId });
-  if (error) throw new Error(error.message);
+  await api(`${campaignPath(campaignId)}/members/${encodeURIComponent(userId)}`, { method: 'PATCH', body: { characterId } });
 }
 
 export async function removeMember(campaignId: string, userId: string): Promise<void> {
-  const { error } = await supabase.from('campaign_members').delete().eq('campaign_id', campaignId).eq('user_id', userId);
-  if (error) throw new Error(error.message);
+  await api(`${campaignPath(campaignId)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE' });
 }
 
 // --- Invites --------------------------------------------------------------
@@ -113,64 +89,23 @@ export interface CampaignInvite {
   uses: number;
 }
 
-const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-function inviteCode(length = 6): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(length));
-  return Array.from(bytes, (b) => INVITE_ALPHABET[b % INVITE_ALPHABET.length]).join('');
-}
-
-export async function createInvite(campaignId: string, userId: string, days = 7): Promise<CampaignInvite> {
-  const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
-  const { data, error } = await supabase
-    .from('campaign_invites')
-    .insert({ code: inviteCode(), campaign_id: campaignId, created_by: userId, expires_at: expiresAt })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return { code: data.code, expiresAt: data.expires_at, maxUses: data.max_uses, uses: data.uses };
+export async function createInvite(campaignId: string, days = 7): Promise<CampaignInvite> {
+  return (await api<{ invite: CampaignInvite }>(`${campaignPath(campaignId)}/invites`, { method: 'POST', body: { days } })).invite;
 }
 
 export async function listInvites(campaignId: string): Promise<CampaignInvite[]> {
-  const { data, error } = await supabase
-    .from('campaign_invites')
-    .select('*')
-    .eq('campaign_id', campaignId)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return data.map((d) => ({ code: d.code, expiresAt: d.expires_at, maxUses: d.max_uses, uses: d.uses }));
+  return (await api<{ invites: CampaignInvite[] }>(`${campaignPath(campaignId)}/invites`)).invites;
 }
 
 export async function revokeInvite(code: string): Promise<void> {
-  const { error } = await supabase.from('campaign_invites').delete().eq('code', code);
-  if (error) throw new Error(error.message);
+  await api(`/api/invites/${encodeURIComponent(code)}`, { method: 'DELETE' });
 }
 
 export function inviteUrl(code: string): string {
   return `${window.location.origin}/join/${code}`;
 }
 
-// --- Notion: characters, locations, setup ---------------------------------
-
-export interface NotionCharacter {
-  id: string;
-  url: string;
-  name: string;
-  player: string;
-  discordUsername: string;
-  campaignIds: string[];
-  level: number;
-  characterClass: string;
-  portrait: string | null;
-  darkvision: number;
-  lightSource: string;
-  active: boolean;
-}
-
-export async function fetchCharacters(campaignId: string): Promise<NotionCharacter[]> {
-  const result = await callEdgeFunction('characters', { campaignId });
-  return result.characters;
-}
+// --- Locations ----------------------------------------------------------
 
 export interface NotionLocation {
   id: string;
@@ -204,14 +139,3 @@ export const locationsApi = {
   ): Promise<NotionLocation> =>
     (await callEdgeFunction('locations', { action: 'update', campaignId, locationId, ...fields })).location,
 };
-
-export interface NotionSetupResult {
-  created: string[];
-  locationsDatabaseId: string;
-  charactersDatabaseId: string;
-  secretsConfigured: boolean;
-}
-
-export async function runNotionSetup(): Promise<NotionSetupResult> {
-  return callEdgeFunction('setup-suite-notion');
-}

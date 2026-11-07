@@ -5,44 +5,12 @@ import './index.css'
 
 const startupTimestamp = performance.now();
 
-// HMR Detection & Logging
-if (import.meta.hot) {
-  console.log('🔥 HMR enabled - monitoring module updates');
-  
-  import.meta.hot.on('vite:beforeUpdate', () => {
-    console.log('⚡ HMR: Starting update...');
-  });
-  
-  import.meta.hot.on('vite:afterUpdate', () => {
-    console.log('✅ HMR: Update complete');
-    
-    // Memory check after HMR
-    if ('memory' in performance) {
-      const mem = (performance as any).memory;
-      console.log('📊 Memory after HMR:', {
-        usedMB: (mem.usedJSHeapSize / 1048576).toFixed(2),
-        totalMB: (mem.totalJSHeapSize / 1048576).toFixed(2)
-      });
-    }
-  });
-  
-  import.meta.hot.on('vite:error', (error) => {
-    console.error('❌ HMR Error:', error);
-  });
-}
-
-// Validate critical environment variables
-
 const rootElement = document.getElementById("root");
 
 if (rootElement) {
   try {
-    // Remove initial loader
-    const initialLoader = document.getElementById('initial-loader');
-    if (initialLoader) {
-      initialLoader.style.display = 'none';
-    }
-    
+    // The boot loader inside #root stays up until React's first commit replaces it;
+    // hiding it here would leave a blank frame in between.
     const root = createRoot(rootElement);
     root.render(<App />);
   } catch (error) {

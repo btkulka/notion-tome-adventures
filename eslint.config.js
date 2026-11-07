@@ -19,8 +19,10 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // A .tsx that exports anything but components can't hot-swap; Vite falls
+      // back to re-running its importers. Hooks, contexts and helpers get their own .ts.
       "react-refresh/only-export-components": [
-        "warn",
+        "error",
         { allowConstantExport: true },
       ],
       "@typescript-eslint/no-unused-vars": "off",

@@ -2,7 +2,7 @@
 export const TILE_SIZE = 1;
 
 /** World height of one elevation step. */
-export const STEP_HEIGHT = 0.2;
+export const STEP_HEIGHT = 0.3;
 
 /** Highest elevation step a tile can have. */
 export const MAX_STEP = 20;

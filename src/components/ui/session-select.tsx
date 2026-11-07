@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Check, ChevronsUpDown, X } from 'lucide-react';
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { supabase } from '@/integrations/supabase/client';
+import { callEdgeFunction } from '@/lib/api';
+import { useCached } from '@/lib/cached';
 import { toast } from 'sonner';
 
 interface NotionSession {
@@ -25,6 +26,8 @@ interface NotionSession {
   date?: string;
   campaign_id?: string;
 }
+
+const NONE: NotionSession[] = [];
 
 interface SessionSelectProps {
   value: NotionSession | null;
@@ -42,41 +45,19 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
   campaignId
 }) => {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotionSession[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const prevCampaignIdRef = useRef<string | undefined>();
+  const sessions = useCached(['sessions', campaignId ?? null], async (): Promise<NotionSession[]> =>
+    (await callEdgeFunction('fetch-sessions', { searchQuery: '', campaignId }))?.sessions ?? []
+  );
+  const items = sessions.data ?? NONE;
+  // Loading until the first answer, so the list never flashes "No sessions found" before it arrives.
+  const isLoading = sessions.data === undefined && !sessions.error;
 
-  // Load sessions when campaign changes
   useEffect(() => {
-    const campaignChanged = prevCampaignIdRef.current !== campaignId;
-    prevCampaignIdRef.current = campaignId;
-
-    if (!campaignChanged && items.length > 0) {
-      return;
-    }
-
-    const loadSessions = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase.functions.invoke('fetch-sessions', {
-          body: { searchQuery: '', campaignId }
-        });
-
-        if (error) throw error;
-        if (data?.sessions) {
-          setItems(data.sessions);
-        }
-      } catch (err) {
-        console.error('[SessionSelect] Error:', err);
-        toast.error('Failed to load sessions');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadSessions();
-  }, [campaignId]); // Only reload when campaign changes
+    if (!sessions.error) return;
+    console.error('[SessionSelect] Error:', sessions.error);
+    toast.error('Failed to load sessions');
+  }, [sessions.error]);
 
   // Filter items based on search
   const filteredItems = items.filter(session => {
@@ -120,9 +101,9 @@ export const SessionSelect: React.FC<SessionSelectProps> = ({
           className={cn("justify-between", className)}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Calendar className="h-4 w-4 shrink-0 opacity-50" />
+            <Calendar className={cn("h-4 w-4 shrink-0 opacity-50", isLoading && !value && "motion-safe:animate-pulse")} />
             <span className="truncate">
-              {value ? formatDisplay(value) : placeholder}
+              {value ? formatDisplay(value) : isLoading ? 'Loading sessions…' : placeholder}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">

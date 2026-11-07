@@ -7,8 +7,8 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  useSidebar,
 } from '@/components/ui/sidebar';
+import { useSidebar } from '@/components/ui/sidebar-context';
 import { SelectField, FormSection, FormGrid } from '@/components/ui/form-fields';
 import { NumberInput } from '@/components/ui/number-input';
 import { CRSelect } from '@/components/ui/cr-select';
@@ -36,7 +36,6 @@ import { EncounterParams } from '@/types/encounter';
 import { useToast } from '@/hooks/use-toast';
 import heroBanner from '@/assets/dnd-hero-banner.jpg';
 import { EdgeFunctionError } from '@/components/ui/edge-function-error';
-import { CampaignSelect } from '@/components/ui/campaign-select';
 import { MultiSelect } from '@/components/ui/multi-select';
 
 // Static data for filters
@@ -63,13 +62,13 @@ interface AppSidebarProps {
   onGenerateMagicItems?: (rarities: string[], maxItems: number, minGold: number, maxGold: number) => void;
   onCancel: () => void;
   isGenerating: boolean;
+  /** Chosen in the suite's top bar; shown here for context. */
   selectedCampaign: NotionCampaign | null;
-  onCampaignChange: (campaign: NotionCampaign | null) => void;
 }
 
 type GeneratorType = 'encounter' | 'magic-item';
 
-export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems, onCancel, isGenerating, selectedCampaign, onCampaignChange }: AppSidebarProps) {
+export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems, onCancel, isGenerating, selectedCampaign }: AppSidebarProps) {
   const { open } = useSidebar();
   const { toast } = useToast();
   const [environments, setEnvironments] = React.useState<{ id: string; name: string }[]>([]);
@@ -266,19 +265,10 @@ export function AppSidebar({ params, setParams, onGenerate, onGenerateMagicItems
           >
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/80" />
             <div className="relative z-10 flex flex-col items-center justify-center h-full p-4 gap-2">
-              <div className="text-center mb-2">
+              <div className="text-center">
                 <h2 className="text-lg font-bold text-white drop-shadow-lg">
-                  {selectedCampaign?.name || 'Select Campaign'}
+                  {selectedCampaign?.name || 'No campaign chosen'}
                 </h2>
-              </div>
-              <div className="w-full">
-                <CampaignSelect
-                  value={selectedCampaign}
-                  onValueChange={onCampaignChange}
-                  placeholder="Select campaign..."
-                  activeOnly={true}
-                  className="w-full"
-                />
               </div>
             </div>
           </div>

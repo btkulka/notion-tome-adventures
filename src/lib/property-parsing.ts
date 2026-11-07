@@ -1,7 +1,7 @@
 /**
  * Property Parsing Utilities
  * Utility functions for D&D calculations and parsing
- * (Property extraction moved to supabase/functions/_shared/notion-extractors.ts)
+ * (Property extraction moved to worker/notion/extractors.ts)
  */
 
 // Complex property parsers

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Swords, ExternalLink, FileText, Menu, Coins } from 'lucide-react';
+import { Swords, Save, FileText, Menu, Coins } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { GeneratedEncounter } from '@/types/encounter';
 import { MonsterCardContextMenu } from '@/components/ui/monster-card-context-menu';
@@ -23,6 +23,8 @@ interface EncounterViewProps {
   setSelectedSession: (session: {id: string, name: string} | null) => void;
   selectedCampaign: {id: string, name: string, active: boolean} | null;
   onSaveEncounter: () => void;
+  /** True while this encounter is being exported to Notion. */
+  isSaving?: boolean;
 }
 
 // Parse dice roll formula and generate breakdown text
@@ -56,59 +58,25 @@ const formatDiceRollBreakdown = (formula: string, total: number): string => {
   return `**${formula}**: ${rollsText} = **${total} gp**`;
 };
 
-// CR Color Mapping
-const getCRColors = (cr: string | number) => {
-  const crNum = typeof cr === 'string' ? parseFloat(cr) : cr;
+// CR colours: the Tome tier enamels (ash, bone, verdant, azure, amethyst, ember).
+const CR_TIERS = [
+  { max: 0.99, name: 'ash', light: '#B9B8BC', regular: '#8C8B8F', dark: '#4A494D' },
+  { max: 5, name: 'bone', light: '#EEE8DA', regular: '#D6CFBE', dark: '#8F8572' },
+  { max: 10, name: 'verdant', light: '#8CC29A', regular: '#5A9A6A', dark: '#2F5A3A' },
+  { max: 15, name: 'azure', light: '#8AA9DA', regular: '#557FBF', dark: '#2C4A78' },
+  { max: 20, name: 'amethyst', light: '#B49CDB', regular: '#8D6FBF', dark: '#4E3A72' },
+  { max: Infinity, name: 'ember', light: '#E0A672', regular: '#C27838', dark: '#6E4019' },
+];
 
-  if (crNum < 1) {
-    // Grey (CR 0 - CR 1/2)
-    return {
-      light: 'rgb(209, 213, 219)',
-      regular: 'rgb(107, 114, 128)',
-      dark: 'rgb(55, 65, 81)',
-      name: 'gray'
-    };
-  } else if (crNum <= 5) {
-    // White (CR 1 - CR 5)
-    return {
-      light: 'rgb(248, 250, 252)',
-      regular: 'rgb(226, 232, 240)',
-      dark: 'rgb(148, 163, 184)',
-      name: 'slate'
-    };
-  } else if (crNum <= 10) {
-    // Green (CR 6 - CR 10)
-    return {
-      light: 'rgb(134, 239, 172)',
-      regular: 'rgb(34, 197, 94)',
-      dark: 'rgb(21, 128, 61)',
-      name: 'green'
-    };
-  } else if (crNum <= 15) {
-    // Blue (CR 11 - CR 15)
-    return {
-      light: 'rgb(147, 197, 253)',
-      regular: 'rgb(59, 130, 246)',
-      dark: 'rgb(29, 78, 216)',
-      name: 'blue'
-    };
-  } else if (crNum <= 20) {
-    // Purple (CR 16 - CR 20)
-    return {
-      light: 'rgb(196, 181, 253)',
-      regular: 'rgb(168, 85, 247)',
-      dark: 'rgb(107, 33, 168)',
-      name: 'purple'
-    };
-  } else {
-    // Orange (CR >= 21)
-    return {
-      light: 'rgb(254, 215, 170)',
-      regular: 'rgb(249, 115, 22)',
-      dark: 'rgb(194, 65, 12)',
-      name: 'orange'
-    };
-  }
+const withAlpha = (hex: string, alpha: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+};
+
+const getCRColors = (cr: string | number) => {
+  // "1/2" must read as 0.5, not parseFloat's 1.
+  const crNum = typeof cr === 'number' ? cr : cr.includes('/') ? Number(cr.split('/')[0]) / Number(cr.split('/')[1]) : parseFloat(cr);
+  return CR_TIERS.find((t) => crNum <= t.max) ?? CR_TIERS[0];
 };
 
 export function EncounterView({
@@ -120,6 +88,7 @@ export function EncounterView({
   setSelectedSession,
   selectedCampaign,
   onSaveEncounter,
+  isSaving = false,
   onTitleChange
 }: EncounterViewProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -211,11 +180,13 @@ export function EncounterView({
             </div>
             <Button
               onClick={onSaveEncounter}
+              disabled={isSaving}
+              aria-busy={isSaving}
               className="btn-mystical flex items-center gap-2"
               size="sm"
             >
-              <ExternalLink className="h-4 w-4" />
-              Export to Notion
+              <Save className={`h-4 w-4 ${isSaving ? 'motion-safe:animate-pulse' : ''}`} />
+              {isSaving ? 'Saving…' : 'Save encounter'}
             </Button>
           </div>
         </div>
@@ -341,7 +312,7 @@ export function EncounterView({
                     const rotateY = ((x - centerX) / centerX) * 4;
 
                     e.currentTarget.style.transform = `scale(1.02) perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-                    e.currentTarget.style.boxShadow = `0 10px 30px -5px ${crColors.regular.replace('rgb', 'rgba').replace(')', ', 0.5)')}`;
+                    e.currentTarget.style.boxShadow = `0 10px 30px -5px ${withAlpha(crColors.regular, 0.5)}`;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'scale(1) perspective(1000px) rotateX(0deg) rotateY(0deg)';
@@ -381,14 +352,14 @@ export function EncounterView({
                           variant="secondary"
                           className="text-xs px-1.5 py-0.5 backdrop-blur-md border-white/20 transition-all cursor-default hover:scale-105"
                           style={{
-                            backgroundColor: crColors.regular.replace('rgb', 'rgba').replace(')', ', 0.6)'),
-                            color: crColors.name === 'gray' || crColors.name === 'slate' ? 'black' : 'white'
+                            backgroundColor: withAlpha(crColors.regular, 0.6),
+                            color: crColors.name === 'ash' || crColors.name === 'bone' ? '#0A0A0B' : '#F4EFE3'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = crColors.regular.replace('rgb', 'rgba').replace(')', ', 0.8)');
+                            e.currentTarget.style.backgroundColor = withAlpha(crColors.regular, 0.8);
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = crColors.regular.replace('rgb', 'rgba').replace(')', ', 0.6)');
+                            e.currentTarget.style.backgroundColor = withAlpha(crColors.regular, 0.6);
                           }}
                         >
                           CR {creature.challenge_rating}

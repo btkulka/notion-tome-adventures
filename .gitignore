@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Cloudflare Worker local state and secrets
+.wrangler
+.dev.vars
+
+# Notion export (scripts/notion-import): raw content and downloaded files
+.notion-export
+# Web copies of those files (npm run notion:files), served as static assets until R2 is enabled
+public/notion-files
+
+# Python bytecode from the Blender model scripts (npm run models)
+__pycache__/

@@ -4,6 +4,7 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast"
+import { captureErrorContext, type ErrorContext } from "@/lib/error-report"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
@@ -13,6 +14,8 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  /** Set on destructive toasts, for their copy button. */
+  report?: ErrorContext
 }
 
 const actionTypes = {
@@ -137,9 +140,12 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+type Toast = Omit<ToasterToast, "id" | "report"> & {
+  /** The error behind a destructive toast; its copy button includes the stack. */
+  error?: unknown
+}
 
-function toast({ ...props }: Toast) {
+function toast({ error, ...props }: Toast) {
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -154,6 +160,7 @@ function toast({ ...props }: Toast) {
     toast: {
       ...props,
       id,
+      report: props.variant === "destructive" ? captureErrorContext(error) : undefined,
       open: true,
       onOpenChange: (open) => {
         if (!open) dismiss()

@@ -13,9 +13,17 @@ export default defineConfig(({ mode }) => ({
       clientPort: 1974,
       timeout: 30000, // Increase timeout
     },
+    // The Worker (npm run dev:api) serves the API, Discord sign-in and the live-table socket.
+    proxy: {
+      '/api': { target: 'http://127.0.0.1:8787', ws: true },
+      '/auth': { target: 'http://127.0.0.1:8787' },
+    },
+    // error-report.ts wraps console.error; ignore-listing it keeps DevTools pointing each log at its caller.
+    sourcemapIgnoreList: (sourcePath) => sourcePath.includes('node_modules') || sourcePath.endsWith('error-report.ts'),
     watch: {
       usePolling: false,
-      ignored: ['**/node_modules/**', '**/.git/**'],
+      // The Notion export and its web copies are thousands of files written in bursts; neither is source.
+      ignored: ['**/node_modules/**', '**/.git/**', '**/.notion-export/**', '**/public/notion-files/**', '**/.wrangler/**'],
     },
   },
   build: {

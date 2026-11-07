@@ -16,7 +16,7 @@ export function LoadingBar({
   className, 
   showPercentage = true,
   stages = [
-    "Connecting to Notion...",
+    "Opening the bestiary...",
     "Fetching monster catalog...",
     "Resolving creature relationships...",
     "Processing monster data...",

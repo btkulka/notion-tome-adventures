@@ -461,13 +461,8 @@ const Index = () => {
     
     toast({
       title: "Encounter Saved!",
-      description: "Successfully saved to Notion. Opening in new tab...",
+      description: "Saved to the campaign's encounters.",
     });
-    
-    // Open the new Notion page in a new tab
-    if (result.data?.pageUrl) {
-      window.open(result.data.pageUrl, '_blank');
-    }
   };
 
   return (
@@ -481,7 +476,6 @@ const Index = () => {
           onCancel={handleCancel}
           isGenerating={isGenerating}
           selectedCampaign={selectedCampaign}
-          onCampaignChange={setSelectedCampaign}
         />
         
         <SidebarInset>

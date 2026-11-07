@@ -1,0 +1,170 @@
+/* Tome — the DM suite's design system. Angular, restrained, high fantasy.
+   Mirrors project/tome.css on the design canvas; keep the class names in step. */
+:root {
+  --ink-0: #0A0A0B;
+  --ink-1: #121113;
+  --ink-2: #1A181B;
+  --ink-3: #232026;
+  --rule: #2E2A30;
+  --gilt-deep: #6E5A31;
+  --gilt: #C4A35A;
+  --gilt-hi: #DEC27F;
+  --bone: #E6DDC8;
+  --bone-2: #B2A78F;
+  --bone-3: #8F8572;
+  --blood: #A63A35;
+  --blood-text: #D7766F;
+  --arcane: #6D5A93;
+  --t-ash: #8C8B8F;
+  --t-bone: #D6CFBE;
+  --t-verdant: #5A9A6A;
+  --t-azure: #557FBF;
+  --t-amethyst: #8D6FBF;
+  --t-ember: #C27838;
+  --t-blood: #B03E3A;
+  --display: 'Cinzel', 'Trajan Pro', serif;
+  --text: 'Spectral', Georgia, serif;
+}
+
+.tier-ash { --tier: var(--t-ash); }
+.tier-bone { --tier: var(--t-bone); }
+.tier-verdant { --tier: var(--t-verdant); }
+.tier-azure { --tier: var(--t-azure); }
+.tier-amethyst { --tier: var(--t-amethyst); }
+.tier-ember { --tier: var(--t-ember); }
+.tier-blood { --tier: var(--t-blood); }
+
+.t-root {
+  box-sizing: border-box;
+  color: var(--bone);
+  font-family: var(--text);
+  font-size: 16px;
+  line-height: 1.5;
+  background-color: var(--ink-0);
+  background-image: linear-gradient(180deg, rgba(10,10,11,0.72), rgba(10,10,11,0.94)), url('../assets/dark-parchment.jpg');
+  background-size: cover;
+}
+.t-root *, .t-root *::before, .t-root *::after { box-sizing: border-box; }
+.t-root a { color: var(--gilt); text-decoration: none; }
+.t-root a:hover { color: var(--gilt-hi); }
+
+/* Type */
+.t-display { margin: 0; font-family: var(--display); font-weight: 600; font-size: 46px; line-height: 1.05; letter-spacing: 0.04em; color: var(--bone); }
+.t-h1 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 32px; line-height: 1.1; letter-spacing: 0.04em; }
+.t-h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 21px; line-height: 1.2; letter-spacing: 0.05em; }
+.t-h3 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 16px; line-height: 1.25; letter-spacing: 0.06em; }
+.t-label { font-family: var(--display); font-weight: 600; font-size: 11.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bone-3); }
+.t-body { color: var(--bone-2); }
+.t-small { font-size: 14px; color: var(--bone-3); }
+.t-lore { font-style: italic; font-size: 17px; line-height: 1.6; color: var(--bone); }
+.t-num { font-family: var(--text); font-weight: 600; font-variant-numeric: lining-nums tabular-nums; color: var(--gilt); }
+
+/* Surfaces */
+.t-panel { background: var(--ink-1); border: 1px solid var(--rule); }
+.t-raised { background: var(--ink-2); border: 1px solid var(--rule); }
+.t-frame {
+  --c: var(--gilt-deep);
+  --l: 14px;
+  background:
+    linear-gradient(var(--c), var(--c)) top left / var(--l) 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) top left / 1px var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / var(--l) 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / 1px var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / var(--l) 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / 1px var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / var(--l) 1px no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / 1px var(--l) no-repeat,
+    var(--ink-1);
+  outline: 1px solid var(--rule);
+  outline-offset: -5px;
+}
+.t-overlay { background: rgba(14,13,15,0.94); border: 1px solid var(--rule); box-shadow: 0 24px 48px -24px rgba(0,0,0,0.95); }
+
+.t-rule { display: flex; align-items: center; gap: 12px; color: var(--gilt-deep); }
+.t-rule::before, .t-rule::after { content: ''; flex: 1; height: 1px; background: currentColor; }
+.t-rule > i { width: 7px; height: 7px; transform: rotate(45deg); border: 1px solid var(--gilt); }
+
+/* Markers */
+.t-diamond { display: inline-block; flex: none; width: 8px; height: 8px; transform: rotate(45deg); background: var(--tier, var(--gilt)); }
+.t-diamond--hollow { background: transparent; border: 1px solid var(--tier, var(--gilt)); }
+
+/* Controls */
+.t-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  height: 44px; padding: 0 20px; border-radius: 0; cursor: pointer;
+  font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--bone); background: var(--ink-2); border: 1px solid var(--gilt-deep);
+}
+.t-btn--primary {
+  color: #17130B; background: linear-gradient(180deg, var(--gilt-hi), var(--gilt)); border: 0;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+  padding: 0 28px;
+}
+.t-btn--quiet { background: transparent; border-color: transparent; color: var(--bone-2); }
+.t-btn--danger { background: transparent; border-color: rgba(166,58,53,0.6); color: var(--blood-text); }
+.t-btn--icon { width: 44px; padding: 0; }
+.t-btn--lg { height: 52px; font-size: 14px; }
+.t-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.t-field { display: flex; flex-direction: column; gap: 6px; }
+.t-input {
+  height: 44px; padding: 0 14px; border-radius: 0; width: 100%;
+  font-family: var(--text); font-size: 16px; color: var(--bone);
+  background: var(--ink-0); border: 1px solid var(--rule);
+}
+.t-input--focus { border-color: var(--gilt); box-shadow: 0 0 0 1px var(--gilt) inset; }
+
+.t-chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px;
+  font-size: 14px; color: var(--bone-2); border: 1px solid var(--rule); background: rgba(10,10,11,0.6);
+}
+.t-chip--tier { color: var(--bone); border-color: color-mix(in srgb, var(--tier) 55%, transparent); }
+.t-chip--on { color: var(--gilt-hi); border-color: var(--gilt); background: rgba(196,163,90,0.08); }
+
+.t-seg { display: grid; gap: 0; border: 1px solid var(--rule); background: var(--ink-0); }
+.t-seg > button {
+  height: 42px; border: 0; border-left: 1px solid var(--rule); background: transparent; cursor: pointer;
+  font-family: var(--display); font-weight: 600; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bone-3);
+}
+.t-seg > button:first-child { border-left: 0; }
+.t-seg > button[aria-checked='true'] { color: var(--gilt-hi); background: var(--ink-2); box-shadow: inset 0 -2px 0 var(--gilt); }
+
+.t-tabs { display: flex; align-items: stretch; gap: 0; }
+.t-tab {
+  display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 18px; border: 0; background: transparent; cursor: pointer;
+  font-family: var(--text); font-size: 15px; color: var(--bone-3); border-right: 1px solid var(--rule);
+}
+.t-tab[aria-selected='true'] { color: var(--bone); background: var(--ink-1); box-shadow: inset 0 2px 0 var(--gilt); }
+
+.t-portrait {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 44px; height: 44px; font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: 0.04em;
+  color: var(--bone); background: var(--ink-2); border: 1px solid var(--tier, var(--gilt-deep));
+  outline: 1px solid var(--ink-0); outline-offset: -4px;
+}
+.t-portrait--sm { width: 34px; height: 34px; font-size: 12px; }
+.t-portrait--away { opacity: 0.45; border-style: dashed; }
+
+.t-stat { display: flex; flex-direction: column; gap: 2px; }
+.t-stat > dt { font-family: var(--display); font-weight: 600; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bone-3); }
+.t-stat > dd { margin: 0; font-weight: 600; font-size: 26px; line-height: 1.15; font-variant-numeric: lining-nums tabular-nums; }
+
+.t-sigil { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border: 1px solid var(--gilt-deep); transform: rotate(45deg); }
+.t-sigil > svg { transform: rotate(-45deg); }
+
+/* Loading: a waning diamond beside a line of text, and blocks standing in for content on its way. */
+@keyframes t-wane { 50% { opacity: 0.3; } }
+@keyframes t-sheen { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes t-appear { from { opacity: 0; } }
+.t-diamond--busy { animation: t-wane 1.4s ease-in-out infinite; }
+/* Held back a moment, so a wait shorter than that never shows a loader at all. */
+.t-loading { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: var(--bone-3); animation: t-appear 0.2s ease-out 0.15s both; }
+.t-skel {
+  display: block;
+  background: linear-gradient(100deg, transparent 30%, rgba(230,221,200,0.07) 50%, transparent 70%) var(--ink-3);
+  background-size: 200% 100%;
+  animation: t-sheen 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-diamond--busy, .t-skel, .t-loading { animation: none; }
+}

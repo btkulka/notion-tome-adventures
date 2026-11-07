@@ -238,7 +238,7 @@ export function MagicItemCard({ item }: MagicItemCardProps) {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Open in Notion</p>
+                      <p>Open the item's page</p>
                     </TooltipContent>
                   </Tooltip>
                 )}

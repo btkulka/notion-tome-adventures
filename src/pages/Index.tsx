@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Scroll } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { ErrorToastContent } from '@/components/ui/error-toast-content';
 import { useNotionService } from '@/hooks/useNotionService';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { EdgeFunctionError } from '@/components/ui/edge-function-error';
@@ -18,6 +17,7 @@ import { MagicItemsView } from '@/components/MagicItemsView';
 import { EmptyTabView } from '@/components/EmptyTabView';
 import { FloatingProgressBar } from '@/components/floating-progress-bar';
 import { generateEncounterTreasure } from '@/lib/treasure-generator';
+import { useSelectedCampaign } from '@/features/suite/campaign';
 
 const Index = () => {
   const componentMountTimeRef = useRef(performance.now());
@@ -68,6 +68,10 @@ const Index = () => {
 
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
+  // The tab a generation is filling, so other tabs keep their content meanwhile, and the tab being exported.
+  const [generatingTabId, setGeneratingTabId] = useState<string | null>(null);
+  const [savingTabId, setSavingTabId] = useState<string | null>(null);
+
   // New progressive generation system
   const {
     startGeneration,
@@ -82,25 +86,8 @@ const Index = () => {
   // Session selection state
   const [selectedSession, setSelectedSession] = useState<{id: string, name: string} | null>(null);
 
-  // Campaign selection state with persistence
-  const [selectedCampaign, setSelectedCampaign] = useState<{id: string, name: string, active: boolean} | null>(() => {
-    try {
-      const saved = localStorage.getItem('selectedCampaign');
-      return saved ? JSON.parse(saved) : null;
-    } catch (err) {
-      console.error('Failed to parse selectedCampaign from localStorage:', err);
-      return null;
-    }
-  });
-
-  // Persist campaign selection to localStorage
-  useEffect(() => {
-    if (selectedCampaign) {
-      localStorage.setItem('selectedCampaign', JSON.stringify(selectedCampaign));
-    } else {
-      localStorage.removeItem('selectedCampaign');
-    }
-  }, [selectedCampaign]);
+  // The campaign is chosen once, in the suite's top bar (SuiteShell).
+  const [selectedCampaign] = useSelectedCampaign();
 
   // Tab management functions
   const createNewTab = (type: TabDocument['type'], title: string, data: TabData): string => {
@@ -195,6 +182,7 @@ const Index = () => {
       encounter: null as any,
       monsterCardTabs: {}
     });
+    setGeneratingTabId(tabId);
 
     const startTime = performance.now();
     const controller = new AbortController();
@@ -380,7 +368,7 @@ const Index = () => {
         const hintText = hints.length > 0 ? `Active filters: ${hints.join(', ')}\n\n` : '';
         const diagnosticNotes = encounterData.notes || '';
 
-        throw new Error(`No creatures found matching your criteria.\n\n${hintText}${diagnosticNotes}\n\nCommon fixes:\n- Open your Monsters table in Notion\n- Check the "CR" column and ensure each monster has a linked Challenge Rating\n- The CR field should link to your "Challenge Ratings" table`);
+        throw new Error(`No creatures found matching your criteria.\n\n${hintText}${diagnosticNotes}\n\nCommon fixes:\n- Open the Monsters table under Database\n- Check the "CR" column and ensure each monster has a linked Challenge Rating\n- The CR field should link to your "Challenge Ratings" table`);
       }
 
       // Fetch magic items for treasure generation
@@ -473,11 +461,8 @@ const Index = () => {
 
       toast({
         title: "Generation Failed",
-        description: <ErrorToastContent
-          title="Generation Failed"
-          message={errorObj.message}
-          error={errorObj}
-        />,
+        description: errorObj.message,
+        error: errorObj,
         variant: "destructive"
       });
     } finally {
@@ -499,6 +484,7 @@ const Index = () => {
       type: 'magic-items',
       items: []
     });
+    setGeneratingTabId(tabId);
 
     const startTime = performance.now();
 
@@ -690,6 +676,7 @@ const Index = () => {
       toast({
         title: "Generation Failed",
         description: errorObj.message,
+        error: errorObj,
         variant: "destructive",
       });
     }
@@ -714,14 +701,15 @@ const Index = () => {
     if (!activeTab || activeTab.data.type !== 'encounter' || !activeTab.data.encounter || !isMountedRef.current) return;
 
     const encounter = activeTab.data.encounter;
-    const result = await notionService.saveEncounter(encounter);
+    setSavingTabId(activeTab.id);
+    const result = await notionService.saveEncounter(encounter).finally(() => setSavingTabId(null));
 
     if (!isMountedRef.current) return;
 
     if (!result.success) {
       toast({
         title: "Save Failed",
-        description: result.error || "Failed to save encounter to Notion",
+        description: result.error || "Failed to save the encounter",
         variant: "destructive",
       });
       return;
@@ -729,12 +717,8 @@ const Index = () => {
 
     toast({
       title: "Encounter Saved!",
-      description: "Successfully saved to Notion. Opening in new tab...",
+      description: "Saved to the campaign's encounters.",
     });
-
-    if (result.data?.pageUrl) {
-      window.open(result.data.pageUrl, '_blank');
-    }
   };
 
   // Get active tab
@@ -754,7 +738,6 @@ const Index = () => {
           onCancel={handleCancel}
           isGenerating={isGenerating}
           selectedCampaign={selectedCampaign}
-          onCampaignChange={setSelectedCampaign}
         />
 
         <SidebarInset className="flex flex-col">
@@ -791,7 +774,7 @@ const Index = () => {
                       </CardHeader>
                     )}
                     <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8">
-                      {isGenerating ? (
+                      {isGenerating && activeTab.id === generatingTabId ? (
                         <EncounterSkeleton />
                       ) : activeTab.error ? (
                         <EdgeFunctionError
@@ -821,6 +804,7 @@ const Index = () => {
                           setSelectedSession={setSelectedSession}
                           selectedCampaign={selectedCampaign}
                           onSaveEncounter={handleSaveEncounter}
+                          isSaving={savingTabId === activeTab.id}
                           onTitleChange={(newTitle) => handleTitleChange(activeTab.id, newTitle)}
                         />
                       ) : activeTab.data.type === 'magic-items' && activeTab.data.items.length > 0 ? (

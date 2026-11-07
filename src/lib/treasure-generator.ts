@@ -55,19 +55,17 @@ export function getItemWeight(item: any): number {
 }
 
 /**
- * Select a random item from a weighted pool
+ * Select a random item from a weighted pool. `random` stands in for Math.random in tests.
  */
-export function selectWeightedItem(weightedItems: WeightedItem[], seed?: number): any | null {
+export function selectWeightedItem(weightedItems: WeightedItem[], random: () => number = Math.random): any | null {
   if (weightedItems.length === 0) return null;
 
   const totalWeight = weightedItems.reduce((sum, wi) => sum + wi.weight, 0);
-  // Add microsecond timestamp and seed for better randomization
-  const randomSeed = seed ? seed * 0.0001 : 0;
-  let random = (Math.random() + randomSeed + (performance.now() % 1)) * totalWeight;
+  let roll = random() * totalWeight;
 
   for (const weightedItem of weightedItems) {
-    random -= weightedItem.weight;
-    if (random <= 0) {
+    roll -= weightedItem.weight;
+    if (roll <= 0) {
       return weightedItem.item;
     }
   }
@@ -79,8 +77,8 @@ export function selectWeightedItem(weightedItems: WeightedItem[], seed?: number)
 /**
  * Roll for treasure drop (25% chance)
  */
-export function rollForTreasureDrop(): boolean {
-  return Math.random() < TREASURE_DROP_CHANCE;
+export function rollForTreasureDrop(random: () => number = Math.random): boolean {
+  return random() < TREASURE_DROP_CHANCE;
 }
 
 /**
@@ -105,12 +103,13 @@ export function convertToTreasure(item: any): MagicItemTreasure {
  *
  * @param monsterGold - The total gold the monster has
  * @param availableItems - Pool of magic items to select from
+ * @param random - Stands in for Math.random in tests
  * @returns Array of treasure items and remaining gold
  */
 export function generateMonsterTreasure(
   monsterGold: number,
   availableItems: any[],
-  instanceSeed?: number
+  random: () => number = Math.random
 ): { treasure: MagicItemTreasure[], remainingGold: number } {
   const treasure: MagicItemTreasure[] = [];
   let remainingGold = monsterGold;
@@ -130,12 +129,11 @@ export function generateMonsterTreasure(
   }));
 
   // First roll for treasure
-  if (!rollForTreasureDrop()) {
+  if (!rollForTreasureDrop(random)) {
     return { treasure, remainingGold };
   }
 
   // Treasure generation loop
-  let iteration = 0;
   while (true) {
     // Filter items that fit within budget
     const affordableItems = weightedItems.filter(wi => wi.item.value <= remainingGold);
@@ -145,9 +143,8 @@ export function generateMonsterTreasure(
       break;
     }
 
-    // Select a random affordable item with instance seed for better randomization
-    const seed = instanceSeed ? instanceSeed + iteration : iteration;
-    const selectedItem = selectWeightedItem(affordableItems, seed);
+    // Select a random affordable item
+    const selectedItem = selectWeightedItem(affordableItems, random);
 
     if (!selectedItem) {
       break;
@@ -158,12 +155,10 @@ export function generateMonsterTreasure(
     remainingGold -= selectedItem.value || 0;
 
     // Roll for another treasure drop
-    if (!rollForTreasureDrop()) {
+    if (!rollForTreasureDrop(random)) {
       // No more treasure, exit loop
       break;
     }
-
-    iteration++;
   }
 
   return { treasure, remainingGold };
@@ -191,9 +186,7 @@ export function generateEncounterTreasure(
           treasurePerInstance.push([]);
           updatedIndividualGold.push(instanceGold);
         } else {
-          // Pass instance index as seed for better randomization
-          const instanceSeed = Date.now() + idx * 1000;
-          const { treasure, remainingGold } = generateMonsterTreasure(instanceGold, availableItems, instanceSeed);
+          const { treasure, remainingGold } = generateMonsterTreasure(instanceGold, availableItems);
           console.log(`[Treasure Gen] ${creature.name} instance ${idx}: ${instanceGold}gp -> ${treasure.length} items (${treasure.map(t => t.name).join(', ')})`);
           treasurePerInstance.push(treasure);
           updatedIndividualGold.push(remainingGold);

@@ -1,111 +1,63 @@
-@import url('https://cdn.jsdelivr.net/npm/@theleagueof/junction@1.0.0/fonts/webfonts/junction.css');
+@import './styles/tome.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Tome — the DM suite's design system. All colours are HSL for the shadcn tokens;
+   the raw palette and primitives (t-frame, t-btn, …) live in styles/tome.css. */
 
 @layer base {
   :root {
-    /* Fantasy D&D Theme - Deep mystical colors */
-    --background: 0 0% 0% / 0;
-    --foreground: 45 90% 85%;
+    --background: 240 5% 4%;
+    --foreground: 42 43% 84%;
 
-    --card: 255 15% 12%;
-    --card-foreground: 45 85% 88%;
+    --card: 270 6% 7%;
+    --card-foreground: 42 43% 84%;
 
-    --popover: 255 15% 12%;
-    --popover-foreground: 45 85% 88%;
+    --popover: 280 6% 10%;
+    --popover-foreground: 42 43% 84%;
 
-    /* Rich purple primary with gold accent */
-    --primary: 280 85% 35%;
-    --primary-foreground: 45 95% 92%;
-    --primary-glow: 280 75% 55%;
+    /* Gilt is the single action colour; ink carries everything else. */
+    --primary: 41 47% 56%;
+    --primary-foreground: 40 35% 7%;
+    --primary-glow: 42 59% 68%;
 
-    --secondary: 240 20% 16%;
-    --secondary-foreground: 45 80% 85%;
+    --secondary: 280 6% 10%;
+    --secondary-foreground: 42 43% 84%;
 
-    --muted: 240 15% 14%;
-    --muted-foreground: 240 20% 65%;
+    --muted: 280 6% 10%;
+    --muted-foreground: 39 11% 50%;
 
-    --accent: 45 85% 55%;
-    --accent-foreground: 240 20% 15%;
+    --accent: 41 47% 56%;
+    --accent-foreground: 40 35% 7%;
 
-    --destructive: 0 75% 50%;
-    --destructive-foreground: 45 95% 95%;
+    --destructive: 2 52% 43%;
+    --destructive-foreground: 42 43% 90%;
 
-    --border: 240 25% 20%;
-    --input: 240 20% 16%;
-    --ring: 280 85% 45%;
+    --border: 280 7% 18%;
+    --input: 280 7% 18%;
+    --ring: 41 47% 56%;
 
-    /* Fantasy gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(280 85% 25%), hsl(280 85% 45%));
-    --gradient-accent: linear-gradient(135deg, hsl(45 85% 45%), hsl(45 85% 65%));
-    --gradient-mystical: linear-gradient(180deg, hsl(240 15% 8%), hsl(255 15% 12%));
+    --gradient-primary: linear-gradient(180deg, hsl(42 59% 68%), hsl(41 47% 56%));
+    --gradient-accent: linear-gradient(180deg, hsl(42 59% 68%), hsl(41 47% 56%));
+    --gradient-mystical: linear-gradient(180deg, hsl(240 5% 4%), hsl(270 6% 7%));
 
-    /* Magical shadows */
-    --shadow-mystical: 0 10px 30px -5px hsl(280 85% 25% / 0.4);
-    --shadow-glow: 0 0 40px hsl(280 75% 55% / 0.3);
-    --shadow-gold: 0 5px 20px hsl(45 85% 55% / 0.2);
+    --shadow-mystical: 0 18px 36px -18px rgb(0 0 0 / 0.9);
+    --shadow-glow: 0 0 0 1px hsl(40 38% 31%);
+    --shadow-gold: 0 8px 20px -12px hsl(41 47% 56% / 0.35);
 
-    --radius: 0.5rem;
+    /* Angular: shadcn's rounded-* utilities resolve to square corners. */
+    --radius: 0px;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 270 6% 7%;
+    --sidebar-foreground: 42 43% 84%;
+    --sidebar-primary: 41 47% 56%;
+    --sidebar-primary-foreground: 40 35% 7%;
+    --sidebar-accent: 280 6% 10%;
+    --sidebar-accent-foreground: 42 43% 84%;
+    --sidebar-border: 280 7% 18%;
+    --sidebar-ring: 41 47% 56%;
   }
 }
 
@@ -117,6 +69,7 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
     position: relative;
+    font-family: 'Spectral', Georgia, serif;
   }
 
   body::before {
@@ -126,262 +79,123 @@ All colors MUST be HSL.
     left: 50%;
     width: 100vh;
     height: 100vw;
-    background-image: url('/src/assets/dark-parchment.jpg');
+    background-image: linear-gradient(180deg, rgb(10 10 11 / 0.7), rgb(10 10 11 / 0.92)), url('/src/assets/dark-parchment.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     transform: translate(-50%, -50%) rotate(90deg);
-    filter: brightness(0.9);
     z-index: -1;
   }
 
-  /* Junction font for all headings */
-  h1, h2, h3, h4, h5, h6,
-  .font-bold, .font-semibold {
-    font-family: 'Junction', sans-serif !important;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cinzel', 'Trajan Pro', serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
 
-  /* Custom Scrollbar Styling - Dark with Purple/Gold Accents */
   * {
     scrollbar-width: thin;
-    scrollbar-color: hsl(280 85% 35%) hsl(240 15% 12%);
+    scrollbar-color: hsl(40 38% 31%) hsl(240 5% 4%);
   }
 
-  /* Webkit Scrollbars */
   *::-webkit-scrollbar {
-    width: 12px;
-    height: 20px;
+    width: 10px;
+    height: 10px;
   }
 
   *::-webkit-scrollbar-track {
-    background: hsl(240 15% 10%);
-    border-radius: 6px;
-    border: 1px solid hsl(240 25% 20%);
+    background: hsl(240 5% 4%);
   }
 
   *::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
-    border-radius: 6px;
-    border: 1px solid hsl(280 85% 25%);
-    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.3);
+    background: hsl(280 7% 18%);
+    border: 2px solid hsl(240 5% 4%);
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(280 75% 55%));
-    box-shadow: 0 2px 12px hsl(280 85% 35% / 0.5);
-  }
-
-  *::-webkit-scrollbar-thumb:active {
-    background: linear-gradient(135deg, hsl(280 85% 55%), hsl(45 85% 55%));
-    box-shadow: 0 2px 16px hsl(45 85% 55% / 0.4);
+    background: hsl(40 38% 31%);
   }
 
   *::-webkit-scrollbar-corner {
-    background: hsl(240 15% 10%);
+    background: hsl(240 5% 4%);
   }
 
-  /* Custom Number Input Styling */
   input[type="number"] {
     -webkit-appearance: none;
     -moz-appearance: textfield;
-    position: relative;
   }
 
-  /* Hide default number input arrows */
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
 
-  /* Custom number input container */
   .number-input-container {
     position: relative;
     display: inline-block;
   }
 
-  /* Custom increment/decrement buttons */
-  .number-input-container::after {
-    content: "";
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px;
-    height: 20px;
-    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
-    border-radius: 4px;
-    pointer-events: none;
-    opacity: 0.8;
-    transition: all 0.2s ease;
-  }
-
-  .number-input-container:hover::after {
-    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
-    opacity: 1;
-    box-shadow: 0 2px 8px hsl(280 85% 35% / 0.4);
-  }
-
-  /* Style for focused number inputs */
-  input[type="number"]:focus {
-    outline: none;
-    border-color: hsl(280 85% 45%);
-    box-shadow:
-      0 0 0 2px hsl(280 85% 45% / 0.2),
-      0 2px 12px hsl(280 85% 35% / 0.3);
-  }
-
-  /* Range/Slider Styling */
-  input[type="range"] {
-    -webkit-appearance: none;
-    appearance: none;
-    background: transparent;
-    cursor: pointer;
-  }
-
-  input[type="range"]::-webkit-slider-track {
-    background: hsl(240 15% 12%);
-    height: 6px;
-    border-radius: 3px;
-    border: 1px solid hsl(240 25% 20%);
-  }
-
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    height: 18px;
-    width: 18px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
-    border: 2px solid hsl(280 85% 25%);
-    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.4);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  input[type="range"]::-webkit-slider-thumb:hover {
-    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
-    box-shadow: 0 2px 12px hsl(280 85% 35% / 0.6);
-    transform: scale(1.1);
-  }
-
-  input[type="range"]::-moz-range-track {
-    background: hsl(240 15% 12%);
-    height: 6px;
-    border-radius: 3px;
-    border: 1px solid hsl(240 25% 20%);
-  }
-
-  input[type="range"]::-moz-range-thumb {
-    height: 18px;
-    width: 18px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
-    border: 2px solid hsl(280 85% 25%);
-    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.4);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  input[type="range"]::-moz-range-thumb:hover {
-    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
-    box-shadow: 0 2px 12px hsl(280 85% 35% / 0.6);
-    transform: scale(1.1);
-  }
-
-  /* Custom Select Dropdown Styling */
-  select {
-    background-image: linear-gradient(45deg, hsl(280 85% 35%), hsl(280 75% 45%));
-    background-size: 12px 12px;
-    background-position: right 8px center;
-    background-repeat: no-repeat;
-    padding-right: 32px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  select:hover {
-    background-image: linear-gradient(45deg, hsl(280 85% 45%), hsl(45 85% 55%));
-    box-shadow: 0 2px 8px hsl(280 85% 35% / 0.3);
-  }
-
+  input[type="number"]:focus,
   select:focus {
     outline: none;
-    border-color: hsl(280 85% 45%);
-    box-shadow:
-      0 0 0 2px hsl(280 85% 45% / 0.2),
-      0 2px 12px hsl(280 85% 35% / 0.3);
+    border-color: hsl(41 47% 56%);
+    box-shadow: inset 0 0 0 1px hsl(41 47% 56%);
   }
 
-  /* Enhanced Button Hover Effects */
+  input[type="range"] {
+    accent-color: hsl(41 47% 56%);
+    cursor: pointer;
+  }
+
+  /* The generator's primary action: a chamfered gilt bar. */
   .btn-mystical {
-    background: linear-gradient(135deg, hsl(280 85% 35%), hsl(280 75% 45%));
-    border: 1px solid hsl(280 85% 25%);
-    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.3);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-mystical::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, hsl(45 85% 55% / 0.3), transparent);
-    transition: left 0.6s ease;
-  }
-
-  .btn-mystical:hover::before {
-    left: 100%;
+    color: hsl(40 35% 7%);
+    background: linear-gradient(180deg, hsl(42 59% 68%), hsl(41 47% 56%));
+    border: 0;
+    clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+    font-family: 'Cinzel', serif;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    transition: filter 0.2s ease;
   }
 
   .btn-mystical:hover {
-    background: linear-gradient(135deg, hsl(280 85% 45%), hsl(45 85% 55%));
-    box-shadow:
-      0 4px 16px hsl(280 85% 35% / 0.5),
-      0 0 20px hsl(45 85% 55% / 0.3);
-    transform: translateY(-1px);
+    filter: brightness(1.08);
   }
 
-  .btn-mystical:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px hsl(280 85% 25% / 0.4);
-  }
-
-  /* Vertical text for collapsible log panel */
   .writing-mode-vertical {
     writing-mode: vertical-rl;
     text-orientation: mixed;
   }
 
-  /* Shimmer animation for magic items */
   @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
-    100% {
-      transform: translateX(100%);
-    }
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
   @keyframes pulse-glow {
-    0%, 100% {
-      box-shadow: 0 0 0 rgba(0, 0, 0, 0);
-    }
-    50% {
-      box-shadow: 0 0 20px currentColor;
-    }
+    0%, 100% { box-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+    50% { box-shadow: 0 0 12px currentColor; }
   }
 
   @keyframes gradient-pulse {
-    0%, 100% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
   }
+}
+
+/* The suite frame (features/suite/SuiteShell.tsx) has a top bar above every tool
+   and scrolls the tool area on its own. Tools written to fill the screen
+   (h-svh, min-h-svh, h-screen) fill the space under the bar instead. */
+.suite-body .h-svh,
+.suite-body .h-screen {
+  height: calc(100svh - var(--suite-bar));
+}
+.suite-body .min-h-svh,
+.suite-body .min-h-screen {
+  min-height: calc(100svh - var(--suite-bar));
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sword, Check, ChevronsUpDown, X } from 'lucide-react';
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { supabase } from '@/integrations/supabase/client';
+import { callEdgeFunction } from '@/lib/api';
+import { useCached } from '@/lib/cached';
 import { toast } from 'sonner';
 
 interface NotionCampaign {
@@ -23,7 +24,10 @@ interface NotionCampaign {
   name: string;
   description?: string;
   active: boolean;
+  coverArt?: string;
 }
+
+const NONE: NotionCampaign[] = [];
 
 interface CampaignSelectProps {
   value: NotionCampaign | null;
@@ -41,37 +45,19 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
   activeOnly = false
 }) => {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotionCampaign[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const loadedRef = useRef(false);
+  const campaigns = useCached(['campaigns', activeOnly], async (): Promise<NotionCampaign[]> =>
+    (await callEdgeFunction('fetch-campaigns', { searchQuery: '', activeOnly }))?.campaigns ?? []
+  );
+  const items = campaigns.data ?? NONE;
+  // Loading until the first answer, so the list never flashes "No campaigns found" before it arrives.
+  const isLoading = campaigns.data === undefined && !campaigns.error;
 
-  // Load campaigns once on mount
   useEffect(() => {
-    if (loadedRef.current) return;
-    loadedRef.current = true;
-
-    const loadCampaigns = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase.functions.invoke('fetch-campaigns', {
-          body: { searchQuery: '', activeOnly }
-        });
-
-        if (error) throw error;
-        if (data?.campaigns) {
-          setItems(data.campaigns);
-        }
-      } catch (err) {
-        console.error('[CampaignSelect] Error:', err);
-        toast.error('Failed to load campaigns');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCampaigns();
-  }, []); // Run once
+    if (!campaigns.error) return;
+    console.error('[CampaignSelect] Error:', campaigns.error);
+    toast.error('Failed to load campaigns');
+  }, [campaigns.error]);
 
   // Filter items based on search
   const filteredItems = items.filter(campaign => {
@@ -105,9 +91,9 @@ export const CampaignSelect: React.FC<CampaignSelectProps> = ({
           className={cn("justify-between", className)}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Sword className="h-4 w-4 shrink-0 opacity-50" />
+            <Sword className={cn("h-4 w-4 shrink-0 opacity-50", isLoading && !value && "motion-safe:animate-pulse")} />
             <span className="truncate">
-              {value ? value.name : placeholder}
+              {value ? value.name : isLoading ? 'Loading campaigns…' : placeholder}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">

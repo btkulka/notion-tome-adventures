@@ -1,0 +1,182 @@
+/* The map editor and on-map labels: the tool rail, HUD, tool bar, tooltip and their motion.
+   Everything rises in and answers the pointer; prefers-reduced-motion stills it all. */
+
+.t-editor,
+.t-map {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes tm-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tm-slide {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tm-drop {
+  from { opacity: 0; transform: translate(-50%, -10px); clip-path: inset(0 50% 0 50%); }
+  to { opacity: 1; transform: translate(-50%, 0); clip-path: inset(0 0 0 0); }
+}
+@keyframes tm-pop {
+  0% { opacity: 0; transform: translateX(-6px) scale(0.96); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes tm-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- Tool rail ---------- */
+
+.t-rail-btn {
+  position: relative;
+  width: 56px;
+  height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--bone-3);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color 0.2s, background-color 0.2s;
+  animation: tm-slide 0.45s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 32ms);
+}
+.t-rail-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--gilt);
+  transform: scaleY(0);
+  transition: transform 0.35s var(--ease-spring);
+}
+.t-rail-btn > svg { transition: transform 0.3s var(--ease-spring); }
+.t-rail-btn:hover { color: var(--bone); background: rgba(196, 163, 90, 0.05); }
+.t-rail-btn:hover::before { transform: scaleY(0.45); }
+.t-rail-btn:hover > svg { transform: translateY(-2px) scale(1.1); }
+.t-rail-btn:active > svg { transform: scale(0.9); }
+.t-rail-btn--on { color: var(--gilt-hi); background: var(--ink-2); }
+.t-rail-btn--on::before { transform: scaleY(1); }
+.t-rail-btn:focus-visible { outline: 1px solid var(--gilt); outline-offset: -3px; }
+.t-rail-key {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-family: var(--display);
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--bone-3);
+  opacity: 0.55;
+  transition: opacity 0.2s, color 0.2s;
+}
+.t-rail-btn:hover .t-rail-key { opacity: 1; }
+.t-rail-btn--on .t-rail-key { color: var(--gilt); opacity: 1; }
+
+/* ---------- Tool bar ---------- */
+
+.t-toolbar { animation: tm-drop 0.42s var(--ease-out) both; }
+
+.t-swatch {
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(230, 221, 200, 0.18);
+  cursor: pointer;
+  transition: transform 0.25s var(--ease-spring), border-color 0.2s;
+}
+.t-swatch:hover { transform: translateY(-2px) scale(1.1); border-color: rgba(230, 221, 200, 0.55); }
+.t-swatch[aria-checked='true'] { border: 2px solid var(--gilt-hi); outline: 1px solid var(--ink-0); outline-offset: -4px; transform: scale(1.1); }
+
+.t-chip--drag {
+  cursor: grab;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s, transform 0.25s var(--ease-spring);
+}
+.t-chip--drag .t-diamond { transition: transform 0.4s var(--ease-spring), background-color 0.2s; }
+.t-chip--drag:hover { color: var(--bone); border-color: var(--gilt-deep); transform: translateY(-2px); }
+.t-chip--drag:hover .t-diamond { transform: rotate(135deg); }
+.t-chip--drag:active { cursor: grabbing; transform: scale(0.95); }
+.t-chip--drag[aria-checked='true'] { color: var(--gilt-hi); border-color: var(--gilt); background: rgba(196, 163, 90, 0.08); }
+
+/* Square, diamond-thumbed range sliders. */
+.t-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+.t-range::-webkit-slider-runnable-track { height: 2px; background: var(--rule); }
+.t-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  background: var(--gilt);
+  border: 1px solid var(--ink-0);
+  transform: rotate(45deg);
+  transition: transform 0.25s var(--ease-spring), background-color 0.2s;
+}
+.t-range:hover::-webkit-slider-thumb { transform: rotate(45deg) scale(1.3); background: var(--gilt-hi); }
+.t-range::-moz-range-track { height: 2px; background: var(--rule); }
+.t-range::-moz-range-thumb { width: 11px; height: 11px; background: var(--gilt); border: 1px solid var(--ink-0); border-radius: 0; transform: rotate(45deg); }
+.t-range:disabled { cursor: not-allowed; }
+.t-range:focus-visible { outline: 1px solid var(--gilt); outline-offset: 3px; }
+
+/* ---------- HUD ---------- */
+
+.t-hud { animation: tm-rise 0.55s var(--ease-out) both 0.15s; }
+
+.t-hud-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--bone-2);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s, transform 0.25s var(--ease-spring);
+}
+.t-hud-btn:hover { color: var(--gilt-hi); border-color: var(--gilt-deep); background: var(--ink-2); transform: translateY(-2px); }
+.t-hud-btn:active { transform: scale(0.92); }
+.t-hud-btn:focus-visible { outline: 1px solid var(--gilt); outline-offset: -2px; }
+.t-compass { width: 44px; height: 44px; }
+.t-compass rect { transition: stroke 0.2s, transform 0.5s var(--ease-spring); transform-origin: 20px 20px; }
+.t-compass:hover rect { stroke: var(--gilt-deep); }
+
+.t-pop { animation: tm-pop 0.3s var(--ease-out) both; }
+
+.t-tooltip { animation: tm-fade 0.14s ease-out both; will-change: transform; }
+
+/* ---------- On-map labels ---------- */
+
+.t-map-label { transition: transform 0.25s var(--ease-spring, ease-out), border-color 0.2s; }
+button.t-map-label:hover,
+span.t-map-label[title]:hover { transform: translateY(-2px); }
+.t-region-label { transition: color 0.2s, letter-spacing 0.45s var(--ease-out, ease-out); }
+.t-region-label[title]:hover { color: var(--gilt-hi) !important; letter-spacing: 0.36em !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .t-rail-btn,
+  .t-toolbar,
+  .t-hud,
+  .t-pop,
+  .t-tooltip { animation: none; }
+  .t-rail-btn::before,
+  .t-rail-btn > svg,
+  .t-swatch,
+  .t-chip--drag,
+  .t-chip--drag .t-diamond,
+  .t-range::-webkit-slider-thumb,
+  .t-hud-btn,
+  .t-compass rect,
+  .t-map-label,
+  .t-region-label { transition: none; }
+}

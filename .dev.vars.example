@@ -1,0 +1,15 @@
+# Copy to .dev.vars for `npm run dev:api`. Never commit .dev.vars.
+PUBLIC_ORIGIN=http://localhost:1974
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+NOTION_API_KEY=
+MONSTERS_DATABASE_ID=
+ENVIRONMENTS_DATABASE_ID=
+SESSIONS_DATABASE_ID=
+ENCOUNTERS_DATABASE_ID=
+CAMPAIGNS_DATABASE_ID=
+MAGIC_ITEMS_DATABASE_ID=
+MAGIC_ITEM_RARITIES_DATABASE_ID=
+MONSTER_TYPE_DATABASE_ID=
+# 1 = local sign-in that skips Discord (login page, dev only). Never set in production.
+DEV_LOGIN=1

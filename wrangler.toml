@@ -1,0 +1,34 @@
+# One Worker serves the built app, the API and the live-table WebSockets.
+#   npm run build && npx wrangler deploy
+# Secrets (wrangler secret put …): DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET. For
+# local dev put them in .dev.vars. NOTION_API_KEY lives only in .dev.vars, for
+# scripts/notion-import; the Worker no longer reads Notion.
+name = "tome-dm-suite"
+main = "worker/index.ts"
+compatibility_date = "2026-10-15"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/auth/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tome"
+database_id = "2fb7dfcd-77e1-471c-b59d-a9ef99c9df99"
+migrations_dir = "migrations"
+
+[[durable_objects.bindings]]
+name = "TABLE"
+class_name = "TableRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TableRoom"]
+
+# Generated art and thumbnails will live in R2 once it is enabled on the
+# account (Cloudflare dashboard → R2), then: npx wrangler r2 bucket create tome-files
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "tome-files"

@@ -86,6 +86,7 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
         toast({
           title: toastTitle || `${operationName} Failed`,
           description: toastDescription || errorMessage,
+          error: err,
           variant: "destructive"
         });
       }

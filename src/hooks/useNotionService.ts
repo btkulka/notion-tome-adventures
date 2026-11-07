@@ -1,4 +1,4 @@
-import { callEdgeFunction } from '@/lib/supabase-client'
+import { callEdgeFunction } from '@/lib/api'
 import { NotionEncounterParams, GeneratedEncounter } from '@/types/encounter'
 
 export interface NotionCreature {
@@ -231,7 +231,7 @@ export const notionApi = {
     }
   },
 
-  saveEncounter: async (encounter: GeneratedEncounter): Promise<EdgeFunctionResult<{ pageUrl: string }>> => {
+  saveEncounter: async (encounter: GeneratedEncounter): Promise<EdgeFunctionResult<{ id: string }>> => {
     try {
       const result = await callEdgeFunction('save-encounter', { encounter });
       return { success: true, data: result };

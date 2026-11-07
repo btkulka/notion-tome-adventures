@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { callEdgeFunction } from '@/lib/supabase-client';
+import { callEdgeFunction } from '@/lib/api';
 
 export interface NotionDatabase {
   id: string;

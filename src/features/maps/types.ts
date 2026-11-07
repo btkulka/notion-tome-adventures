@@ -44,6 +44,8 @@ export interface OverworldGenParams {
   settlements: number;
   rivers: number;
   roads: boolean;
+  /** Land biomes the region may use (see PICKABLE_BIOMES); absent means all of them. */
+  biomes?: number[];
 }
 
 export type EncounterDifficulty = 'easy' | 'medium' | 'hard' | 'deadly';
@@ -126,8 +128,11 @@ export interface PinData {
 export interface PathData {
   kind: 'river' | 'road';
   points: TilePoint[];
+  /** "The King's Road", "the River Wyn". Unnamed roads are described by the places at their ends. */
+  name?: string;
 }
 
+/** A name on the map. A label names the region (see terrain/regions.ts) of the tile it stands on. */
 export interface LabelData {
   text: string;
   size: number;
@@ -137,7 +142,7 @@ export interface LabelData {
 export interface TokenData {
   name: string;
   notionCreatureId: string | null;
-  notionCharacterId: string | null;
+  characterId: string | null;
   size: string;
   stats?: { hp: number; maxHp: number; ac: number; conditions: string[]; initiative: number | null };
 }

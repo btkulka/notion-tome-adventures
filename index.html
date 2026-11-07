@@ -3,37 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>D&D Encounter Generator</title>
-    <meta name="description" content="Generate epic D&D encounters with monsters, loot, and challenge ratings. The ultimate tool for Dungeon Masters to create legendary battles." />
-    <meta name="author" content="D&D Tools" />
+    <title>Tome</title>
+    <meta name="description" content="A Notion-backed dungeon master suite: encounters, treasure, and a living overworld map your players explore." />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta name="theme-color" content="#0A0A0B" />
 
-    <meta property="og:title" content="D&D Encounter Generator" />
-    <meta property="og:description" content="Generate epic D&D encounters with monsters, loot, and challenge ratings. The ultimate tool for Dungeon Masters to create legendary battles." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <!-- Junction Font -->
-    <link rel="stylesheet" href="https://use.typekit.net/ady4tqe.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" />
+    <style>
+      html, body { margin: 0; background: #0A0A0B; }
+      #boot {
+        box-sizing: border-box; min-height: 100vh; min-height: 100svh;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+        background-color: #0A0A0B;
+        background-image: linear-gradient(180deg, rgba(10,10,11,0.72), rgba(10,10,11,0.94)), url('/src/assets/dark-parchment.jpg');
+        background-size: cover;
+        font-family: Spectral, Georgia, serif; font-size: 14px; line-height: 1.5; color: #8F8572;
+      }
+      #boot i { display: block; width: 14px; height: 14px; transform: rotate(45deg); background: #C4A35A; animation: boot-wane 1.4s ease-in-out infinite; }
+      #boot p { margin: 0; }
+      @keyframes boot-wane { 50% { opacity: 0.3; } }
+      @media (prefers-reduced-motion: reduce) { #boot i { animation: none; } }
+    </style>
   </head>
 
   <body>
     <div id="root">
-      <!-- Initial loading indicator (shown before React loads) -->
-      <div id="initial-loader" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0a0a0a; color: #fff; font-family: system-ui, -apple-system, sans-serif;">
-        <div style="text-align: center;">
-          <div style="width: 48px; height: 48px; border: 4px solid #333; border-top-color: #8b5cf6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
-          <p style="color: #999; font-size: 14px;">Loading D&D Encounter Generator...</p>
-        </div>
-      </div>
-      <style>
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      </style>
+      <!-- Shown until React's first paint replaces it. Draws exactly what FullScreenSpinner
+           (src/features/auth/guards.tsx) does, so the handover is invisible. -->
+      <div id="boot" role="status"><i></i><p>Loading…</p></div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { FullScreenSpinner } from './guards';
+import { api } from '@/lib/api';
+import { FullScreenSpinner, Notice } from './guards';
 
-/** /join/:code — signed-in players redeem an invite and land at the table. */
+/** /join/:code — signed-in players redeem an invite; the table asks which character is theirs. */
 export default function JoinPage() {
   const { code } = useParams();
   const [campaignId, setCampaignId] = useState<string | null>(null);
@@ -12,25 +11,17 @@ export default function JoinPage() {
 
   useEffect(() => {
     if (!code) return;
-    supabase.rpc('join_campaign', { invite_code: code }).then(({ data, error: rpcError }) => {
-      if (rpcError) setError(rpcError.message);
-      else setCampaignId(data);
-    });
+    api<{ campaignId: string }>(`/api/join/${encodeURIComponent(code)}`, { method: 'POST' })
+      .then(({ campaignId: joined }) => setCampaignId(joined))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Could not join'));
   }, [code]);
 
   if (campaignId) return <Navigate to={`/play/${campaignId}`} replace />;
-  if (!error) return <FullScreenSpinner label="Joining the table..." />;
+  if (!error) return <FullScreenSpinner label="Joining the table…" />;
   return (
-    <div className="min-h-svh flex items-center justify-center p-6">
-      <Card className="max-w-sm w-full">
-        <CardHeader>
-          <CardTitle>Couldn't join</CardTitle>
-          <CardDescription>{error}</CardDescription>
-          <Link to="/" className="text-sm text-accent underline pt-2">
-            Back
-          </Link>
-        </CardHeader>
-      </Card>
-    </div>
+    <Notice title="Couldn't join" action={<Link to="/" className="t-btn self-start">Back</Link>}>
+      <p className="m-0">{error}</p>
+      <p className="t-small m-0 text-[14px]">Ask your DM for a fresh invite link.</p>
+    </Notice>
   );
 }
