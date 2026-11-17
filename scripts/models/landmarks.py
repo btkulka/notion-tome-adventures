@@ -12,6 +12,7 @@ import math
 import bmesh
 from mathutils import Matrix, Vector, noise
 
+import kit
 from kit import Mesh, mix, model, shade, xform
 
 TAU = math.tau
@@ -29,7 +30,7 @@ def blob(m, radius, at=(0, 0, 0), scale=1.0, rot=(0, 0, 0), subdiv=ICO20, color=
     kit's version finds them by diffing set(bm.verts), which also catches
     earlier geometry, so each blob dragged everything built before it along.
     """
-    verts = bmesh.ops.create_icosphere(m.bm, subdivisions=subdiv, radius=radius, matrix=Matrix.Identity(4))['verts']
+    verts = kit.sphere(m.bm, subdiv, radius)
     offset = Vector((m.rng.uniform(0, 100), m.rng.uniform(0, 100), m.rng.uniform(0, 100)))
     for v in verts:
         if noise_amount:

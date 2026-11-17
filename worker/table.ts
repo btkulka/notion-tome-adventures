@@ -1,6 +1,9 @@
 // One Durable Object per campaign: the live table. It holds every connected
 // browser's WebSocket and fans out messages by audience, so a DM-only update
-// never reaches a player's socket. State itself lives in D1; this only relays.
+// never reaches a player's socket. Game state lives in D1 and this only relays
+// it, except for the jukebox: what is playing right now is kept here, in the
+// object's own storage, and every socket gets it on connecting.
+import { clampVolume, cleanRef, normalizeJukebox, reduce, type JukeboxCommand, type JukeboxState } from '../src/features/sound/jukebox';
 import type { Env } from './env';
 
 export type Audience = 'all' | 'dm' | 'players';
@@ -13,7 +16,19 @@ interface Seat {
 }
 
 export class TableRoom implements DurableObject {
+  /** Loaded from storage on first use after the object wakes. */
+  private jukebox: JukeboxState | null = null;
+
   constructor(private state: DurableObjectState, private env: Env) {}
+
+  private async loadJukebox(): Promise<JukeboxState> {
+    this.jukebox ??= normalizeJukebox(await this.state.storage.get('jukebox'));
+    return this.jukebox;
+  }
+
+  private jukeboxMessage(state: JukeboxState) {
+    return { type: 'jukebox', state, now: Date.now() };
+  }
 
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
@@ -30,6 +45,7 @@ export class TableRoom implements DurableObject {
       // Tags let a broadcast pick sockets by role without waking every attachment.
       this.state.acceptWebSocket(server, [seat.role]);
       server.serializeAttachment(seat);
+      server.send(JSON.stringify(this.jukeboxMessage(await this.loadJukebox())));
       this.sendPresence();
       return new Response(null, { status: 101, webSocket: client });
     }
@@ -43,7 +59,7 @@ export class TableRoom implements DurableObject {
     return new Response('Not found', { status: 404 });
   }
 
-  webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): void {
+  async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
     const seat = ws.deserializeAttachment() as Seat;
     let msg: { type?: string; [key: string]: unknown };
     try {
@@ -60,6 +76,31 @@ export class TableRoom implements DurableObject {
         // Only the DM can move everyone's camera.
         if (seat.role === 'dm') this.send('players', { type: 'pull', camera: msg.camera });
         break;
+      case 'time':
+        // Clock sync: browsers place jukebox playback on this object's clock.
+        ws.send(JSON.stringify({ type: 'time', t0: msg.t0, server: Date.now() }));
+        break;
+      case 'jukebox': {
+        // Only the DM runs the jukebox. reduce() hands back the same state when nothing changed.
+        if (seat.role !== 'dm') break;
+        const before = await this.loadJukebox();
+        const after = reduce(before, msg.command as JukeboxCommand, Date.now());
+        if (after === before) break;
+        this.jukebox = after;
+        await this.state.storage.put('jukebox', after);
+        this.send('all', this.jukeboxMessage(after));
+        break;
+      }
+      case 'sfx': {
+        // A one-shot from the soundboard: everyone hears it once, at the effects volume.
+        if (seat.role !== 'dm') break;
+        const sound = cleanRef(msg.sound);
+        if (!sound) break;
+        const jukebox = await this.loadJukebox();
+        const volume = clampVolume(msg.volume, 1) * jukebox.effects;
+        this.send(jukebox.playersHear ? 'all' : 'dm', { type: 'sfx', id: crypto.randomUUID(), sound, volume });
+        break;
+      }
     }
   }
 

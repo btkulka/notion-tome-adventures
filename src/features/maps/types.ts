@@ -67,10 +67,26 @@ export interface EnvironmentRef {
   name: string;
 }
 
+/** The sky over a map: render/sky.ts turns these and the world clock into sun, moon and light. */
+export interface SkySettings {
+  /** Paint the sky behind the map. Off leaves the dark backdrop; the light still follows the hour. */
+  show: boolean;
+  /** Which side of the map the sun crosses at midday. */
+  noon: 'north' | 'south';
+  /** The sun's height at midday, in degrees above the horizon. */
+  noonHeight: number;
+  /** Days from one full moon to the next. */
+  moonCycle: number;
+  /** A day (Day 1 is the first) on which the moon is full. */
+  fullMoonDay: number;
+}
+
 export interface MapSettings {
   /** BiomeId (as string key) → Notion Environments used for random encounters. */
   biomeEnvironments: Record<string, EnvironmentRef[]>;
   encounters: EncounterRules;
+  /** Missing on maps saved before the sky existed; see resolveSky. */
+  sky?: Partial<SkySettings>;
 }
 
 export interface MapDoc {

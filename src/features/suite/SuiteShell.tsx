@@ -3,6 +3,8 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { CampaignSelect } from '@/components/ui/campaign-select';
 import { useAuth } from '@/features/auth/useAuth';
 import { FullScreenSpinner } from '@/features/auth/guards';
+import { SuiteSoundChip } from '@/features/sound/PlayerSound';
+import { TableAudioProvider } from '@/features/sound/TableAudio';
 import { useSelectedCampaign } from './campaign';
 
 /** Height of the top bar. Tools that fill the screen fill the space under it (see .suite-body in index.css). */
@@ -120,7 +122,8 @@ function ToolsFlyout() {
 
 /**
  * DM suite frame: a top bar with the Tome sigil and the campaign every tool works
- * on, and under it the tool rail beside whichever tool is open.
+ * on, and under it the tool rail beside whichever tool is open. The table's
+ * jukebox plays from here, so it carries on whichever tool is open.
  */
 export default function SuiteShell() {
   const { profile, signOut } = useAuth();
@@ -128,59 +131,62 @@ export default function SuiteShell() {
   const initials = (profile?.displayName ?? profile?.username ?? '?').slice(0, 2).toUpperCase();
 
   return (
-    <div className="flex h-svh w-full flex-col overflow-hidden" style={{ '--suite-bar': BAR } as React.CSSProperties}>
-      <header className="flex shrink-0 items-center gap-4 border-b border-rule bg-ink-0 pl-3 pr-4 sm:gap-6" style={{ height: BAR }}>
-        <Link to="/" aria-label="Tome" className="flex items-center gap-4 text-bone">
-          <span className="t-sigil m-1" style={{ width: 40, height: 40 }}>
-            <svg width="26" height="26" viewBox="0 0 256 256" aria-hidden="true">
-              <g fill="none" stroke="#C4A35A" strokeWidth="14" strokeLinejoin="miter">
-                <polygon points="128,40 204,84 204,172 128,216 52,172 52,84" />
-                <polygon points="128,84 82,168 174,168" />
-              </g>
-            </svg>
-          </span>
-          <span className="t-h2 hidden sm:inline">Tome</span>
-        </Link>
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="t-label hidden md:inline">Campaign</span>
-          <CampaignSelect
-            value={campaign}
-            onValueChange={(c) => setCampaign(c ? { id: c.id, name: c.name, active: c.active, coverArt: c.coverArt } : null)}
-            placeholder="Choose a campaign"
-            className="w-48 sm:w-72"
-          />
-        </div>
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        {/* No overflow on the rail: it would clip the Tools flyout. */}
-        <nav aria-label="Suite" className="relative z-40 w-16 shrink-0 flex flex-col items-center gap-1.5 py-4 border-r border-rule bg-ink-0">
-          <RailLink {...TABLE} />
-          <ToolsFlyout />
-          {SECTIONS.map((s) => <RailLink key={s.to} {...s} />)}
-          <div className="mt-auto flex flex-col items-center gap-2">
-            <NavLink to="/settings" aria-label="Settings" title="Settings" className={railLink}>
-              <Icon d="M3 6h11 M18 6h3 M3 12h5 M12 12h9 M3 18h13 M20 18h1 M14 4h4v4h-4z M8 10h4v4H8z M16 16h4v4h-4z" />
-            </NavLink>
-            {profile?.avatarUrl ? (
-              <img src={profile.avatarUrl} alt="" title={profile.displayName ?? profile.username} className="h-[34px] w-[34px] border border-gilt-deep" />
-            ) : (
-              <span className="t-portrait t-portrait--sm" title={profile?.username}>{initials}</span>
-            )}
-            <button type="button" aria-label="Sign out" title="Sign out" onClick={() => signOut()} className="flex h-9 w-9 items-center justify-center text-bone-3 hover:text-bone">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" aria-hidden="true">
-                <path d="M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10" />
+    <TableAudioProvider campaignId={campaign?.id ?? null} role="dm">
+      <div className="flex h-svh w-full flex-col overflow-hidden" style={{ '--suite-bar': BAR } as React.CSSProperties}>
+        <header className="flex shrink-0 items-center gap-4 border-b border-rule bg-ink-0 pl-3 pr-4 sm:gap-6" style={{ height: BAR }}>
+          <Link to="/" aria-label="Tome" className="flex items-center gap-4 text-bone">
+            <span className="t-sigil m-1" style={{ width: 40, height: 40 }}>
+              <svg width="26" height="26" viewBox="0 0 256 256" aria-hidden="true">
+                <g fill="none" stroke="#C4A35A" strokeWidth="14" strokeLinejoin="miter">
+                  <polygon points="128,40 204,84 204,172 128,216 52,172 52,84" />
+                  <polygon points="128,84 82,168 174,168" />
+                </g>
               </svg>
-            </button>
+            </span>
+            <span className="t-h2 hidden sm:inline">Tome</span>
+          </Link>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="t-label hidden md:inline">Campaign</span>
+            <CampaignSelect
+              value={campaign}
+              onValueChange={(c) => setCampaign(c ? { id: c.id, name: c.name, active: c.active, coverArt: c.coverArt } : null)}
+              placeholder="Choose a campaign"
+              className="w-48 sm:w-72"
+            />
           </div>
-        </nav>
-        <main className="suite-body min-w-0 flex-1 overflow-auto">
-          {/* Each tool is its own chunk; the bar and rail stay put while one loads. */}
-          <Suspense fallback={<FullScreenSpinner />}>
-            <Outlet />
-          </Suspense>
-        </main>
+          <SuiteSoundChip />
+        </header>
+
+        <div className="flex min-h-0 flex-1">
+          {/* No overflow on the rail: it would clip the Tools flyout. */}
+          <nav aria-label="Suite" className="relative z-40 w-16 shrink-0 flex flex-col items-center gap-1.5 py-4 border-r border-rule bg-ink-0">
+            <RailLink {...TABLE} />
+            <ToolsFlyout />
+            {SECTIONS.map((s) => <RailLink key={s.to} {...s} />)}
+            <div className="mt-auto flex flex-col items-center gap-2">
+              <NavLink to="/settings" aria-label="Settings" title="Settings" className={railLink}>
+                <Icon d="M3 6h11 M18 6h3 M3 12h5 M12 12h9 M3 18h13 M20 18h1 M14 4h4v4h-4z M8 10h4v4H8z M16 16h4v4h-4z" />
+              </NavLink>
+              {profile?.avatarUrl ? (
+                <img src={profile.avatarUrl} alt="" title={profile.displayName ?? profile.username} className="h-[34px] w-[34px] border border-gilt-deep" />
+              ) : (
+                <span className="t-portrait t-portrait--sm" title={profile?.username}>{initials}</span>
+              )}
+              <button type="button" aria-label="Sign out" title="Sign out" onClick={() => signOut()} className="flex h-9 w-9 items-center justify-center text-bone-3 hover:text-bone">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" aria-hidden="true">
+                  <path d="M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10" />
+                </svg>
+              </button>
+            </div>
+          </nav>
+          <main className="suite-body min-w-0 flex-1 overflow-auto">
+            {/* Each tool is its own chunk; the bar and rail stay put while one loads. */}
+            <Suspense fallback={<FullScreenSpinner />}>
+              <Outlet />
+            </Suspense>
+          </main>
+        </div>
       </div>
-    </div>
+    </TableAudioProvider>
   );
 }

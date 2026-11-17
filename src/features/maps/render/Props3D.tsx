@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { PinType, TerrainGrid } from '../types';
 import { farName } from './catalog';
 import { allChunks, changedTiles, chunkBounds, chunkId, dirtyChunks } from './chunks';
-import { propMaterial, usePropGeometry } from './models';
+import { propMaterial, propMaterialFar, usePropGeometry, usePropMinis, type PropMini } from './models';
 import { placePropsInBlocks, type Placement, type PropOptions, type PropPlacements } from './props';
 import { fogTint, type FogMode } from './tint';
 
@@ -26,14 +26,16 @@ interface Built {
   batches: Batch[];
 }
 
-function buildBatches(placements: PropPlacements, geometry: (name: string) => THREE.BufferGeometry | undefined, far: boolean): Built {
+function buildBatches(placements: PropPlacements, geometry: (name: string) => THREE.BufferGeometry | undefined, far: boolean, minis: Map<string, PropMini> | null): Built {
   const group = new THREE.Group();
   const batches: Batch[] = [];
   for (const [name, items] of Object.entries(placements)) {
     const hi = geometry(name);
     if (!hi || !items?.length) continue;
-    const geo = far ? geometry(farName(name as keyof PropPlacements)) ?? hi : hi;
-    const mesh = new THREE.InstancedMesh(geo, propMaterial, items.length);
+    // Up close a prop with a miniature draws it; far away everything keeps the low-poly version.
+    const mini = far ? undefined : minis?.get(name);
+    const geo = mini ? mini.geometry : far ? geometry(farName(name as keyof PropPlacements)) ?? hi : hi;
+    const mesh = new THREE.InstancedMesh(geo, mini ? mini.material : far ? propMaterialFar : propMaterial, items.length);
     mesh.raycast = () => {};
     group.add(mesh);
     batches.push({ mesh, items });
@@ -94,6 +96,7 @@ export function Props3D({
   visible?: boolean;
 }) {
   const geometry = usePropGeometry();
+  const minis = usePropMinis(geometry);
   const state = useRef<{
     root: THREE.Group;
     near: THREE.Group;
@@ -103,13 +106,14 @@ export function Props3D({
     nearBuilt: Map<number, Built>;
     farBuilt: Map<number, Built>;
     geometry: unknown;
+    minis: unknown;
   } | null>(null);
   if (!state.current) {
     const root = new THREE.Group();
     const near = new THREE.Group();
     const far = new THREE.Group();
     root.add(near, far);
-    state.current = { root, near, far, inputs: null, placements: new Map(), nearBuilt: new Map(), farBuilt: new Map(), geometry: null };
+    state.current = { root, near, far, inputs: null, placements: new Map(), nearBuilt: new Map(), farBuilt: new Map(), geometry: null, minis: null };
   }
   const look = useRef({ fade, fogMode });
   look.current = { fade, fogMode };
@@ -129,7 +133,7 @@ export function Props3D({
     };
     const prev = s.inputs;
     let dirty: number[];
-    if (!prev || prev.width !== W || prev.height !== H || s.geometry !== geometry) {
+    if (!prev || prev.width !== W || prev.height !== H || s.geometry !== geometry || s.minis !== minis) {
       dirty = allChunks(W, H);
       for (const id of [...s.nearBuilt.keys()]) dispose(s.nearBuilt.get(id));
       for (const id of [...s.farBuilt.keys()]) dispose(s.farBuilt.get(id));
@@ -141,6 +145,7 @@ export function Props3D({
     }
     s.inputs = next;
     s.geometry = geometry;
+    s.minis = minis;
     if (dirty.length === 0) return;
 
     const placed = placePropsInBlocks(terrain, seed, options, dirty.map(chunkBounds));
@@ -149,7 +154,7 @@ export function Props3D({
     dirty.forEach((id, n) => {
       s.placements.set(id, placed[n]);
       dispose(s.nearBuilt.get(id));
-      const built = buildBatches(placed[n], geometry, false);
+      const built = buildBatches(placed[n], geometry, false, minis);
       s.near.add(built.group);
       s.nearBuilt.set(id, built);
       fresh.push(...built.batches);
@@ -167,13 +172,13 @@ export function Props3D({
         }
       }
       dispose(s.farBuilt.get(farId));
-      const built = buildBatches(merged, geometry, true);
+      const built = buildBatches(merged, geometry, true, null);
       s.far.add(built.group);
       s.farBuilt.set(farId, built);
       fresh.push(...built.batches);
     }
     dress(fresh, look.current.fade, look.current.fogMode);
-  }, [terrain, seed, options, geometry]);
+  }, [terrain, seed, options, geometry, minis]);
 
   // Fog changes re-dress every instance.
   const dressed = useRef(false);

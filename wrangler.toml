@@ -27,8 +27,10 @@ class_name = "TableRoom"
 tag = "v1"
 new_sqlite_classes = ["TableRoom"]
 
-# Generated art and thumbnails will live in R2 once it is enabled on the
-# account (Cloudflare dashboard → R2), then: npx wrangler r2 bucket create tome-files
-# [[r2_buckets]]
-# binding = "FILES"
-# bucket_name = "tome-files"
+# Uploaded files: the jukebox's sounds now, generated art and thumbnails later.
+# `wrangler dev` keeps a local bucket under .wrangler/. Before the first deploy,
+# enable R2 on the account (Cloudflare dashboard → R2), then:
+#   npx wrangler r2 bucket create tome-files
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "tome-files"

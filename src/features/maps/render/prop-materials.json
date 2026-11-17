@@ -1,0 +1,15 @@
+[
+  { "name": "none", "scale": 1, "strength": 0 },
+  { "name": "masonry", "scale": 5, "strength": 0.55 },
+  { "name": "rock", "scale": 2.5, "strength": 0.6 },
+  { "name": "plaster", "scale": 3, "strength": 0.45 },
+  { "name": "wood", "scale": 6, "strength": 0.55 },
+  { "name": "bark", "scale": 5, "strength": 0.65 },
+  { "name": "slate", "scale": 5, "strength": 0.55 },
+  { "name": "thatch", "scale": 4, "strength": 0.6 },
+  { "name": "tile", "scale": 5, "strength": 0.55 },
+  { "name": "foliage", "scale": 4, "strength": 0.65 },
+  { "name": "cloth", "scale": 3, "strength": 0.4 },
+  { "name": "window", "scale": 1, "strength": 0 },
+  { "name": "arcane", "scale": 1, "strength": 0 }
+]

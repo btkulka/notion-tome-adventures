@@ -8,6 +8,7 @@ import math
 import bmesh
 from mathutils import Matrix, Vector, noise
 
+import kit
 from kit import Mesh, mix, model, shade, xform
 
 TAU = math.tau
@@ -24,7 +25,7 @@ def blob(m, radius, at=(0, 0, 0), scale=1.0, rot=(0, 0, 0), subdiv=ICO80, color=
     kit.blob finds its vertices by diffing set(bm.verts), which also catches
     existing ones, so every blob dragged the trunk and earlier clumps along.
     """
-    verts = bmesh.ops.create_icosphere(m.bm, subdivisions=subdiv, radius=radius, matrix=Matrix.Identity(4))['verts']
+    verts = kit.sphere(m.bm, subdiv, radius)
     offset = Vector((m.rng.uniform(0, 100), m.rng.uniform(0, 100), m.rng.uniform(0, 100)))
     if noise_amount:
         for v in verts:
@@ -77,6 +78,7 @@ def frame(d, u_prev=None):
 
 def tube(m, pts, radii, seg, color, jitter=0.08, cap_top=False, phase=0.0, wobble=0.0):
     """A tapering tube through points (limbs, roots, curved trunks). Radius 0 ends in a point."""
+    seg = kit.dseg(seg)
     pts = [Vector(p) for p in pts]
     rows, u = [], None
     for k, (p, r) in enumerate(zip(pts, radii)):
@@ -101,6 +103,7 @@ def trunk(m, rings, seg, color, phase=0.0, twist=0.0, wobble=0.0, dent=None, jit
     buttresses at the base, fluting higher up. `twist` turns each ring further
     than the one below; `dent(k, angle)` scales a vertex radius (hollows).
     """
+    seg = kit.dseg(seg)
     rows = []
     for k, ring in enumerate(rings):
         z, r, ridge = ring[:3]

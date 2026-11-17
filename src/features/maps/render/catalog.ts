@@ -4,7 +4,27 @@
  * a far-zoom version '<name>_lo'. The catalog test checks the GLB against this
  * list, so a model renamed on one side fails the build instead of vanishing.
  */
-export const MODELS_URL = '/models/world-props.glb';
+/** One GLB per model detail tier (scripts/models/build.py TIERS). */
+export const MODEL_URLS = { low: '/models/world-props-low.glb', medium: '/models/world-props-medium.glb' } as const;
+
+/**
+ * The GLB to load for a detail tier. '?props=preview' on any page (or
+ * localStorage 'tome.propsPreview' = '1') loads world-props-preview.glb
+ * instead: a candidate build (npm run models -- --glb
+ * public/models/world-props-preview.glb) to judge before it replaces a tier.
+ */
+export function modelsUrl(detail: keyof typeof MODEL_URLS | 'minis'): string {
+  try {
+    if (typeof window !== 'undefined') {
+      const asked = new URLSearchParams(window.location.search).get('props') === 'preview';
+      if (asked || window.localStorage.getItem('tome.propsPreview') === '1') return '/models/world-props-preview.glb';
+    }
+  } catch {
+    // Storage blocked: the chosen tier.
+  }
+  // Minis draws Medium for every prop without a miniature, and for the far zoom.
+  return MODEL_URLS[detail === 'minis' ? 'medium' : detail];
+}
 
 export const MODEL_NAMES = [
   // Trees

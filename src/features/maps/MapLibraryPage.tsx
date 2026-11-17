@@ -57,7 +57,10 @@ function Library({ campaign }: { campaign: SelectedCampaign }) {
           <span className="t-label">{campaign.name}</span>
           <h1 className="t-h1">Atlas</h1>
         </div>
-        <button type="button" className="t-btn t-btn--primary" onClick={() => setGenerating(true)}>Generate a region</button>
+        <div className="flex flex-wrap gap-2.5">
+          <Link to="/maps/models" className="t-btn">Models</Link>
+          <button type="button" className="t-btn t-btn--primary" onClick={() => setGenerating(true)}>Generate a region</button>
+        </div>
       </header>
 
       {error && <p className="px-11 pt-6 text-blood-text">{error}</p>}

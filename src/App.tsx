@@ -55,6 +55,7 @@ const HomeRedirect = lazyRoute(() => import("@/features/suite/HomeRedirect"));
 const SuiteShell = lazyRoute(() => import("@/features/suite/SuiteShell"));
 const MapLibraryPage = lazyRoute(() => import("@/features/maps/MapLibraryPage"));
 const MapEditorPage = lazyRoute(() => import("@/features/maps/MapEditorPage"));
+const ModelsPage = lazyRoute(() => import("@/features/maps/ModelsPage"));
 const DmTablePage = lazyRoute(() => import("@/features/table/DmTablePage"));
 const PlayerPage = lazyRoute(() => import("@/features/table/PlayerPage"));
 const CharactersPage = lazyRoute(() => import("@/features/characters/CharactersPage"));
@@ -155,6 +156,7 @@ const App = () => {
                     <Route path="/tools/treasure" element={<TreasurePage />} />
                     <Route path="/generate" element={<Navigate to="/tools/encounters" replace />} />
                     <Route path="/maps" element={<MapLibraryPage />} />
+                    <Route path="/maps/models" element={<ModelsPage />} />
                     <Route path="/maps/:mapId" element={<MapEditorPage />} />
                     <Route path="/database" element={<DatabasePage />} />
                     <Route path="/database/:tableKey" element={<DatabasePage />} />

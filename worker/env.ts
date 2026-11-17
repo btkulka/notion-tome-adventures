@@ -3,7 +3,7 @@ export interface Env {
   DB: D1Database;
   TABLE: DurableObjectNamespace;
   ASSETS: Fetcher;
-  /** Bound once R2 is enabled on the account (see wrangler.toml). */
+  /** Uploaded files (jukebox sounds). Optional so a deploy without the bucket still serves everything else. */
   FILES?: R2Bucket;
 
   /** Origin players reach the app on; used for the Discord redirect. Falls back to the request origin. */

@@ -14,7 +14,12 @@ import { createNoise4D } from 'simplex-noise';
 import { mulberry32 } from '../../src/features/maps/gen/prng';
 import { encodePng } from './png';
 
-const SIZE = 256;
+/**
+ * Pixels per texture side. A texture repeats every TOP_REPEAT (2.5) tiles, so
+ * 512 gives about 205 texels per tile: sharp at the camera's closest zoom
+ * (140 px per tile, 280 on a 2x render). Relief and features scale with it.
+ */
+const SIZE = 512;
 const TAU = Math.PI * 2;
 
 type RGB = [number, number, number];

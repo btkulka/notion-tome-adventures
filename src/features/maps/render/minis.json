@@ -1,0 +1,68 @@
+[
+ {
+  "name": "castle-desert",
+  "url": "/models/minis/castle-desert.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/castle-desert.jpg"
+ },
+ {
+  "name": "castle-north",
+  "url": "/models/minis/castle-north.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/castle-north.jpg"
+ },
+ {
+  "name": "castle-temperate",
+  "url": "/models/minis/castle-temperate.glb",
+  "triangles": 149999,
+  "concept": "/models/minis/concept/castle-temperate.jpg"
+ },
+ {
+  "name": "city-desert",
+  "url": "/models/minis/city-desert.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/city-desert.jpg"
+ },
+ {
+  "name": "city-marsh",
+  "url": "/models/minis/city-marsh.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/city-marsh.jpg"
+ },
+ {
+  "name": "city-north",
+  "url": "/models/minis/city-north.glb",
+  "triangles": 149999,
+  "concept": "/models/minis/concept/city-north.jpg"
+ },
+ {
+  "name": "city-temperate",
+  "url": "/models/minis/city-temperate.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/city-temperate.jpg"
+ },
+ {
+  "name": "elderfir-1",
+  "url": "/models/minis/elderfir-1.glb",
+  "triangles": 24000,
+  "concept": "/models/minis/concept/elderfir-1.jpg"
+ },
+ {
+  "name": "fir-1",
+  "url": "/models/minis/fir-1.glb",
+  "triangles": 24000,
+  "concept": "/models/minis/concept/fir-1.jpg"
+ },
+ {
+  "name": "fir-2",
+  "url": "/models/minis/fir-2.glb",
+  "triangles": 23999,
+  "concept": "/models/minis/concept/fir-2.jpg"
+ },
+ {
+  "name": "fir-3",
+  "url": "/models/minis/fir-3.glb",
+  "triangles": 23999,
+  "concept": "/models/minis/concept/fir-3.jpg"
+ }
+]

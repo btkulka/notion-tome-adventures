@@ -1,20 +1,21 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MutableRefObject, type PointerEvent as ReactPointerEvent } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { PerformanceMonitor } from '@react-three/drei';
 import * as THREE from 'three';
 import { Loading } from '@/components/ui/tome-loading';
 import '../maps.css';
 import { connectionMasks } from '../terrain/roads';
 import { labelRegions, type RegionMap } from '../terrain/regions';
-import { dayFraction } from '../travel/travel';
-import type { LabelObject, MapObject, PathObject, PinObject, TerrainGrid, TilePoint } from '../types';
+import type { LabelObject, MapObject, PathObject, PinObject, SkySettings, TerrainGrid, TilePoint, Weather } from '../types';
 import { CameraRig, type CameraApi, type CameraPose, type GrabState } from './CameraRig';
-import { groundHeight } from './geometry';
 import { applyMarks, createOverlay, type TileMark } from './overlay';
 import type { DragOptions, Picker } from './drag';
 import { PartyBanner, PathTraces, PinLabels, Pings, RegionLabels, RouteLine, type PathTrace, type Ping } from './Overlays';
 import { pickTile } from './pick';
 import { isSettlement, type Site } from './props';
 import { Props3D } from './Props3D';
+import { dprFor, useRenderQuality } from './quality';
+import { SkyRig } from './SkyRig';
 import { Terrain } from './Terrain';
 import type { FogMode } from './tint';
 
@@ -42,7 +43,11 @@ export interface MapViewProps {
   route?: TilePoint[] | null;
   routeStops?: number[];
   routeColor?: string;
+  /** World time; sets the sun, moon and light. Null keeps the fixed daylight. */
   worldMinutes?: number | null;
+  weather?: Weather;
+  /** The map's sky (MapSettings.sky). */
+  sky?: Partial<SkySettings>;
   pings?: Ping[];
   selectedPinId?: string | null;
   selectedLabelId?: string | null;
@@ -90,16 +95,6 @@ export interface MapViewProps {
   onDragOverTile?: (tile: TilePoint | null, e: DragEvent) => void;
   onDropTile?: (tile: TilePoint, e: DragEvent) => void;
   className?: string;
-}
-
-/** Light for the hour: warm day, amber low sun, cold moonlight. */
-function lightFor(minutes: number | null | undefined) {
-  if (minutes === null || minutes === undefined) return { sun: '#FFF1DA', sunIntensity: 1.7, sky: '#C9D3E0', ground: '#3B3024', ambient: 0.85, night: false };
-  const hour = dayFraction(minutes) * 24;
-  const height = Math.sin((Math.PI * (hour - 6)) / 14);
-  if (hour < 5 || hour >= 21) return { sun: '#7A8DC4', sunIntensity: 0.45, sky: '#3A4466', ground: '#121018', ambient: 0.35, night: true };
-  if (height < 0.35) return { sun: '#F0A660', sunIntensity: 1.05, sky: '#8C7F96', ground: '#2E2218', ambient: 0.55, night: false };
-  return { sun: '#FFF1DA', sunIntensity: 1.7, sky: '#C9D3E0', ground: '#3B3024', ambient: 0.85, night: false };
 }
 
 /** Set once a map has finished loading its textures and models in this tab. */
@@ -154,7 +149,7 @@ function TilePicker({ terrain, pickRef, pointer, onRepick }: { terrain: TerrainG
 
 export function MapView(props: MapViewProps) {
   const {
-    terrain, seed, objects, fade = null, fogMode = 'dm', isDm = false, party, route, routeStops, routeColor, worldMinutes,
+    terrain, seed, objects, fade = null, fogMode = 'dm', isDm = false, party, route, routeStops, routeColor, worldMinutes = null, weather, sky,
     pings = [], selectedPinId, selectedLabelId, highlight, marks, traces, grid = 0, showProps = true, showRegionNames = true, showPinLabels = true,
     panButton = 2, cameraRef, initialCamera, onCameraChange, className,
   } = props;
@@ -207,7 +202,10 @@ export function MapView(props: MapViewProps) {
     applyMarks(overlay, all);
   }, [overlay, highlight, marks]);
 
-  const light = lightFor(worldMinutes);
+  const [quality] = useRenderQuality();
+  const [throttled, setThrottled] = useState(false);
+  const dpr = dprFor(throttled ? 'standard' : quality);
+
   // Terrain textures and prop models suspend; until they arrive the canvas is empty.
   // They stay cached once they have, so only the first map in a tab says it's loading.
   const [loaded, setLoaded] = useState(landLoaded);
@@ -323,14 +321,12 @@ export function MapView(props: MapViewProps) {
       onDrop={drop}
       onDragLeave={dragLeave}
     >
-      <Canvas orthographic camera={{ zoom: 20, near: 0.1, far: 1000, position: [100, 100, 100] }} dpr={[1, 2]} gl={{ antialias: true }}>
+      <Canvas orthographic camera={{ zoom: 20, near: 0.1, far: 1000, position: [100, 100, 100] }} dpr={dpr} gl={{ antialias: true }}>
+        {/* High quality steps down to Standard for this map if the frame rate can't hold it. */}
+        {quality === 'high' && !throttled && <PerformanceMonitor onDecline={() => setThrottled(true)} />}
         <CameraRig width={terrain.width} height={terrain.height} panButton={panButton} apiRef={cameraRef} initial={initialCamera} onPoseChange={onCameraChange} onGrab={setGrab} />
         <TilePicker terrain={terrain} pickRef={ownPick} pointer={pointer} onRepick={repick} />
-        <hemisphereLight args={[light.sky, light.ground, light.ambient]} />
-        <directionalLight color={light.sun} intensity={light.sunIntensity} position={[-36, 48, -14]} />
-        {light.night && party && (
-          <pointLight color="#F2B45A" intensity={2.2} distance={5} decay={1.5} position={[party[0] + 0.5, groundHeight(terrain, party[0] + 0.5, party[1] + 0.5) + 0.9, party[1] + 0.5]} />
-        )}
+        <SkyRig minutes={worldMinutes} weather={weather} settings={sky} terrain={terrain} party={party} />
         <Suspense fallback={null}>
           <Terrain terrain={terrain} extras={extras} fade={fade} fogMode={fogMode} overlay={overlay} />
           <Props3D terrain={terrain} seed={seed} options={extras} fade={fade} fogMode={fogMode} visible={showProps} />

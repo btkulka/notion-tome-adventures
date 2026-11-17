@@ -9,6 +9,7 @@ import { charactersApi, classAndLevel, initials, tierFor, type Character } from 
 import { api } from '@/lib/api';
 import { mapsApi } from '@/features/maps/api';
 import { MapView } from '@/features/maps/render/MapView';
+import { GraphicsMenu } from '@/features/maps/GraphicsSettings';
 import type { CameraApi } from '@/features/maps/render/CameraRig';
 import type { Ping } from '@/features/maps/render/Overlays';
 import { decodeBytes } from '@/features/maps/terrain/codec';
@@ -16,6 +17,8 @@ import { dayFraction, formatWorldTime } from '@/features/maps/travel/travel';
 import { exploredBits, useFog } from '@/features/maps/useFog';
 import { useTable, type Seat, type TableMessage } from '@/features/maps/useTable';
 import type { LiveSession, MapDoc, MapObject, PinObject, TilePoint } from '@/features/maps/types';
+import { PlayerSoundPrompt, PlayerSoundRow } from '@/features/sound/PlayerSound';
+import { TableAudioProvider } from '@/features/sound/TableAudio';
 import hero from '@/assets/dnd-hero-banner.jpg';
 
 const PING_COLORS = ['#557FBF', '#5A9A6A', '#8D6FBF', '#C27838', '#D6CFBE'];
@@ -43,9 +46,17 @@ interface ShownLocation {
   loading: boolean;
 }
 
-/** /play/:campaignId — what the company can see, kept live by the DM's table. */
+/** /play/:campaignId — what the company can see and hear, kept live by the DM's table. */
 export default function PlayerPage() {
   const { campaignId = '' } = useParams();
+  return (
+    <TableAudioProvider campaignId={campaignId} role="player">
+      <PlayerTable campaignId={campaignId} />
+    </TableAudioProvider>
+  );
+}
+
+function PlayerTable({ campaignId }: { campaignId: string }) {
   const { profile } = useAuth();
   const [live, setLive] = useState<LiveSession | null>(null);
   const [doc, setDoc] = useState<MapDoc | null>(null);
@@ -231,6 +242,8 @@ export default function PlayerPage() {
           fogMode="player"
           party={party}
           worldMinutes={minutes}
+          weather={weather}
+          sky={doc.settings.sky}
           pings={pings}
           panButton={0}
           cameraRef={camera}
@@ -269,7 +282,10 @@ export default function PlayerPage() {
           <span className="absolute -top-1 w-0.5 h-[13px] bg-gilt-hi" style={{ left: `${(hour / 24) * 100}%` }} />
         </div>
         <span className="t-small text-[14px]">{WEATHER_NOTE[weather] ?? weather}{table.connected ? '' : table.connecting ? ' · connecting…' : ' · reconnecting…'}</span>
+        <PlayerSoundRow />
       </div>
+
+      <PlayerSoundPrompt className={`absolute left-1/2 -translate-x-1/2 z-10 ${pulled || marking ? 'top-[160px]' : 'top-[104px]'}`} />
 
       <div className="t-overlay absolute top-3.5 right-3.5 sm:top-5 sm:right-5 flex items-center gap-3.5 py-2.5 pl-4 pr-3">
         <Link
@@ -312,6 +328,8 @@ export default function PlayerPage() {
           <IconButton label="Rotate right" onClick={() => camera.current?.rotate(1)} path="M21 12a9 9 0 1 1-3-6.7L21 8 M21 3v5h-5" />
           <IconButton label="Zoom out" onClick={() => camera.current?.zoomBy(1 / 1.25)} path="M5 12h14" />
           <IconButton label="Zoom in" onClick={() => camera.current?.zoomBy(1.25)} path="M5 12h14M12 5v14" />
+          <span className="w-px h-7 bg-rule" />
+          <GraphicsMenu />
         </div>
       )}
 

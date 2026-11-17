@@ -10,7 +10,10 @@ import type { EncounterRules, TerrainGrid, TilePoint, TravelPace } from '../type
 export const PACE_MPH: Record<TravelPace, number> = { slow: 2, normal: 3, fast: 4 };
 export const TRAVEL_HOURS_PER_DAY = 8;
 export const DAY_START_HOUR = 8;
-const MINUTES_PER_DAY = 24 * 60;
+/** The sun is up from SUNRISE_HOUR to SUNSET_HOUR; sight, the sky and the light all follow these. */
+export const SUNRISE_HOUR = 6;
+export const SUNSET_HOUR = 20;
+export const MINUTES_PER_DAY = 24 * 60;
 
 export interface TravelContext {
   terrain: TerrainGrid;
@@ -131,7 +134,7 @@ export function dayFraction(minutes: number): number {
 
 export function isNight(minutes: number): boolean {
   const hour = dayFraction(minutes) * 24;
-  return hour < 6 || hour >= 20;
+  return hour < SUNRISE_HOUR || hour >= SUNSET_HOUR;
 }
 
 /** "Day 3 · 14:30". Day 1 starts at minute 0. */

@@ -9,6 +9,7 @@ import { mapRoutes } from './api/maps';
 import { authRoutes, loadUser } from './auth';
 import { notionRoutes } from './notion/routes';
 import { settingsRoutes } from './api/settings';
+import { soundRoutes } from './api/sounds';
 import type { AppEnv } from './types';
 
 const app = new Hono<AppEnv>();
@@ -32,6 +33,7 @@ app.route('/api', campaignRoutes);
 app.route('/api', characterRoutes);
 app.route('/api', mapRoutes);
 app.route('/api', settingsRoutes);
+app.route('/api', soundRoutes);
 app.route('/api', contentRoutes);
 
 app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));

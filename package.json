@@ -15,7 +15,10 @@
     "db:migrate:remote": "wrangler d1 migrations apply tome --remote",
     "deploy": "npm run build && wrangler deploy",
     "textures": "vite-node scripts/textures/generate-terrain-textures.ts",
+    "textures:props": "vite-node scripts/textures/generate-prop-patterns.ts",
     "models": "node scripts/models/run.mjs",
+    "models:conform": "node scripts/models/run.mjs conform",
+    "minis": "node scripts/models/minis/rent.mjs",
     "notion:export": "vite-node scripts/notion-import/export.ts --",
     "notion:sql": "vite-node scripts/notion-import/to-sql.ts",
     "notion:files": "vite-node scripts/notion-import/files.ts --",
@@ -85,6 +88,8 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@btkulka/runpod-client": "file:../../packages/runpod-client",
+    "@btkulka/trellis-client": "file:../../packages/trellis-client",
     "@cloudflare/workers-types": "^5.20261102.1",
     "@eslint/js": "^9.32.0",
     "@types/node": "^22.16.5",

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Loading, Shimmer } from '@/components/ui/tome-loading';
 import { FullScreenSpinner, Notice } from '@/features/auth/guards';
@@ -29,11 +29,27 @@ import { sameVersion, useCached } from '@/lib/cached';
 import { useTable, type TableMessage } from '@/features/maps/useTable';
 import { computeVisibility } from '@/features/maps/vision/overworld';
 import type { MapDoc, MapObject, PathObject, PinObject, TilePoint, TravelPace, Weather } from '@/features/maps/types';
+import { isSounding, type SoundCategory } from '@/features/sound/jukebox';
+import { JukeboxPanel } from '@/features/sound/JukeboxPanel';
+import { SoundLibrary } from '@/features/sound/SoundLibrary';
+import { useTableAudio } from '@/features/sound/useTableAudio';
+import { Eq } from '@/features/sound/ui';
 import { crTier, DIFFICULTY_TIER, EncounterSetupError, rollEncounter, type RolledEncounter } from './encounters';
 
 const WEATHER: Weather[] = ['clear', 'overcast', 'rain', 'storm', 'snow', 'fog'];
 const STEP_MS = 220;
 const NO_OBJECTS: MapObject[] = [];
+
+/** The side panel shows travel or the jukebox; the choice is kept per browser. */
+type Panel = 'travel' | 'sound';
+const PANEL_KEY = 'tome.table.panel';
+function readPanel(): Panel {
+  try {
+    return localStorage.getItem(PANEL_KEY) === 'sound' ? 'sound' : 'travel';
+  } catch {
+    return 'travel';
+  }
+}
 
 interface Board {
   doc: MapDoc;
@@ -85,6 +101,23 @@ function Table({ campaign }: { campaign: SelectedCampaign }) {
   const camera = useRef<CameraApi | null>(null);
   const interruptRef = useRef<Interrupt | null>(null);
   interruptRef.current = interrupt;
+
+  const audio = useTableAudio();
+  const [panel, setPanelState] = useState<Panel>(() => (params.get('panel') === 'sound' ? 'sound' : readPanel()));
+  const [library, setLibrary] = useState<SoundCategory | null>(null);
+  const setPanel = useCallback((next: Panel) => {
+    setPanelState(next);
+    try {
+      localStorage.setItem(PANEL_KEY, next);
+    } catch {
+      // Not remembered past this visit.
+    }
+  }, []);
+  // The top bar's now-playing chip links here with ?panel=sound.
+  const panelParam = params.get('panel');
+  useEffect(() => {
+    if (panelParam === 'sound') setPanel('sound');
+  }, [panelParam, setPanel]);
 
   // Which map: ?map=, else the live session's, else the newest. Kept across visits
   // (lib/cached.ts), so coming back to the table shows it at once and refreshes quietly.
@@ -332,7 +365,24 @@ function Table({ campaign }: { campaign: SelectedCampaign }) {
   };
 
   if (error) return <Notice title="Couldn't open the table"><p className="m-0">{error}</p></Notice>;
-  if (noMaps) return <Notice title="No map to play on" action={<Link to="/maps" className="t-btn self-start">Open the atlas</Link>}><p className="m-0">Generate a region in the atlas first.</p></Notice>;
+  if (noMaps) {
+    // No map yet, but the jukebox still works: music while the players gather.
+    return (
+      <div className="flex h-svh">
+        <div className="min-w-0 flex-1">
+          <Notice title="No map to play on" action={<Link to="/maps" className="t-btn self-start">Open the atlas</Link>}><p className="m-0">Generate a region in the atlas first.</p></Notice>
+        </div>
+        <aside aria-label="Jukebox" className="t-panel relative w-[360px] shrink-0 border-y-0 border-r-0 flex flex-col gap-5 p-5 overflow-y-auto">
+          <JukeboxPanel campaignId={campaign.id} onOpenLibrary={setLibrary} />
+        </aside>
+        {library && (
+          <div className="fixed inset-y-0 right-[360px] z-30 w-[min(540px,calc(100vw-360px))]" style={{ top: 'var(--suite-bar, 0px)' }}>
+            <SoundLibrary campaignId={campaign.id} category={library} onCategory={setLibrary} onClose={() => setLibrary(null)} />
+          </div>
+        )}
+      </div>
+    );
+  }
   if (!doc || !explored) return <FullScreenSpinner label="Setting the table…" />;
 
   const isLive = live?.status === 'live';
@@ -385,7 +435,11 @@ function Table({ campaign }: { campaign: SelectedCampaign }) {
         </div>
         <button type="button" className="t-btn h-10" onClick={() => camera.current && table.send({ type: 'pull', camera: camera.current.getPose() })}>Pull everyone to my view</button>
         {isLive ? (
-          <button type="button" className="t-btn t-btn--danger h-10" disabled={pending.has('session')} onClick={() => act('session', async () => setLive(await mapsApi.updateLive(campaign.id, { status: 'ended' })))}>
+          <button type="button" className="t-btn t-btn--danger h-10" disabled={pending.has('session')} onClick={() => act('session', async () => {
+            setLive(await mapsApi.updateLive(campaign.id, { status: 'ended' }));
+            // The game's over: the music stops with it.
+            audio?.command({ op: 'stopAll' });
+          })}>
             {pending.has('session') ? 'Ending…' : 'End session'}
           </button>
         ) : (
@@ -408,6 +462,8 @@ function Table({ campaign }: { campaign: SelectedCampaign }) {
             route={route?.path ?? null}
             routeStops={schedule?.camps.map((c) => c.atIndex)}
             worldMinutes={minutes}
+            weather={weather}
+            sky={doc.settings.sky}
             pings={pings}
             panButton={0}
             cameraRef={camera}
@@ -432,69 +488,84 @@ function Table({ campaign }: { campaign: SelectedCampaign }) {
           )}
 
           {interrupt && <EncounterPanel interrupt={interrupt} onHalt={() => decide('halt')} onContinue={() => decide('continue')} onReroll={reroll} />}
+          {library && <SoundLibrary campaignId={campaign.id} category={library} onCategory={setLibrary} onClose={() => setLibrary(null)} />}
         </div>
 
-        <aside aria-label="Travel planner" className="t-panel w-[360px] shrink-0 border-y-0 border-r-0 flex flex-col gap-5 p-5 overflow-y-auto">
-          <h2 className="t-h2">Travel</h2>
-          <div className="t-raised flex flex-col">
-            <div className="flex items-center gap-3.5 px-3.5 py-3"><i className="t-diamond" /><span className="flex flex-col"><span className="t-label text-[10px]">From</span><span className="font-semibold">{fromPin?.data.name ?? (party ? `Tile ${party[0]}, ${party[1]}` : 'Place the company')}</span></span></div>
-            <div className="flex items-center gap-3.5 px-3.5 py-3 border-t border-rule"><i className="t-diamond t-diamond--hollow" /><span className="flex flex-col"><span className="t-label text-[10px]">To · click the map</span><span className="font-semibold">{toPin?.data.name ?? (destination ? `Tile ${destination[0]}, ${destination[1]}` : 'Choose a destination')}</span></span></div>
+        <aside aria-label={panel === 'sound' ? 'Jukebox' : 'Travel planner'} className="t-panel w-[360px] shrink-0 border-y-0 border-r-0 flex flex-col">
+          <div role="tablist" aria-label="Side panel" className="ts ts-panel-tabs shrink-0">
+            <button type="button" role="tab" aria-selected={panel === 'travel'} onClick={() => setPanel('travel')}>Travel</button>
+            <button type="button" role="tab" aria-selected={panel === 'sound'} onClick={() => setPanel('sound')}>
+              Sound{isSounding(audio?.jukebox ?? null) && <Eq on />}
+            </button>
           </div>
-
-          <div className="flex flex-col gap-2.5">
-            <span className="t-label">Pace</span>
-            <div role="radiogroup" aria-label="Pace" className="t-seg" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-              {(['slow', 'normal', 'fast'] as TravelPace[]).map((p) => (
-                <button key={p} type="button" role="radio" aria-checked={pace === p} onClick={() => setPace(p)} style={{ height: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                  {p}
-                  <span className="font-text normal-case tracking-normal text-[12px]">{PACE_MPH[p]} mph{p === 'slow' ? ' · stealth' : p === 'fast' ? ' · −5 PP' : ''}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {route && schedule ? (
-            <>
-              <dl className="m-0 grid grid-cols-2 gap-4">
-                <div className="t-stat"><dt>Distance</dt><dd>{route.miles.toFixed(1)} mi</dd></div>
-                <div className="t-stat"><dt>On the road</dt><dd>{formatDuration(route.minutes)}</dd></div>
-                <div className="t-stat col-span-2"><dt>Arrives</dt><dd className="t-num">{formatWorldTime(schedule.arrivesAt)}{isNight(schedule.arrivesAt) && <span className="t-small font-normal"> after dark</span>}</dd></div>
-              </dl>
-              <div className="flex flex-col gap-2.5">
-                <span className="t-label">Ground covered</span>
-                <div className="flex h-2" aria-hidden="true">{breakdown.map(([name, b]) => <span key={name} style={{ flex: b.miles, background: b.color }} />)}</div>
-                <div className="flex flex-wrap gap-3.5 t-small">
-                  {breakdown.map(([name, b]) => <span key={name} className="inline-flex items-center gap-2"><i className="t-diamond" style={{ background: b.color }} />{name} {b.miles.toFixed(1)} mi</span>)}
+          <div className="flex flex-1 flex-col gap-5 p-5 overflow-y-auto">
+            {panel === 'sound' ? (
+              <JukeboxPanel campaignId={campaign.id} onOpenLibrary={setLibrary} />
+            ) : (
+              <>
+                <h2 className="t-h2">Travel</h2>
+                <div className="t-raised flex flex-col">
+                  <div className="flex items-center gap-3.5 px-3.5 py-3"><i className="t-diamond" /><span className="flex flex-col"><span className="t-label text-[10px]">From</span><span className="font-semibold">{fromPin?.data.name ?? (party ? `Tile ${party[0]}, ${party[1]}` : 'Place the company')}</span></span></div>
+                  <div className="flex items-center gap-3.5 px-3.5 py-3 border-t border-rule"><i className="t-diamond t-diamond--hollow" /><span className="flex flex-col"><span className="t-label text-[10px]">To · click the map</span><span className="font-semibold">{toPin?.data.name ?? (destination ? `Tile ${destination[0]}, ${destination[1]}` : 'Choose a destination')}</span></span></div>
                 </div>
-              </div>
-              <div className="t-raised flex flex-col px-3.5 py-1 text-[15px]">
-                <div className="flex justify-between py-2"><span className="t-body">Encounter checks</span><span>{schedule.checks.length}{schedule.camps.length ? ` · ${schedule.camps.length} camp${schedule.camps.length > 1 ? 's' : ''}` : ''}</span></div>
-                <div className="flex justify-between py-2 border-t border-rule"><span className="t-body">Chance each</span><span>{doc.settings.encounters.chancePercent}%</span></div>
-                <div className="flex justify-between py-2 border-t border-rule"><span className="t-body">Night falls at</span><span>{nightFallsAt === null ? 'not on this leg' : `mile ${nightFallsAt.toFixed(0)}`}</span></div>
-              </div>
-            </>
-          ) : (
-            <p className="t-body m-0">{destination && !route ? 'No way there on foot from here.' : 'Click the map to choose where the company goes.'}</p>
-          )}
 
-          <div className="mt-auto flex flex-col gap-2">
-            <button type="button" className="t-btn t-btn--primary t-btn--lg" disabled={!route || Boolean(travelling) || pending.has('camp')} onClick={travel}>
-              {travelling ? `Travelling… ${travelling.step} of ${(route?.path.length ?? 1) - 1}` : 'Set out'}
-            </button>
-            <button type="button" className="t-btn t-btn--quiet" disabled={Boolean(travelling) || !party || pending.has('camp')} onClick={() => act('camp', makeCamp)}>
-              {pending.has('camp') ? 'Making camp…' : 'Make camp until morning'}
-            </button>
-            {!isLive && (
-              <div className="t-field pt-3 border-t border-rule">
-                <span className="t-label">Session</span>
-                <SessionSelect
-                  value={null}
-                  campaignId={campaign.id}
-                  onValueChange={(s) => s && act('link', async () => setLive(await mapsApi.updateLive(campaign.id, { notionSessionId: s.id })))}
-                  placeholder="Link this table to a session…"
-                />
-                {pending.has('link') && <Loading label="Linking the session…" />}
-              </div>
+                <div className="flex flex-col gap-2.5">
+                  <span className="t-label">Pace</span>
+                  <div role="radiogroup" aria-label="Pace" className="t-seg" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+                    {(['slow', 'normal', 'fast'] as TravelPace[]).map((p) => (
+                      <button key={p} type="button" role="radio" aria-checked={pace === p} onClick={() => setPace(p)} style={{ height: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                        {p}
+                        <span className="font-text normal-case tracking-normal text-[12px]">{PACE_MPH[p]} mph{p === 'slow' ? ' · stealth' : p === 'fast' ? ' · −5 PP' : ''}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {route && schedule ? (
+                  <>
+                    <dl className="m-0 grid grid-cols-2 gap-4">
+                      <div className="t-stat"><dt>Distance</dt><dd>{route.miles.toFixed(1)} mi</dd></div>
+                      <div className="t-stat"><dt>On the road</dt><dd>{formatDuration(route.minutes)}</dd></div>
+                      <div className="t-stat col-span-2"><dt>Arrives</dt><dd className="t-num">{formatWorldTime(schedule.arrivesAt)}{isNight(schedule.arrivesAt) && <span className="t-small font-normal"> after dark</span>}</dd></div>
+                    </dl>
+                    <div className="flex flex-col gap-2.5">
+                      <span className="t-label">Ground covered</span>
+                      <div className="flex h-2" aria-hidden="true">{breakdown.map(([name, b]) => <span key={name} style={{ flex: b.miles, background: b.color }} />)}</div>
+                      <div className="flex flex-wrap gap-3.5 t-small">
+                        {breakdown.map(([name, b]) => <span key={name} className="inline-flex items-center gap-2"><i className="t-diamond" style={{ background: b.color }} />{name} {b.miles.toFixed(1)} mi</span>)}
+                      </div>
+                    </div>
+                    <div className="t-raised flex flex-col px-3.5 py-1 text-[15px]">
+                      <div className="flex justify-between py-2"><span className="t-body">Encounter checks</span><span>{schedule.checks.length}{schedule.camps.length ? ` · ${schedule.camps.length} camp${schedule.camps.length > 1 ? 's' : ''}` : ''}</span></div>
+                      <div className="flex justify-between py-2 border-t border-rule"><span className="t-body">Chance each</span><span>{doc.settings.encounters.chancePercent}%</span></div>
+                      <div className="flex justify-between py-2 border-t border-rule"><span className="t-body">Night falls at</span><span>{nightFallsAt === null ? 'not on this leg' : `mile ${nightFallsAt.toFixed(0)}`}</span></div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="t-body m-0">{destination && !route ? 'No way there on foot from here.' : 'Click the map to choose where the company goes.'}</p>
+                )}
+
+                <div className="mt-auto flex flex-col gap-2">
+                  <button type="button" className="t-btn t-btn--primary t-btn--lg" disabled={!route || Boolean(travelling) || pending.has('camp')} onClick={travel}>
+                    {travelling ? `Travelling… ${travelling.step} of ${(route?.path.length ?? 1) - 1}` : 'Set out'}
+                  </button>
+                  <button type="button" className="t-btn t-btn--quiet" disabled={Boolean(travelling) || !party || pending.has('camp')} onClick={() => act('camp', makeCamp)}>
+                    {pending.has('camp') ? 'Making camp…' : 'Make camp until morning'}
+                  </button>
+                  {!isLive && (
+                    <div className="t-field pt-3 border-t border-rule">
+                      <span className="t-label">Session</span>
+                      <SessionSelect
+                        value={null}
+                        campaignId={campaign.id}
+                        onValueChange={(s) => s && act('link', async () => setLive(await mapsApi.updateLive(campaign.id, { notionSessionId: s.id })))}
+                        placeholder="Link this table to a session…"
+                      />
+                      {pending.has('link') && <Loading label="Linking the session…" />}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </aside>

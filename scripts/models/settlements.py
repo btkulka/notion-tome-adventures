@@ -14,6 +14,7 @@ import math
 import bmesh
 from mathutils import Matrix, Vector
 
+import kit
 from kit import Mesh, mix, model, xform
 
 TAU = math.tau
@@ -112,6 +113,7 @@ def insert(m, sub, at=(0, 0, 0), rot=0.0):
     new = [m.bm.verts.new(mat @ v.co) for v in sub.bm.verts]
     for f in sub.bm.faces:
         nf = m.bm.faces.new([new[v.index] for v in f.verts])
+        nf[m.mat] = f[sub.mat]
         for dst, src in zip(nf.loops, f.loops):
             dst[m.col] = src[sub.col]
 
@@ -126,7 +128,7 @@ def place(m, at, rot, build, *args, **kw):
 
 def blob(m, radius, at, scale=1.0, subdiv=1, color='oak', jitter=0.1):
     """An icosphere clump; kit's blob has the same vertex-diffing problem as its insert."""
-    verts = bmesh.ops.create_icosphere(m.bm, subdivisions=subdiv, radius=radius, matrix=Matrix.Identity(4))['verts']
+    verts = kit.sphere(m.bm, subdiv, radius)
     for v in verts:
         v.co *= 1.0 + m.rng.uniform(-0.12, 0.12)
     bmesh.ops.transform(m.bm, matrix=xform(at, (0, 0, 0), scale), verts=verts)
@@ -165,6 +167,7 @@ def parapet_round(m, r, h, seg, wall):
     """Corbelled walk with merlons around a round tower top."""
     m.loft([(h, r), (h + 0.012, r * 1.14), (h + 0.03, r * 1.14), (h + 0.03, r * 0.96), (h + 0.014, r * 0.96)],
            seg=seg, color=wall, jitter=0.05, cap_bottom=False, cap_top=True)
+    seg = kit.dseg(seg)  # the same count the loft above used
     rr = r * 1.05 * math.cos(math.pi / seg)
     for i in range(seg):
         a = (i + 0.5) * TAU / seg

@@ -22,6 +22,7 @@ import { collectEdges } from './gen/pathfind';
 import { mulberry32 } from './gen/prng';
 import { describeTile, pathsThrough, pinsAt, regionNameIndex, sameTile, type FogState } from './inspect';
 import { MapSettingsPanel } from './MapSettingsPanel';
+import { SkySettingsPanel } from './SkySettingsPanel';
 import { PinInspector } from './PinInspector';
 import type { CameraApi } from './render/CameraRig';
 import { MapView, type TileEventInfo, type TileMark } from './render/MapView';
@@ -30,7 +31,7 @@ import { Biome, type BiomeId } from './terrain/biomes';
 import { cloneTerrain, encodeBytes, getBit, setBit } from './terrain/codec';
 import { labelRegions, labelSpot, regionTiles } from './terrain/regions';
 import { connectionMasks } from './terrain/roads';
-import { formatDuration, planRoute } from './travel/travel';
+import { formatDuration, MINUTES_PER_DAY, planRoute } from './travel/travel';
 import { exploredBits, useFog } from './useFog';
 import type { LabelObject, LiveSession, MapDoc, MapObject, PathObject, PinObject, PinType, TerrainGrid, TilePoint } from './types';
 
@@ -58,6 +59,9 @@ const newId = () => crypto.randomUUID();
 /** 'Move Elilhall' → 'move Elilhall', for "Undo move Elilhall". */
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const freshRand = () => mulberry32((Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0);
+
+/** The table's day (Day 1 outside a session) at a chosen hour: the View menu's sky preview. */
+const previewMinutes = (minutes: number | null, hour: number) => Math.floor((minutes ?? 0) / MINUTES_PER_DAY) * MINUTES_PER_DAY + hour * 60;
 
 export default function MapEditorPage() {
   return <CampaignGate>{(campaign) => <Editor campaign={campaign} />}</CampaignGate>;
@@ -106,7 +110,7 @@ function Editor({ campaign }: { campaign: SelectedCampaign }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [measure, setMeasure] = useState<TilePoint[]>([]);
   const [selection, setSelection] = useState<Selection>(null);
-  const [panel, setPanel] = useState<'inspect' | 'settings'>('inspect');
+  const [panel, setPanel] = useState<'inspect' | 'settings' | 'sky'>('inspect');
   const [stroking, setStroking] = useState(false);
   const [panning, setPanning] = useState(false);
   const [erasing, setErasing] = useState<number[]>([]);
@@ -710,7 +714,9 @@ function Editor({ campaign }: { campaign: SelectedCampaign }) {
             fogMode={viewAs}
             isDm={viewAs === 'dm'}
             party={party}
-            worldMinutes={live?.worldMinutes ?? null}
+            worldMinutes={view.skyHour === null ? live?.worldMinutes ?? null : previewMinutes(live?.worldMinutes ?? null, view.skyHour)}
+            weather={view.skyWeather ?? live?.weather ?? 'clear'}
+            sky={doc.settings.sky}
             route={route}
             routeColor={tool === 'river' ? COLORS.river : undefined}
             selectedPinId={selectedPin?.id ?? null}
@@ -804,9 +810,19 @@ function Editor({ campaign }: { campaign: SelectedCampaign }) {
           <div role="tablist" className="t-tabs border-b border-rule">
             <button type="button" role="tab" aria-selected={panel === 'inspect'} className="t-tab flex-1 justify-center" onClick={() => setPanel('inspect')}>Inspect</button>
             <button type="button" role="tab" aria-selected={panel === 'settings'} className="t-tab flex-1 justify-center" onClick={() => setPanel('settings')}>Encounters</button>
+            <button type="button" role="tab" aria-selected={panel === 'sky'} className="t-tab flex-1 justify-center" onClick={() => setPanel('sky')}>Sky</button>
           </div>
           <div className="p-5">
-            {panel === 'settings' ? (
+            {panel === 'sky' ? (
+              <SkySettingsPanel
+                settings={doc.settings}
+                minutes={live?.worldMinutes ?? null}
+                onChange={(settings) => {
+                  setDoc({ ...doc, settings });
+                  scheduleSave();
+                }}
+              />
+            ) : panel === 'settings' ? (
               <MapSettingsPanel
                 terrain={doc.terrain}
                 settings={doc.settings}

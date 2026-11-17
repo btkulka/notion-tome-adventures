@@ -34,3 +34,7 @@ public/notion-files
 
 # Python bytecode from the Blender model scripts (npm run models)
 __pycache__/
+
+# The minis: generated models and their concept art stay out of git (scripts/models/minis makes them again).
+public/models/minis/
+scripts/models/minis/concept/

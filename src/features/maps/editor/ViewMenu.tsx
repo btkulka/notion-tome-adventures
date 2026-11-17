@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { GraphicsSettings } from '../GraphicsSettings';
+import type { Weather } from '../types';
 import type { ViewSettings } from './viewSettings';
+
+const WEATHERS: Weather[] = ['clear', 'overcast', 'rain', 'storm', 'snow', 'fog'];
+
+const clock = (hour: number) => `${String(Math.floor(hour)).padStart(2, '0')}:${String(Math.round((hour % 1) * 60)).padStart(2, '0')}`;
 
 /** A popover opening to the right of a button on the tool rail; closes on outside click or Escape. */
 function Popover({ label, icon, children }: { label: string; icon: ReactNode; children: ReactNode }) {
@@ -53,7 +59,42 @@ export function ViewMenu({ settings, onChange }: { settings: ViewSettings; onCha
         </svg>
       }
     >
-      <span className="t-label">Layers</span>
+      <span className="t-label">Sky</span>
+      <Toggle
+        label="Table's clock"
+        hint={settings.skyHour === null ? 'The sun stands where the session’s time puts it' : 'Previewing an hour of your choosing'}
+        checked={settings.skyHour === null}
+        onChange={(follow) => onChange({ skyHour: follow ? null : 13 })}
+      />
+      <div className={`flex items-center gap-3 ${settings.skyHour === null ? 'opacity-40' : ''}`}>
+        <label htmlFor="sky-hour" className="t-small w-[64px]">Hour</label>
+        <input
+          id="sky-hour"
+          type="range"
+          min={0}
+          max={23.75}
+          step={0.25}
+          disabled={settings.skyHour === null}
+          value={settings.skyHour ?? 13}
+          onChange={(e) => onChange({ skyHour: Number(e.target.value) })}
+          className="t-range flex-1"
+        />
+        <span className="t-num text-[13px] w-[44px] text-right">{clock(settings.skyHour ?? 13)}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <label htmlFor="sky-weather" className="t-small w-[64px]">Weather</label>
+        <select
+          id="sky-weather"
+          className="t-input h-8 text-[14px] flex-1"
+          value={settings.skyWeather ?? ''}
+          onChange={(e) => onChange({ skyWeather: (e.target.value || null) as Weather | null })}
+        >
+          <option value="">The table’s</option>
+          {WEATHERS.map((w) => <option key={w} value={w}>{w}</option>)}
+        </select>
+      </div>
+      <div className="mt-1 flex flex-col"><GraphicsSettings /></div>
+      <span className="t-label mt-1">Layers</span>
       <Toggle label="Grid" hint="Tile lines on the ground (G)" checked={settings.grid} onChange={(grid) => onChange({ grid })} />
       <div className={`flex items-center gap-3 ${settings.grid ? '' : 'opacity-40'}`}>
         <label htmlFor="grid-opacity" className="t-small w-[64px]">Strength</label>

@@ -10,6 +10,7 @@ import math
 import bmesh
 from mathutils import Vector
 
+import kit
 from kit import Mesh, mix, model, shade
 
 GOLDEN = math.pi * (3 - math.sqrt(5))
@@ -33,7 +34,7 @@ def shell(rng, n, radii, at=(0, 0, 0), rough=0.1, wobble=0.18):
     """n points spread over an ellipsoid, each pushed in or out a little."""
     rx, ry, rz = radii
     pts = []
-    for d in even(n, rng.uniform(0, math.tau)):
+    for d in even(kit.dpoints(n), rng.uniform(0, math.tau)):
         d = (d + Vector((rng.uniform(-wobble, wobble), rng.uniform(-wobble, wobble), rng.uniform(-wobble, wobble)))).normalized()
         k = rng.uniform(1 - rough, 1 + rough)
         pts.append(Vector(at) + Vector((d.x * rx, d.y * ry, d.z * rz)) * k)
@@ -658,6 +659,7 @@ def column_plan(rng, height, base, seg, blocks, at=(0, 0)):
 
 
 def ring_points(z, r, dx, dy, phase, seg, at, wob):
+    seg = kit.dseg(seg)
     x, y = at
     return [Vector((x + dx + math.cos(phase + i * math.tau / seg) * r * wob[i % len(wob)],
                     y + dy + math.sin(phase + i * math.tau / seg) * r * wob[(i + 2) % len(wob)], z)) for i in range(seg)]
@@ -731,10 +733,10 @@ def basalt_segment(m, r, z0, z1, at, phase, slope, slope_dir, side, seg=6, tide=
     x, y = at
     if lie is not None:
         faces = m.loft([(0.0, r), (z1 - z0, r)], seg=seg, phase=phase, at=(x, y, r * 0.86), rot=(math.pi / 2, 0, lie),
-                       color=side, jitter=0.1)
+                       color=side, jitter=0.1, exact=True)  # basalt is hexagonal by nature
     else:
         rings = [(z0, r, x, y), (TIDE, r, x, y), (z1, r, x, y)] if tide else [(z0, r, x, y), (z1, r, x, y)]
-        faces = m.loft(rings, seg=seg, phase=phase, color=side, jitter=0.15, cap_bottom=False, wobble=0.05)
+        faces = m.loft(rings, seg=seg, phase=phase, color=side, jitter=0.15, cap_bottom=False, wobble=0.05, exact=True)
         for v in m.verts_of(faces):
             if v.co.z > z1 - 1e-6:
                 v.co.z += slope * ((v.co.x - x) * math.cos(slope_dir) + (v.co.y - y) * math.sin(slope_dir))

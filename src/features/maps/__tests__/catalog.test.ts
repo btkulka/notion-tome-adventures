@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { farName, MODEL_NAMES, MODELS_URL } from '../render/catalog';
+import { farName, MODEL_NAMES, MODEL_URLS } from '../render/catalog';
 
 /** Node names from a GLB's JSON chunk. */
 function nodeNames(file: string): string[] {
@@ -12,18 +12,21 @@ function nodeNames(file: string): string[] {
   return json.nodes.map((n) => n.name);
 }
 
-describe('world-props.glb', () => {
-  const names = new Set(nodeNames(path.join(process.cwd(), 'public', MODELS_URL)));
+// Every model detail tier is a separate GLB; each must match the catalog exactly.
+for (const [tier, url] of Object.entries(MODEL_URLS)) {
+  describe(`${url} (${tier} detail)`, () => {
+    const names = new Set(nodeNames(path.join(process.cwd(), 'public', url)));
 
-  it('holds every catalog model and its far version', () => {
-    for (const name of MODEL_NAMES) {
-      expect(names.has(name), name).toBe(true);
-      expect(names.has(farName(name)), farName(name)).toBe(true);
-    }
-  });
+    it('holds every catalog model and its far version', () => {
+      for (const name of MODEL_NAMES) {
+        expect(names.has(name), name).toBe(true);
+        expect(names.has(farName(name)), farName(name)).toBe(true);
+      }
+    });
 
-  it('holds nothing the catalog leaves out', () => {
-    const known = new Set<string>(MODEL_NAMES.flatMap((n) => [n, farName(n)]));
-    expect([...names].filter((n) => !known.has(n))).toEqual([]);
+    it('holds nothing the catalog leaves out', () => {
+      const known = new Set<string>(MODEL_NAMES.flatMap((n) => [n, farName(n)]));
+      expect([...names].filter((n) => !known.has(n))).toEqual([]);
+    });
   });
-});
+}
