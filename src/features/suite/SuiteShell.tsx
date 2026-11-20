@@ -32,6 +32,12 @@ const TOOLS = [
     hint: 'Coins and magic items, carried or hoarded',
     icon: 'M3 10h18v10H3z M4 10V7l3-3h10l3 3v3 M10 13h4v3h-4z',
   },
+  {
+    to: '/maps/models',
+    label: 'Models library',
+    hint: 'Every map prop and miniature, to browse and turn in 3D',
+    icon: 'M12 2 21 7v10l-9 5-9-5V7z M3 7l9 5 9-5 M12 12v10',
+  },
 ];
 const TOOLS_ICON = 'M12 2 21 7v10l-9 5-9-5V7z M12 7 7.5 15h9z';
 

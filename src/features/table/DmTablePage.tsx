@@ -8,6 +8,7 @@ import { SessionSelect } from '@/components/ui/session-select';
 import { mapsApi } from '@/features/maps/api';
 import { collectEdges, edgeKey } from '@/features/maps/gen/pathfind';
 import { MapView } from '@/features/maps/render/MapView';
+import { GraphicsMenu } from '@/features/maps/GraphicsSettings';
 import type { CameraApi } from '@/features/maps/render/CameraRig';
 import type { Ping } from '@/features/maps/render/Overlays';
 import { BIOMES, type BiomeId } from '@/features/maps/terrain/biomes';
@@ -480,6 +481,9 @@ function Table({ campaign }: { campaign: SelectedCampaign }) {
             <button type="button" className={`t-btn t-overlay h-10 ${marking ? 'text-gilt-hi' : ''}`} aria-pressed={marking} onClick={() => setMarking((m) => !m)}>
               <i className="t-diamond tier-azure" />{marking ? 'Click a spot' : 'Mark a spot'}
             </button>
+          </div>
+          <div className="absolute bottom-4 right-4 t-overlay">
+            <GraphicsMenu />
           </div>
           {!party && (
             <div className="t-overlay absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2.5">

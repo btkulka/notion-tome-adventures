@@ -14,6 +14,9 @@ const FAR_ZOOM = 30;
 /** Far-view batches cover this many chunks a side, so a zoomed-out map stays a few hundred draws. */
 const FAR_SPAN = 2;
 
+/** Props that stand at pins (settlements and landmarks), as opposed to scattered trees and rocks. */
+const PIN_PROP = /^(village|town|city|castle|stones|monolith|ruin|dwarfgate|elfspire|bones|waystone|shrine|dungeon|cave|wizardtower|camp|temple|banner)-/;
+
 const PIN_CODES: PinType[] = ['village', 'town', 'city', 'castle', 'ruin', 'dungeon', 'cave', 'tower', 'shrine', 'camp', 'landmark', 'encounter'];
 
 interface Batch {
@@ -32,8 +35,9 @@ function buildBatches(placements: PropPlacements, geometry: (name: string) => TH
   for (const [name, items] of Object.entries(placements)) {
     const hi = geometry(name);
     if (!hi || !items?.length) continue;
-    // Up close a prop with a miniature draws it; far away everything keeps the low-poly version.
-    const mini = far ? undefined : minis?.get(name);
+    // A prop with a miniature draws it up close. Far away, trees and ground cover keep their
+    // low-poly versions (hundreds of them), but settlements and landmarks, a handful at their pins, stay minis.
+    const mini = far && !PIN_PROP.test(name) ? undefined : minis?.get(name);
     const geo = mini ? mini.geometry : far ? geometry(farName(name as keyof PropPlacements)) ?? hi : hi;
     const mesh = new THREE.InstancedMesh(geo, mini ? mini.material : far ? propMaterialFar : propMaterial, items.length);
     mesh.raycast = () => {};
@@ -172,7 +176,7 @@ export function Props3D({
         }
       }
       dispose(s.farBuilt.get(farId));
-      const built = buildBatches(merged, geometry, true, null);
+      const built = buildBatches(merged, geometry, true, minis);
       s.far.add(built.group);
       s.farBuilt.set(farId, built);
       fresh.push(...built.batches);

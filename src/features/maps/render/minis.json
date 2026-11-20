@@ -64,5 +64,29 @@
   "url": "/models/minis/fir-3.glb",
   "triangles": 23999,
   "concept": "/models/minis/concept/fir-3.jpg"
+ },
+ {
+  "name": "town-desert",
+  "url": "/models/minis/town-desert.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/town-desert.jpg"
+ },
+ {
+  "name": "town-marsh",
+  "url": "/models/minis/town-marsh.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/town-marsh.jpg"
+ },
+ {
+  "name": "town-north",
+  "url": "/models/minis/town-north.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/town-north.jpg"
+ },
+ {
+  "name": "village-temperate",
+  "url": "/models/minis/village-temperate.glb",
+  "triangles": 150000,
+  "concept": "/models/minis/concept/village-temperate.jpg"
  }
 ]

@@ -10,6 +10,7 @@
  *   npm run minis -- --next             # the next prop with art and no model yet, on that GPU, then its preview
  *   npm run minis -- --names fir-1      # that prop (--redo to make it again)
  *   npm run minis -- --down             # terminates the GPU
+ *   npm run minis -- --watch            # the queue as a long-running process: --next for each new image, GPU off after 25 idle min
  * All at once, with no GPU up:
  *   npm run minis -- --yes              # rents, models every prop with art and no model yet, terminates
  *
@@ -63,6 +64,8 @@ const { values } = parseArgs({
     up: { type: 'boolean' },
     next: { type: 'boolean' },
     down: { type: 'boolean' },
+    watch: { type: 'boolean' },
+    'idle-minutes': { type: 'string', default: '25' },
     names: { type: 'string' },
     redo: { type: 'boolean' },
     model: { type: 'string', default: 'trellis2' },
@@ -148,13 +151,13 @@ function printPlan(plan) {
 
 // -- --down ---------------------------------------------------------------------
 
-if (values.down) {
+async function down() {
   let s;
   try {
     s = JSON.parse(fs.readFileSync(SESSION, 'utf8'));
   } catch {
     console.log('No minis GPU is up.');
-    process.exit(0);
+    return;
   }
   const client = createRunPodClient({ apiKey: await apiKeyOrExit() });
   await client.terminate(s.podId).catch((e) => console.log(`RunPod: ${e.message}`));
@@ -162,6 +165,48 @@ if (values.down) {
   fs.rmSync(SESSION, { force: true });
   const mins = Math.round((Date.now() - s.startedAt) / 60_000);
   console.log(`Terminated ${s.podId} (${s.gpu}) after ${mins} min, about $${((mins / 60) * s.rate).toFixed(2)}.`);
+}
+
+if (values.down) {
+  await down();
+  process.exit(0);
+}
+
+// -- --watch: the queue, as its own long-running process ------------------------------
+// Models each new concept image on the GPU left up by --up, one at a time, and
+// terminates the GPU after --idle-minutes (25) with nothing to model. Started
+// detached (Start-Process), it outlives Claude's session, whose restarts end
+// its background shells. A file named tome-minis-stop in the temp dir stops it.
+
+if (values.watch) {
+  const STOP = path.join(os.tmpdir(), 'tome-minis-stop');
+  fs.rmSync(STOP, { force: true });
+  const idleLimit = Number(values['idle-minutes']) * 60_000;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const stamp = () => new Date().toLocaleTimeString();
+  console.log(`${stamp()} watching ${rel(CONCEPT)} (GPU off after ${values['idle-minutes']} idle min)`);
+  let idleSince = Date.now();
+  while (!fs.existsSync(STOP)) {
+    if (!readSession()) {
+      idleSince = Date.now();
+      await sleep(20_000);
+      continue;
+    }
+    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--next'], { cwd: ROOT, encoding: 'utf8' });
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    if (/ 0 to model/.test(out)) {
+      if (Date.now() - idleSince > idleLimit) {
+        console.log(`${stamp()} idle ${values['idle-minutes']} min: terminating the GPU`);
+        await down();
+        idleSince = Date.now();
+      }
+      await sleep(15_000);
+      continue;
+    }
+    console.log(`${stamp()}\n${out.replace(/^Fra:.*\n|^.*\| INFO: .*\n/gm, '')}`);
+    idleSince = Date.now();
+  }
+  console.log(`${stamp()} stopped`);
   process.exit(0);
 }
 

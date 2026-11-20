@@ -31,7 +31,8 @@ each prop brings its own format, palette and twist.
 > chunky hand-sculpted forms, a strong gesture), angular and ancient, never cute or chibi. The four must be extremely
 > different from each other: different silhouette, proportions, architecture or growth, age and condition. One object
 > per image, centred, entirely visible with nothing cropped, a three-quarter view from slightly above, on a plain light
-> grey seamless background, soft even light with no harsh shadows, matte, no glow, no text or letters. No display base
+> grey seamless background, soft even light with no harsh shadows, matte, no glow, no text or letters, no people,
+> creatures or animals (the map has its own tokens; tiny figures model as lumps). No display base
 > or plinth (a settlement may stand on a thin, irregular patch of its own ground). Clean silhouette, flat light, clearly
 > distinct material zones: these feed an image-to-3D model.
 

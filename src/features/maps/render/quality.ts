@@ -77,11 +77,19 @@ export function readModelDetail(): ModelDetail {
     const saved = localStorage.getItem(MODEL_KEY);
     // The first ladder's 'standard' and 'high' were retired; 'high' is today's Low.
     if (saved === 'low' || saved === 'standard' || saved === 'high') return 'low';
-    if (saved === 'minis') return 'minis';
-    return 'medium';
+    if (saved === 'minis' || saved === 'medium') return saved;
+    return defaultDetail();
   } catch {
-    return 'medium';
+    return defaultDetail();
   }
+}
+
+/**
+ * Unset, a desktop (a fine pointer) starts on Minis and a phone or tablet on
+ * Medium: the miniatures are a few megabytes each.
+ */
+function defaultDetail(): ModelDetail {
+  return typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches ? 'minis' : 'medium';
 }
 
 export function useModelDetail(): [ModelDetail, (d: ModelDetail) => void] {
