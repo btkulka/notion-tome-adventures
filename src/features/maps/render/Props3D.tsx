@@ -6,6 +6,7 @@ import { farName } from './catalog';
 import { allChunks, changedTiles, chunkBounds, chunkId, dirtyChunks } from './chunks';
 import { propMaterial, propMaterialFar, usePropGeometry, usePropMinis, type PropMini } from './models';
 import { placePropsInBlocks, type Placement, type PropOptions, type PropPlacements } from './props';
+import { canBuildInBackground, IN_PLACE_CHUNKS, placePropsInBackground } from './workers';
 import { fogTint, type FogMode } from './tint';
 
 /** Below this zoom (pixels per tile) every prop draws its far version. */
@@ -113,13 +114,16 @@ export function Props3D({
     farBuilt: Map<number, Built>;
     geometry: unknown;
     minis: unknown;
+    /** The placement each chunk waits for, so a late background result never overwrites a newer one. */
+    build: number;
+    awaiting: Map<number, number>;
   } | null>(null);
   if (!state.current) {
     const root = new THREE.Group();
     const near = new THREE.Group();
     const far = new THREE.Group();
     root.add(near, far);
-    state.current = { root, near, far, inputs: null, placements: new Map(), nearBuilt: new Map(), farBuilt: new Map(), geometry: null, minis: null };
+    state.current = { root, near, far, inputs: null, placements: new Map(), nearBuilt: new Map(), farBuilt: new Map(), geometry: null, minis: null, build: 0, awaiting: new Map() };
   }
   const look = useRef({ fade, fogMode });
   look.current = { fade, fogMode };
@@ -157,36 +161,62 @@ export function Props3D({
     s.minis = minis;
     if (dirty.length === 0) return;
 
-    const placed = placePropsInBlocks(terrain, seed, options, dirty.map(chunkBounds));
-    const fresh: Batch[] = [];
-    const farDirty = new Set<number>();
-    dirty.forEach((id, n) => {
-      s.placements.set(id, placed[n]);
-      dispose(s.nearBuilt.get(id));
-      const built = buildBatches(placed[n], geometry, false, minis);
-      s.near.add(built.group);
-      s.nearBuilt.set(id, built);
-      fresh.push(...built.batches);
-      farDirty.add(chunkId(Math.floor((id % 4096) / FAR_SPAN), Math.floor(Math.floor(id / 4096) / FAR_SPAN)));
-    });
-    for (const farId of farDirty) {
-      const fx = farId % 4096;
-      const fy = Math.floor(farId / 4096);
-      const merged: PropPlacements = {};
-      for (let dy = 0; dy < FAR_SPAN; dy++) {
-        for (let dx = 0; dx < FAR_SPAN; dx++) {
-          const part = s.placements.get(chunkId(fx * FAR_SPAN + dx, fy * FAR_SPAN + dy));
-          if (!part) continue;
-          for (const [name, items] of Object.entries(part)) (merged[name as keyof PropPlacements] ??= []).push(...items!);
-        }
-      }
-      dispose(s.farBuilt.get(farId));
-      const built = buildBatches(merged, geometry, true, minis);
-      s.far.add(built.group);
-      s.farBuilt.set(farId, built);
-      fresh.push(...built.batches);
+    // Small edits place in place, at once; bigger jobs go to the background builders and land in parts.
+    const build = ++s.build;
+    for (const id of dirty) s.awaiting.set(id, build);
+    if (dirty.length <= IN_PLACE_CHUNKS || !canBuildInBackground()) {
+      apply(dirty, placePropsInBlocks(terrain, seed, options, dirty.map(chunkBounds)));
+      return;
     }
-    dress(fresh, look.current.fade, look.current.fogMode);
+    // Not cancelled when the inputs change again: each chunk takes only the placement it awaits.
+    placePropsInBackground(
+      terrain,
+      seed,
+      options,
+      dirty,
+      (ids, placed) => {
+        const mine = ids.map((id, n) => [id, placed[n]] as const).filter(([id]) => s.awaiting.get(id) === build);
+        if (mine.length) apply(mine.map(([id]) => id), mine.map(([, p]) => p));
+      },
+      (message) => {
+        console.warn('Tome: background prop placement failed, placing in place:', message);
+        const left = dirty.filter((id) => s.awaiting.get(id) === build);
+        apply(left, placePropsInBlocks(terrain, seed, options, left.map(chunkBounds)));
+      }
+    );
+
+    /** Builds the instanced props for these chunks, and the merged far batches they fall in. */
+    function apply(ids: number[], placed: PropPlacements[]) {
+      const fresh: Batch[] = [];
+      const farDirty = new Set<number>();
+      ids.forEach((id, n) => {
+        s.placements.set(id, placed[n]);
+        dispose(s.nearBuilt.get(id));
+        const built = buildBatches(placed[n], geometry, false, minis);
+        s.near.add(built.group);
+        s.nearBuilt.set(id, built);
+        fresh.push(...built.batches);
+        farDirty.add(chunkId(Math.floor((id % 4096) / FAR_SPAN), Math.floor(Math.floor(id / 4096) / FAR_SPAN)));
+      });
+      for (const farId of farDirty) {
+        const fx = farId % 4096;
+        const fy = Math.floor(farId / 4096);
+        const merged: PropPlacements = {};
+        for (let dy = 0; dy < FAR_SPAN; dy++) {
+          for (let dx = 0; dx < FAR_SPAN; dx++) {
+            const part = s.placements.get(chunkId(fx * FAR_SPAN + dx, fy * FAR_SPAN + dy));
+            if (!part) continue;
+            for (const [name, items] of Object.entries(part)) (merged[name as keyof PropPlacements] ??= []).push(...items!);
+          }
+        }
+        dispose(s.farBuilt.get(farId));
+        const built = buildBatches(merged, geometry, true, minis);
+        s.far.add(built.group);
+        s.farBuilt.set(farId, built);
+        fresh.push(...built.batches);
+      }
+      dress(fresh, look.current.fade, look.current.fogMode);
+    }
   }, [terrain, seed, options, geometry, minis]);
 
   // Fog changes re-dress every instance.
@@ -209,6 +239,8 @@ export function Props3D({
       s.nearBuilt.clear();
       s.farBuilt.clear();
       s.inputs = null;
+      // Background placements still on their way land nowhere.
+      s.awaiting.clear();
     },
     []
   );

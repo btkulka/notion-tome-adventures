@@ -1,10 +1,12 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { TerrainGrid } from '../types';
 import { allChunks, changedTiles, chunkBounds, dirtyChunks } from './chunks';
-import { buildTerrainMeshes, type SurfaceKey, type TerrainExtras } from './geometry';
+import { buildTerrainMeshes, type MeshData, type SurfaceKey, type TerrainExtras } from './geometry';
+import type { PackedMesh } from './meshWorker';
+import { buildMeshesInBackground, canBuildInBackground, IN_PLACE_CHUNKS } from './workers';
 import { LAYER_TEXTURE } from './layers';
 import { fogMistMaterial, fogMistUniforms, updateFogMist } from './clouds';
 import { fadeMarks, withOverlay, type OverlayUniforms } from './overlay';
@@ -31,7 +33,7 @@ const SHADOWS: Partial<Record<SurfaceKey, { cast: boolean; receive: boolean }>> 
 interface ChunkMesh {
   key: SurfaceKey;
   geometry: THREE.BufferGeometry;
-  tiles: number[];
+  tiles: ArrayLike<number>;
 }
 
 interface Chunk {
@@ -43,6 +45,7 @@ interface Chunk {
 interface Inputs {
   width: number;
   height: number;
+  detail: TerrainExtras['detail'];
   layers: (Uint8Array | Uint16Array)[];
 }
 
@@ -53,6 +56,7 @@ function inputsOf(terrain: TerrainGrid, extras: TerrainExtras): Inputs {
   return {
     width: terrain.width,
     height: terrain.height,
+    detail: extras.detail,
     layers: [
       terrain.heights.slice(), terrain.biomes.slice(), terrain.elevation?.slice() ?? new Uint16Array(size),
       extras.roads?.slice() ?? new Uint8Array(size), extras.rivers?.slice() ?? new Uint8Array(size), paved,
@@ -61,35 +65,52 @@ function inputsOf(terrain: TerrainGrid, extras: TerrainExtras): Inputs {
   };
 }
 
+/** A chunk's meshes as geometry, from the builder's arrays (built here, or packed by a worker). */
+function chunkOf(id: number, meshes: (PackedMesh | (MeshData & { key: string }))[]): Chunk {
+  return {
+    id,
+    meshes: meshes.map((data) => {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normals, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data.uvs, 2));
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(data.tiles.length * 3).fill(1), 3));
+      if (data.indices) geometry.setIndex(new THREE.BufferAttribute(data.indices instanceof Uint32Array ? data.indices : new Uint32Array(data.indices), 1));
+      geometry.computeBoundingSphere();
+      return { key: data.key as SurfaceKey, geometry, tiles: data.tiles };
+    }),
+  };
+}
+
 function buildChunk(terrain: TerrainGrid, extras: TerrainExtras, id: number): Chunk {
   const built = buildTerrainMeshes(terrain, extras, chunkBounds(id));
-  const meshes = Object.entries(built).map(([key, data]) => {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(data!.positions, 3));
-    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data!.normals, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data!.uvs, 2));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(data!.tiles.length * 3).fill(1), 3));
-    if (data!.indices) geometry.setIndex(data!.indices);
-    geometry.computeBoundingSphere();
-    return { key: key as SurfaceKey, geometry, tiles: data!.tiles };
-  });
-  return { id, meshes };
+  return chunkOf(id, Object.entries(built).map(([key, data]) => ({ key, ...data! })));
 }
 
 /**
  * Terrain chunks that rebuild only where the ground, roads, rivers or paving
- * changed since the last render: a brush stroke touches a chunk or four, not
- * the whole map.
+ * changed since the last render: a brush stroke touches a chunk or four and
+ * rebuilds in place, at once. Bigger jobs (loading a map, regenerating it) go
+ * to the background builders (workers.ts) and land chunk by chunk, the old
+ * ones staying up meanwhile. Each chunk remembers which build it's waiting for,
+ * so a late background result never overwrites a newer edit.
  */
 function useTerrainChunks(terrain: TerrainGrid, extras: TerrainExtras): Chunk[] {
-  const cache = useRef<{ inputs: Inputs | null; chunks: Map<number, Chunk>; retired: THREE.BufferGeometry[] }>({ inputs: null, chunks: new Map(), retired: [] });
+  const cache = useRef<{
+    inputs: Inputs | null;
+    chunks: Map<number, Chunk>;
+    retired: THREE.BufferGeometry[];
+    build: number;
+    awaiting: Map<number, number>;
+  }>({ inputs: null, chunks: new Map(), retired: [], build: 0, awaiting: new Map() });
+  const [landed, setLanded] = useState(0);
 
-  const chunks = useMemo(() => {
+  useMemo(() => {
     const c = cache.current;
     const next = inputsOf(terrain, extras);
     const prev = c.inputs;
     let dirty: Iterable<number>;
-    if (!prev || prev.width !== next.width || prev.height !== next.height) {
+    if (!prev || prev.width !== next.width || prev.height !== next.height || prev.detail !== next.detail) {
       for (const chunk of c.chunks.values()) c.retired.push(...chunk.meshes.map((m) => m.geometry));
       c.chunks.clear();
       dirty = allChunks(terrain.width, terrain.height);
@@ -97,14 +118,47 @@ function useTerrainChunks(terrain: TerrainGrid, extras: TerrainExtras): Chunk[] 
       const changed = changedTiles(prev.layers.map((layer, n) => [layer, next.layers[n]] as [ArrayLike<number>, ArrayLike<number>]), terrain.width * terrain.height);
       dirty = dirtyChunks(changed, terrain.width, terrain.height);
     }
-    for (const id of dirty) {
-      const old = c.chunks.get(id);
+    const ids = [...dirty];
+    const build = ++c.build;
+    const replace = (chunk: Chunk) => {
+      const old = c.chunks.get(chunk.id);
       if (old) c.retired.push(...old.meshes.map((m) => m.geometry));
-      c.chunks.set(id, buildChunk(terrain, extras, id));
+      c.chunks.set(chunk.id, chunk);
+    };
+    if (ids.length <= IN_PLACE_CHUNKS || !canBuildInBackground()) {
+      for (const id of ids) {
+        c.awaiting.set(id, build);
+        replace(buildChunk(terrain, extras, id));
+      }
+    } else {
+      for (const id of ids) c.awaiting.set(id, build);
+      buildMeshesInBackground(
+        terrain,
+        extras,
+        ids,
+        (parts) => {
+          let any = false;
+          for (const part of parts) {
+            if (c.awaiting.get(part.id) !== build) continue; // a newer build owns this chunk now
+            replace(chunkOf(part.id, part.meshes));
+            any = true;
+          }
+          if (any) setLanded((n) => n + 1);
+        },
+        (message) => {
+          // A builder failed: build what it was doing here instead.
+          console.warn('Tome: background terrain build failed, building in place:', message);
+          for (const id of ids) if (c.awaiting.get(id) === build) replace(buildChunk(terrain, extras, id));
+          setLanded((n) => n + 1);
+        }
+      );
     }
     c.inputs = next;
-    return [...c.chunks.values()];
   }, [terrain, extras]);
+
+  // The list changes when an edit rebuilt chunks above (terrain, extras) or background chunks landed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const chunks = useMemo(() => [...cache.current.chunks.values()], [terrain, extras, landed]);
 
   useEffect(() => {
     const c = cache.current;
@@ -115,6 +169,8 @@ function useTerrainChunks(terrain: TerrainGrid, extras: TerrainExtras): Chunk[] 
   useEffect(
     () => () => {
       for (const chunk of cache.current.chunks.values()) chunk.meshes.forEach((m) => m.geometry.dispose());
+      // Background chunks still on their way land nowhere.
+      cache.current.awaiting.clear();
     },
     []
   );

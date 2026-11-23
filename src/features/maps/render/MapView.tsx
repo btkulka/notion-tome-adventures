@@ -108,6 +108,51 @@ function Loaded({ onLoad }: { onLoad: () => void }) {
   return null;
 }
 
+/** How long (ms) after the last touch, wheel or key a map counts as quiet. */
+const QUIET_AFTER = 2500;
+/** Frames a second a quiet map draws at on Standard quality. */
+const QUIET_FPS = 30;
+
+/**
+ * Drives the canvas's frames on Standard quality (the canvas runs with
+ * frameloop "never"): full rate while the map is being moved, QUIET_FPS once
+ * it's been left alone, so a phone or laptop isn't drawing water and mist at 60
+ * frames a second for nobody.
+ */
+function FramePace() {
+  const advance = useThree((state) => state.advance);
+  const gl = useThree((state) => state.gl);
+  const clock = useThree((state) => state.clock);
+  useEffect(() => {
+    // advance() takes the clock's time in seconds: carry on from where the clock is, not from the page's age.
+    const base = clock.elapsedTime - performance.now() / 1000;
+    let raf = 0;
+    let last = 0;
+    let busyUntil = performance.now() + QUIET_AFTER;
+    const busy = () => {
+      busyUntil = performance.now() + QUIET_AFTER;
+    };
+    const el = gl.domElement;
+    const events = ['pointerdown', 'pointermove', 'wheel', 'touchstart'] as const;
+    events.forEach((e) => el.addEventListener(e, busy, { passive: true }));
+    window.addEventListener('keydown', busy);
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      if (now < busyUntil || now - last >= 1000 / QUIET_FPS - 2) {
+        last = now;
+        advance(base + now / 1000);
+      }
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      events.forEach((e) => el.removeEventListener(e, busy));
+      window.removeEventListener('keydown', busy);
+    };
+  }, [advance, gl, clock]);
+  return null;
+}
+
 const info = (e: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean; clientX: number; clientY: number }): TileEventInfo => ({
   shift: e.shiftKey,
   alt: e.altKey,
@@ -160,6 +205,9 @@ export function MapView(props: MapViewProps) {
   const paths = useMemo(() => objects.filter((o): o is PathObject => o.type === 'path'), [objects]);
   const labels = useMemo(() => objects.filter((o): o is LabelObject => o.type === 'label'), [objects]);
 
+  // How finely the map renders (quality.ts): Standard also builds the ground coarser.
+  const [quality] = useRenderQuality();
+
   // Rivers and roads as curves cut into the ground; they run through the middle of every settlement's square.
   const towns = useMemo(
     () => new Set(pins.filter((p) => isSettlement(p.data.pinType)).map((p) => Math.floor(p.y) * terrain.width + Math.floor(p.x))),
@@ -179,8 +227,9 @@ export function MapView(props: MapViewProps) {
       paved: new Set(sites.filter((s) => isSettlement(s.pinType)).map((s) => s.y * W + s.x)),
       sites,
       channels,
+      detail: quality === 'standard' ? ('low' as const) : ('normal' as const),
     };
-  }, [terrain, pins, paths, fogMode, channels]);
+  }, [terrain, pins, paths, fogMode, channels, quality]);
 
   // Players only see pins and names on ground they know.
   const known = useCallback((x: number, y: number) => !fade || fogMode !== 'player' || fade[Math.floor(y) * terrain.width + Math.floor(x)] < 0.75, [fade, fogMode, terrain.width]);
@@ -212,7 +261,6 @@ export function MapView(props: MapViewProps) {
     applyMarks(overlay, all);
   }, [overlay, highlight, marks]);
 
-  const [quality] = useRenderQuality();
   // High quality steps down for this map if the frame rate can't hold it: first the
   // supersampling (1), then the sun's shadows (2).
   const [throttle, setThrottle] = useState(0);
@@ -334,7 +382,15 @@ export function MapView(props: MapViewProps) {
       onDrop={drop}
       onDragLeave={dragLeave}
     >
-      <Canvas orthographic shadows="percentage" camera={{ zoom: 20, near: 0.1, far: 1000, position: [100, 100, 100] }} dpr={dpr} gl={{ antialias: true }}>
+      <Canvas
+        orthographic
+        shadows="percentage"
+        camera={{ zoom: 20, near: 0.1, far: 1000, position: [100, 100, 100] }}
+        dpr={dpr}
+        gl={{ antialias: true }}
+        frameloop={quality === 'standard' ? 'never' : 'always'}
+      >
+        {quality === 'standard' && <FramePace />}
         {/* Measured afresh after each step down (keyed), so one slow moment doesn't take both. */}
         {quality === 'high' && throttle < 2 && <PerformanceMonitor key={throttle} onDecline={() => setThrottle((t) => Math.min(2, t + 1))} />}
         <CameraRig width={terrain.width} height={terrain.height} panButton={panButton} apiRef={cameraRef} initial={initialCamera} onPoseChange={onCameraChange} onGrab={setGrab} />

@@ -46,6 +46,8 @@ export interface TerrainExtras {
   paved?: Set<number>;
   /** Rivers and roads as curves (channels.ts): drawn as ribbons, carved into the ground. */
   channels?: Channels;
+  /** 'low' builds the ground a step coarser (Standard quality: phones, tablets, small machines). */
+  detail?: 'low' | 'normal';
 }
 
 /** Tiles per repeat of a top texture. */
@@ -61,9 +63,13 @@ const RIVER_LIFT = 0.004;
 /** Bridge deck: thickness under the road, parapet height, and how much wider than the road. */
 const DECK = { thick: 0.06, parapet: 0.035, widen: 1.35 };
 
-/** Quads per cell side: fewer on big maps so the vertex count stays near a quarter million per 128 × 128. */
-export function subdivisions(terrain: TerrainGrid): number {
-  return Math.max(terrain.width, terrain.height) > 160 ? 3 : 4;
+/**
+ * Quads per cell side: fewer on big maps so the vertex count stays near a quarter
+ * million per 128 × 128, and a step fewer again at low detail.
+ */
+export function subdivisions(terrain: TerrainGrid, detail: 'low' | 'normal' = 'normal'): number {
+  const big = Math.max(terrain.width, terrain.height) > 160;
+  return detail === 'low' ? (big ? 2 : 3) : big ? 3 : 4;
 }
 
 type V3 = [number, number, number];
@@ -134,7 +140,7 @@ export function buildTerrainMeshes(terrain: TerrainGrid, extras: TerrainExtras =
   const x0 = Math.max(0, b.x0), y0 = Math.max(0, b.y0), x1 = Math.min(W, b.x1), y1 = Math.min(H, b.y1);
   if (x0 >= x1 || y0 >= y1) return meshes;
 
-  const sub = subdivisions(terrain);
+  const sub = subdivisions(terrain, extras.detail);
   const step = 1 / sub;
   const cols = (x1 - x0) * sub + 1;
   const rows = (y1 - y0) * sub + 1;

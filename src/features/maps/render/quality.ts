@@ -1,8 +1,10 @@
 /**
  * How sharply the map canvas renders, per browser. High supersamples at twice
  * the screen's pixel density (capped at 3x), so edges, facets and textures
- * stay crisp; Standard renders at the screen's own density (up to 2x). The
- * canvas drops from High to Standard by itself if the frame rate can't keep
+ * stay crisp; Standard renders at the screen's own density (up to 2x, 1.5x on a
+ * touch screen), builds the ground a little coarser, and lets a quiet map draw
+ * at 30 frames a second. Phones, tablets and small machines start on Standard.
+ * The canvas drops from High to Standard by itself if the frame rate can't keep
  * up (see MapView), so a slow laptop isn't stuck with it.
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -12,18 +14,31 @@ export type RenderQuality = 'standard' | 'high';
 const KEY = 'tome.renderQuality';
 const EVENT = 'tome-render-quality';
 
+/** A touch screen (phone or tablet). */
+const touch = () => typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches ?? false);
+
+/** A phone, a tablet, or a machine with 4 GB of memory or two cores or fewer: where Standard is the place to start. */
+export function looksSmall(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  return touch() || (memory !== undefined && memory <= 4) || (navigator.hardwareConcurrency || 8) <= 2;
+}
+
 function read(): RenderQuality {
   try {
-    return localStorage.getItem(KEY) === 'standard' ? 'standard' : 'high';
+    const saved = localStorage.getItem(KEY);
+    if (saved === 'standard' || saved === 'high') return saved;
   } catch {
-    return 'high';
+    // Storage blocked: decide from the device.
   }
+  return looksSmall() ? 'standard' : 'high';
 }
 
 /** Device pixels per CSS pixel for a quality on this screen. */
 export function dprFor(quality: RenderQuality): number {
   const screen = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-  return quality === 'high' ? Math.min(3, screen * 2) : Math.min(2, screen);
+  if (quality === 'high') return Math.min(3, screen * 2);
+  return Math.min(touch() ? 1.5 : 2, screen);
 }
 
 /** A per-browser graphics setting kept in localStorage, synced across components and tabs. */
