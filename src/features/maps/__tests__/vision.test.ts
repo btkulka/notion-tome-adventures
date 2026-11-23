@@ -52,4 +52,29 @@ describe('overworld vision', () => {
     expect(at(t, v, 15 + BASE_SIGHT * 2, 15)).toBe(true);
     expect(at(t, v, 15 + BASE_SIGHT * 2 - 1, 15)).toBe(false);
   });
+
+  it("sees a forest's treetops but not past them, unless looking down on it", () => {
+    const quarter = { ...day, milesPerTile: 0.25 }; // 3 miles is 12 tiles
+    const forest = (t: TerrainGrid) => {
+      for (let y = 0; y < t.height; y++) for (const x of [8, 9]) t.biomes[y * t.width + x] = Biome.Forest;
+      return t;
+    };
+    const t = forest(flat());
+    const v = computeVisibility(t, [4, 10], quarter);
+    expect(at(t, v, 8, 10)).toBe(true); // the near edge's treetops
+    expect(at(t, v, 9, 10)).toBe(false); // deeper in
+    expect(at(t, v, 12, 10)).toBe(false); // the open ground beyond
+    const hill = forest(flat());
+    hill.heights[10 * hill.width + 4] = 12; // standing on a rise
+    expect(at(hill, computeVisibility(hill, [4, 10], quarter), 12, 10)).toBe(true);
+  });
+
+  it('reads the fine elevation, so a gentle rise blocks where it really is', () => {
+    const t = flat();
+    t.elevation = new Uint16Array(t.width * t.height).fill(6 * 256);
+    // Half a step up across x = 11: the steps still say 6, the fine elevation says 6.6.
+    for (let y = 0; y < t.height; y++) t.elevation[y * t.width + 11] = Math.round(6.6 * 256 + 2 * 256);
+    const v = computeVisibility(t, [9, 10], day);
+    expect(at(t, v, 12, 10)).toBe(false);
+  });
 });

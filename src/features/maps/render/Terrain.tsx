@@ -6,6 +6,7 @@ import type { TerrainGrid } from '../types';
 import { allChunks, changedTiles, chunkBounds, dirtyChunks } from './chunks';
 import { buildTerrainMeshes, type SurfaceKey, type TerrainExtras } from './geometry';
 import { LAYER_TEXTURE } from './layers';
+import { fogMistMaterial, fogMistUniforms, updateFogMist } from './clouds';
 import { fadeMarks, withOverlay, type OverlayUniforms } from './overlay';
 import { groundMaterial, groundUniforms, layerArray, updateBed, updateCells, waterMaterial, waterUniforms } from './terrainMaterial';
 import { fogTint, type FogMode } from './tint';
@@ -121,16 +122,22 @@ function useTerrainChunks(terrain: TerrainGrid, extras: TerrainExtras): Chunk[] 
   return chunks;
 }
 
+/** Meshes the fog-of-war mist is drawn over. */
+const MISTED: SurfaceKey[] = ['ground', 'water'];
+
 const TerrainChunk = memo(function TerrainChunk({
   chunk,
   materials,
   fade,
   fogMode,
+  mist,
 }: {
   chunk: Chunk;
   materials: Partial<Record<SurfaceKey, THREE.Material>>;
   fade: Float32Array | null;
   fogMode: FogMode;
+  /** The fog-of-war mist's material, for players. */
+  mist: THREE.Material | null;
 }) {
   // Fog rewrites vertex colours only; geometry stays put.
   useLayoutEffect(() => {
@@ -148,6 +155,10 @@ const TerrainChunk = memo(function TerrainChunk({
       {chunk.meshes.map(({ key, geometry }) => (
         <mesh key={key} geometry={geometry} material={materials[key]} castShadow={SHADOWS[key]?.cast ?? false} receiveShadow={SHADOWS[key]?.receive ?? false} />
       ))}
+      {mist &&
+        chunk.meshes
+          .filter(({ key }) => MISTED.includes(key))
+          .map(({ key, geometry }) => <mesh key={`mist-${key}`} geometry={geometry} material={mist} renderOrder={5} raycast={() => null} />)}
     </>
   );
 });
@@ -206,6 +217,14 @@ export function Terrain({
 
   useEffect(() => () => Object.values(materials).forEach((m) => m?.dispose()), [materials]);
 
+  // Fog of war for players: rolling mist over the band where the known gives way to the unknown.
+  const fog = useMemo(() => fogMistUniforms(terrain.width, terrain.height), [terrain.width, terrain.height]);
+  useEffect(() => () => fog.uFogMist.value.dispose(), [fog]);
+  const mist = useMemo(() => fogMistMaterial(fog), [fog]);
+  useEffect(() => () => mist.dispose(), [mist]);
+  const misty = fogMode === 'player' && fade !== null;
+  useMemo(() => updateFogMist(fog, misty ? fade : null), [fog, fade, misty]);
+
   // The water moves, and a newly hovered region fades in.
   useFrame((_, dt) => {
     water.uTime.value += dt;
@@ -215,7 +234,7 @@ export function Terrain({
   return (
     <group>
       {chunks.map((chunk) => (
-        <TerrainChunk key={chunk.id} chunk={chunk} materials={materials} fade={fade} fogMode={fogMode} />
+        <TerrainChunk key={chunk.id} chunk={chunk} materials={materials} fade={fade} fogMode={fogMode} mist={misty ? mist : null} />
       ))}
     </group>
   );

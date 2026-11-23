@@ -5,6 +5,7 @@
  */
 import { MAX_STEP } from '../constants';
 import { BIOMES, type BiomeId } from '../terrain/biomes';
+import { levelOf } from '../terrain/elevation';
 import type { TerrainGrid, TilePoint, Weather } from '../types';
 
 export interface VisionOptions {
@@ -34,7 +35,10 @@ export function sightRadius(terrain: TerrainGrid, at: TilePoint, opts: VisionOpt
 
 /**
  * Tiles the party can see from `at`, as a 0/1 byte per tile. Neighbouring
- * tiles are always visible; beyond that, terrain and canopy block line of sight.
+ * tiles are always visible; beyond that, the land (its fine elevation, so a
+ * rise blocks where it really is) and forest canopy block line of sight. A
+ * forest's treetops can be seen, so the party knows it's there, but not what's
+ * behind it, unless they look down on it from higher ground.
  */
 export function computeVisibility(terrain: TerrainGrid, at: TilePoint, opts: VisionOptions): Uint8Array {
   const { width: W, height: H, heights, biomes } = terrain;
@@ -42,9 +46,11 @@ export function computeVisibility(terrain: TerrainGrid, at: TilePoint, opts: Vis
   const radius = sightRadius(terrain, at, opts);
   const landmarkRadius = radius * 2;
   const [px, py] = at;
-  const eye = heights[py * W + px] + EYE_HEIGHT;
+  const level = (i: number) => levelOf(terrain, i);
+  const canopy = (i: number) => BIOMES[biomes[i] as BiomeId]?.canopy ?? 0;
+  const eye = level(py * W + px) + EYE_HEIGHT;
 
-  const blockerHeight = (i: number) => heights[i] + (BIOMES[biomes[i] as BiomeId]?.canopy ?? 0);
+  const blockerHeight = (i: number) => level(i) + canopy(i);
 
   for (let y = Math.max(0, py - landmarkRadius); y <= Math.min(H - 1, py + landmarkRadius); y++) {
     for (let x = Math.max(0, px - landmarkRadius); x <= Math.min(W - 1, px + landmarkRadius); x++) {
@@ -56,7 +62,7 @@ export function computeVisibility(terrain: TerrainGrid, at: TilePoint, opts: Vis
       }
       const isLandmark = heights[i] >= LANDMARK_STEP;
       if (dist > radius + 0.5 && !(isLandmark && dist <= landmarkRadius + 0.5)) continue;
-      if (hasLineOfSight(px, py, eye, x, y, heights[i], W, blockerHeight)) visible[i] = 1;
+      if (hasLineOfSight(px, py, eye, x, y, level(i) + canopy(i), W, blockerHeight)) visible[i] = 1;
     }
   }
   return visible;

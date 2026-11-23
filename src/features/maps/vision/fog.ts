@@ -14,8 +14,8 @@ import { getBit } from '../terrain/codec';
 
 export const FOG_REMEMBERED = 0.5;
 
-/** How many tiles the unexplored dark takes to close in completely. */
-export const FOG_FADE_TILES = 3;
+/** How many tiles the unexplored dark takes to close in completely: a mile at a quarter mile a tile. */
+export const FOG_FADE_TILES = 4;
 
 /** Fade on the outermost ring of visible tiles, and the next ring in. */
 const RIM_FADE = [0.22, 0.08];

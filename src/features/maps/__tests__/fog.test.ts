@@ -1,3 +1,5 @@
+import { fogMist } from '../render/clouds';
+import { fogTint } from '../render/tint';
 import { describe, expect, it } from 'vitest';
 import { createBitset, setBit } from '../terrain/codec';
 import { distanceTo, FOG_FADE_TILES, FOG_REMEMBERED, fogFade, fogTexels } from '../vision/fog';
@@ -64,3 +66,26 @@ describe('chamfer distance', () => {
 function at5(x: number, y: number) {
   return y * 5 + x;
 }
+
+describe('fog of war for players', () => {
+  it('leaves seen and remembered ground clear, then feathers from see-through to opaque into the dark', () => {
+    expect(fogMist(0)).toBe(0);
+    expect(fogMist(0.5)).toBe(0);
+    expect(fogMist(0.6)).toBeGreaterThan(0);
+    expect(fogMist(0.6)).toBeLessThan(0.3);
+    let last = 0;
+    for (let fade = 0.5; fade <= 1; fade += 0.05) {
+      expect(fogMist(fade)).toBeGreaterThanOrEqual(last);
+      last = fogMist(fade);
+    }
+    expect(fogMist(1)).toBe(1);
+  });
+
+  it('closes unexplored ground to black', () => {
+    const out = [0, 0, 0];
+    fogTint(1, 'player', out);
+    expect(out).toEqual([0, 0, 0]);
+    fogTint(0.5, 'player', out);
+    expect(out[0]).toBeGreaterThan(0.4);
+  });
+});
