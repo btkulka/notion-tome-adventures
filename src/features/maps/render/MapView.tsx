@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { Loading } from '@/components/ui/tome-loading';
 import '../maps.css';
 import { connectionMasks } from '../terrain/roads';
+import { buildChannels } from './channels';
+import { Weather as WeatherLayer } from './Weather';
 import { labelRegions, type RegionMap } from '../terrain/regions';
 import type { LabelObject, MapObject, PathObject, PinObject, SkySettings, TerrainGrid, TilePoint, Weather } from '../types';
 import { CameraRig, type CameraApi, type CameraPose, type GrabState } from './CameraRig';
@@ -158,6 +160,13 @@ export function MapView(props: MapViewProps) {
   const paths = useMemo(() => objects.filter((o): o is PathObject => o.type === 'path'), [objects]);
   const labels = useMemo(() => objects.filter((o): o is LabelObject => o.type === 'label'), [objects]);
 
+  // Rivers and roads as curves cut into the ground; they run through the middle of every settlement's square.
+  const towns = useMemo(
+    () => new Set(pins.filter((p) => isSettlement(p.data.pinType)).map((p) => Math.floor(p.y) * terrain.width + Math.floor(p.x))),
+    [pins, terrain.width]
+  );
+  const channels = useMemo(() => buildChannels(terrain, paths.map((p) => p.data), towns), [terrain, paths, towns]);
+
   const extras = useMemo(() => {
     const W = terrain.width;
     // Players don't see what stands at pins the DM hasn't revealed.
@@ -169,8 +178,9 @@ export function MapView(props: MapViewProps) {
       rivers: connectionMasks(paths.filter((p) => p.data.kind === 'river').map((p) => p.data.points), W, terrain.height),
       paved: new Set(sites.filter((s) => isSettlement(s.pinType)).map((s) => s.y * W + s.x)),
       sites,
+      channels,
     };
-  }, [terrain, pins, paths, fogMode]);
+  }, [terrain, pins, paths, fogMode, channels]);
 
   // Players only see pins and names on ground they know.
   const known = useCallback((x: number, y: number) => !fade || fogMode !== 'player' || fade[Math.floor(y) * terrain.width + Math.floor(x)] < 0.75, [fade, fogMode, terrain.width]);
@@ -203,8 +213,11 @@ export function MapView(props: MapViewProps) {
   }, [overlay, highlight, marks]);
 
   const [quality] = useRenderQuality();
-  const [throttled, setThrottled] = useState(false);
-  const dpr = dprFor(throttled ? 'standard' : quality);
+  // High quality steps down for this map if the frame rate can't hold it: first the
+  // supersampling (1), then the sun's shadows (2).
+  const [throttle, setThrottle] = useState(0);
+  const dpr = dprFor(quality === 'high' && throttle === 0 ? 'high' : 'standard');
+  const shadows = quality === 'high' && throttle < 2;
 
   // Terrain textures and prop models suspend; until they arrive the canvas is empty.
   // They stay cached once they have, so only the first map in a tab says it's loading.
@@ -321,14 +334,15 @@ export function MapView(props: MapViewProps) {
       onDrop={drop}
       onDragLeave={dragLeave}
     >
-      <Canvas orthographic camera={{ zoom: 20, near: 0.1, far: 1000, position: [100, 100, 100] }} dpr={dpr} gl={{ antialias: true }}>
-        {/* High quality steps down to Standard for this map if the frame rate can't hold it. */}
-        {quality === 'high' && !throttled && <PerformanceMonitor onDecline={() => setThrottled(true)} />}
+      <Canvas orthographic shadows="percentage" camera={{ zoom: 20, near: 0.1, far: 1000, position: [100, 100, 100] }} dpr={dpr} gl={{ antialias: true }}>
+        {/* Measured afresh after each step down (keyed), so one slow moment doesn't take both. */}
+        {quality === 'high' && throttle < 2 && <PerformanceMonitor key={throttle} onDecline={() => setThrottle((t) => Math.min(2, t + 1))} />}
         <CameraRig width={terrain.width} height={terrain.height} panButton={panButton} apiRef={cameraRef} initial={initialCamera} onPoseChange={onCameraChange} onGrab={setGrab} />
         <TilePicker terrain={terrain} pickRef={ownPick} pointer={pointer} onRepick={repick} />
-        <SkyRig minutes={worldMinutes} weather={weather} settings={sky} terrain={terrain} party={party} />
+        <SkyRig minutes={worldMinutes} weather={weather} settings={sky} terrain={terrain} party={party} shadows={shadows} />
         <Suspense fallback={null}>
           <Terrain terrain={terrain} extras={extras} fade={fade} fogMode={fogMode} overlay={overlay} />
+          <WeatherLayer terrain={terrain} weather={weather} />
           <Props3D terrain={terrain} seed={seed} options={extras} fade={fade} fogMode={fogMode} visible={showProps} />
           {party && <PartyBanner terrain={terrain} at={party} drag={props.partyDrag && { ...props.partyDrag, pick }} />}
           <Loaded onLoad={markLoaded} />

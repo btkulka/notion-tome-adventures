@@ -5,29 +5,27 @@ import * as THREE from 'three';
 import type { TerrainGrid } from '../types';
 import { allChunks, changedTiles, chunkBounds, dirtyChunks } from './chunks';
 import { buildTerrainMeshes, type SurfaceKey, type TerrainExtras } from './geometry';
-import { withOverlay, type OverlayUniforms } from './overlay';
+import { LAYER_TEXTURE } from './layers';
+import { fadeMarks, withOverlay, type OverlayUniforms } from './overlay';
+import { groundMaterial, groundUniforms, layerArray, updateBed, updateCells, waterMaterial, waterUniforms } from './terrainMaterial';
 import { fogTint, type FogMode } from './tint';
 
-const TEXTURES: Record<Exclude<SurfaceKey, 'waterSide' | 'river'>, string> = {
-  grass: '/textures/terrain/grass.png',
-  forest: '/textures/terrain/forest.png',
-  taiga: '/textures/terrain/taiga.png',
-  swamp: '/textures/terrain/swamp.png',
-  desert: '/textures/terrain/desert.png',
-  beach: '/textures/terrain/beach.png',
-  hills: '/textures/terrain/hills.png',
-  rock: '/textures/terrain/rock.png',
-  snow: '/textures/terrain/snow.png',
-  ocean: '/textures/terrain/ocean.png',
-  shallows: '/textures/terrain/shallows.png',
-  lake: '/textures/terrain/lake.png',
+/** The ground's looks (one texture array) plus the road and the plinth's earth. */
+const TEXTURES: Record<string, string> = {
+  ...LAYER_TEXTURE,
   road: '/textures/terrain/road.png',
-  cobble: '/textures/terrain/cobble.png',
   earth: '/textures/terrain/side-earth.png',
-  cliff: '/textures/terrain/side-rock.png',
 };
 
-const WATER: SurfaceKey[] = ['ocean', 'shallows', 'lake', 'river'];
+/** What casts and catches the sun's shadow. */
+const SHADOWS: Partial<Record<SurfaceKey, { cast: boolean; receive: boolean }>> = {
+  ground: { cast: true, receive: true },
+  earth: { cast: true, receive: true },
+  water: { cast: false, receive: true },
+  river: { cast: false, receive: true },
+  road: { cast: false, receive: true },
+  bridge: { cast: true, receive: true },
+};
 
 interface ChunkMesh {
   key: SurfaceKey;
@@ -44,7 +42,7 @@ interface Chunk {
 interface Inputs {
   width: number;
   height: number;
-  layers: Uint8Array[];
+  layers: (Uint8Array | Uint16Array)[];
 }
 
 function inputsOf(terrain: TerrainGrid, extras: TerrainExtras): Inputs {
@@ -54,7 +52,11 @@ function inputsOf(terrain: TerrainGrid, extras: TerrainExtras): Inputs {
   return {
     width: terrain.width,
     height: terrain.height,
-    layers: [terrain.heights.slice(), terrain.biomes.slice(), extras.roads?.slice() ?? new Uint8Array(size), extras.rivers?.slice() ?? new Uint8Array(size), paved],
+    layers: [
+      terrain.heights.slice(), terrain.biomes.slice(), terrain.elevation?.slice() ?? new Uint16Array(size),
+      extras.roads?.slice() ?? new Uint8Array(size), extras.rivers?.slice() ?? new Uint8Array(size), paved,
+      extras.channels?.signature.slice() ?? new Uint8Array(size),
+    ],
   };
 }
 
@@ -66,7 +68,7 @@ function buildChunk(terrain: TerrainGrid, extras: TerrainExtras, id: number): Ch
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data!.normals, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(data!.uvs, 2));
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(data!.tiles.length * 3).fill(1), 3));
-    geometry.setAttribute('aTile', new THREE.Float32BufferAttribute(data!.tiles, 1));
+    if (data!.indices) geometry.setIndex(data!.indices);
     geometry.computeBoundingSphere();
     return { key: key as SurfaceKey, geometry, tiles: data!.tiles };
   });
@@ -91,7 +93,7 @@ function useTerrainChunks(terrain: TerrainGrid, extras: TerrainExtras): Chunk[] 
       c.chunks.clear();
       dirty = allChunks(terrain.width, terrain.height);
     } else {
-      const changed = changedTiles(prev.layers.map((layer, n) => [layer, next.layers[n]] as [Uint8Array, Uint8Array]), terrain.width * terrain.height);
+      const changed = changedTiles(prev.layers.map((layer, n) => [layer, next.layers[n]] as [ArrayLike<number>, ArrayLike<number>]), terrain.width * terrain.height);
       dirty = dirtyChunks(changed, terrain.width, terrain.height);
     }
     for (const id of dirty) {
@@ -144,7 +146,7 @@ const TerrainChunk = memo(function TerrainChunk({
   return (
     <>
       {chunk.meshes.map(({ key, geometry }) => (
-        <mesh key={key} geometry={geometry} material={materials[key]} />
+        <mesh key={key} geometry={geometry} material={materials[key]} castShadow={SHADOWS[key]?.cast ?? false} receiveShadow={SHADOWS[key]?.receive ?? false} />
       ))}
     </>
   );
@@ -175,26 +177,39 @@ export function Terrain({
 
   const chunks = useTerrainChunks(terrain, extras);
 
+  // The ground's looks as one texture array, built once from the loaded images.
+  const layers = useMemo(() => layerArray(textures), [textures]);
+  useEffect(() => () => layers.dispose(), [layers]);
+
+  // Which look each cell shows, and the bed's height for the water's depth: textures sized to the map.
+  const ground = useMemo(() => groundUniforms(terrain.width, terrain.height), [terrain.width, terrain.height]);
+  const water = useMemo(() => waterUniforms(terrain.width, terrain.height), [terrain.width, terrain.height]);
+  useEffect(() => () => ground.uCells.value.dispose(), [ground]);
+  useEffect(() => () => water.uBed.value.dispose(), [water]);
+  ground.uLayers.value = layers;
+  useMemo(() => updateCells(ground, terrain, extras.paved), [ground, terrain, extras.paved]);
+  useMemo(() => updateBed(water, terrain, extras.channels), [water, terrain, extras.channels]);
+
   const materials = useMemo(() => {
-    const out: Partial<Record<SurfaceKey, THREE.MeshLambertMaterial>> = {};
-    for (const key of Object.keys(TEXTURES) as (keyof typeof TEXTURES)[]) {
-      out[key] = withOverlay(new THREE.MeshLambertMaterial({ map: textures[key], vertexColors: true }), overlay);
-    }
-    out.river = withOverlay(new THREE.MeshLambertMaterial({ map: textures.shallows, vertexColors: true }), overlay);
+    const out: Partial<Record<SurfaceKey, THREE.Material>> = {};
+    // Roads and rivers lie on the ground: nudge them toward the camera so the ground's swells never poke through.
+    const draped = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
+    out.ground = groundMaterial(overlay, ground);
+    out.water = waterMaterial(overlay, water);
+    out.river = Object.assign(waterMaterial(overlay, water, true), draped);
+    out.road = withOverlay(new THREE.MeshLambertMaterial({ map: textures.road, vertexColors: true, ...draped }), overlay);
+    out.earth = withOverlay(new THREE.MeshLambertMaterial({ map: textures.earth, vertexColors: true }), overlay);
+    out.bridge = withOverlay(new THREE.MeshLambertMaterial({ map: textures.cliff, vertexColors: true }), overlay);
     out.waterSide = withOverlay(new THREE.MeshLambertMaterial({ color: '#14283A', vertexColors: true }), overlay);
     return out;
-  }, [textures, overlay]);
+  }, [textures, overlay, ground, water]);
 
   useEffect(() => () => Object.values(materials).forEach((m) => m?.dispose()), [materials]);
 
-  // Water drifts slowly.
+  // The water moves, and a newly hovered region fades in.
   useFrame((_, dt) => {
-    for (const key of WATER) {
-      const tex = key === 'river' ? textures.shallows : textures[key];
-      if (!tex) continue;
-      tex.offset.x += dt * 0.004;
-      tex.offset.y += dt * 0.0025;
-    }
+    water.uTime.value += dt;
+    fadeMarks(overlay, dt);
   });
 
   return (

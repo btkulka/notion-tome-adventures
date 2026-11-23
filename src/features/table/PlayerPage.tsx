@@ -164,7 +164,7 @@ function PlayerTable({ campaignId }: { campaignId: string }) {
   const party = useMemo<TilePoint | null>(() => (partyX === null || partyY === null ? null : [partyX, partyY]), [partyX, partyY]);
   const minutes = live?.worldMinutes ?? 480;
   const weather = live?.weather ?? 'clear';
-  const { fade } = useFog(doc?.terrain ?? null, explored, party, minutes, weather);
+  const { fade } = useFog(doc?.terrain ?? null, explored, party, minutes, weather, doc?.scale);
 
   const pins = useMemo(() => objects.filter((o): o is PinObject => o.type === 'pin'), [objects]);
   const pinHere = party ? pins.find((p) => Math.floor(p.x) === party[0] && Math.floor(p.y) === party[1]) : undefined;

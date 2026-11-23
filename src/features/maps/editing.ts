@@ -1,7 +1,8 @@
 // Pure terrain edits used by the editor's brushes. Each returns the tiles it
 // changed so callers can skip no-op saves.
-import { MAX_STEP, SEA_STEP } from './constants';
+import { ELEVATION_PER_STEP, MAX_STEP, SEA_STEP } from './constants';
 import { Biome, isWater, type BiomeId } from './terrain/biomes';
+import { ensureElevation, setElevation } from './terrain/elevation';
 import type { TerrainGrid, TilePoint } from './types';
 
 export type HeightMode = 'raise' | 'lower' | 'smooth' | 'flatten';
@@ -21,16 +22,20 @@ export function brushTiles(terrain: TerrainGrid, [cx, cy]: TilePoint, size: numb
 
 export function applyHeight(terrain: TerrainGrid, tiles: TilePoint[], mode: HeightMode, flattenTo?: number): number {
   const { width: W, heights, biomes } = terrain;
+  const fine = ensureElevation(terrain);
   // Smoothing averages the ground as it was, not as this pass leaves it.
-  const before = mode === 'smooth' ? heights.slice() : heights;
+  const before = mode === 'smooth' ? fine.slice() : fine;
   let changed = 0;
   for (const [x, y] of tiles) {
     const i = y * W + x;
     if (isWater(biomes[i])) continue;
-    let next = heights[i];
-    if (mode === 'raise') next += 1;
-    else if (mode === 'lower') next -= 1;
-    else if (mode === 'flatten' && flattenTo !== undefined) next = flattenTo;
+    let next = fine[i];
+    if (mode === 'raise' || mode === 'lower') {
+      // A whole step, keeping the ground's fine shape; nothing at the shore or the top.
+      const step = Math.max(SEA_STEP + 1, Math.min(MAX_STEP, heights[i] + (mode === 'raise' ? 1 : -1)));
+      if (step === heights[i]) continue;
+      next += (step - heights[i]) * ELEVATION_PER_STEP;
+    } else if (mode === 'flatten' && flattenTo !== undefined) next = flattenTo * ELEVATION_PER_STEP;
     else if (mode === 'smooth') {
       let sum = 0;
       let n = 0;
@@ -43,13 +48,11 @@ export function applyHeight(terrain: TerrainGrid, tiles: TilePoint[], mode: Heig
           n++;
         }
       }
-      next = Math.round(sum / n);
+      next = sum / n;
     }
-    next = Math.max(SEA_STEP + 1, Math.min(MAX_STEP, next));
-    if (next !== heights[i]) {
-      heights[i] = next;
-      changed++;
-    }
+    const was = [heights[i], fine[i]];
+    setElevation(terrain, i, next);
+    if (heights[i] !== was[0] || fine[i] !== was[1]) changed++;
   }
   return changed;
 }
@@ -66,6 +69,7 @@ export function applyBiome(terrain: TerrainGrid, tiles: TilePoint[], biome: Biom
     if (biome === Biome.Ocean || biome === Biome.Shallows) heights[i] = SEA_STEP;
     else if (biome === Biome.Lake) heights[i] = Math.max(SEA_STEP, heights[i] - 1);
     else if (wasWater) heights[i] = SEA_STEP + 1;
+    if (terrain.elevation && (wasWater || isWater(biome))) terrain.elevation[i] = heights[i] * ELEVATION_PER_STEP;
     changed++;
   }
   return changed;

@@ -20,21 +20,41 @@ export function decodeBytes(encoded: string, expectedLength?: number): Uint8Arra
   return bytes;
 }
 
+/** 16-bit values as little-endian bytes, whatever the platform's own order. */
+function wordsToBytes(words: Uint16Array): Uint8Array {
+  const bytes = new Uint8Array(words.length * 2);
+  for (let i = 0; i < words.length; i++) {
+    bytes[i * 2] = words[i] & 0xff;
+    bytes[i * 2 + 1] = words[i] >> 8;
+  }
+  return bytes;
+}
+
+function bytesToWords(bytes: Uint8Array): Uint16Array {
+  const words = new Uint16Array(bytes.length >> 1);
+  for (let i = 0; i < words.length; i++) words[i] = bytes[i * 2] | (bytes[i * 2 + 1] << 8);
+  return words;
+}
+
 export function encodeTerrain(terrain: TerrainGrid): StoredTerrain {
-  return {
+  const stored: StoredTerrain = {
     heights: encodeBytes(terrain.heights),
     biomes: encodeBytes(terrain.biomes),
   };
+  if (terrain.elevation) stored.elevation = encodeBytes(wordsToBytes(terrain.elevation));
+  return stored;
 }
 
 export function decodeTerrain(stored: StoredTerrain, width: number, height: number): TerrainGrid {
   const size = width * height;
-  return {
+  const terrain: TerrainGrid = {
     width,
     height,
     heights: decodeBytes(stored.heights, size),
     biomes: decodeBytes(stored.biomes, size),
   };
+  if (stored.elevation) terrain.elevation = bytesToWords(decodeBytes(stored.elevation, size * 2));
+  return terrain;
 }
 
 export function createTerrain(width: number, height: number): TerrainGrid {
@@ -47,12 +67,14 @@ export function createTerrain(width: number, height: number): TerrainGrid {
 }
 
 export function cloneTerrain(terrain: TerrainGrid): TerrainGrid {
-  return {
+  const copy: TerrainGrid = {
     width: terrain.width,
     height: terrain.height,
     heights: terrain.heights.slice(),
     biomes: terrain.biomes.slice(),
   };
+  if (terrain.elevation) copy.elevation = terrain.elevation.slice();
+  return copy;
 }
 
 // --- Bitsets (fog of war) -------------------------------------------------

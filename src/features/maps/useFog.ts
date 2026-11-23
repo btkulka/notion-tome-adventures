@@ -21,13 +21,15 @@ export function useFog(
   explored: Uint8Array | null,
   party: TilePoint | null,
   worldMinutes: number,
-  weather: Weather
+  weather: Weather,
+  /** The map's scale (MapDoc.scale): sight is reckoned in miles. */
+  milesPerTile = 1
 ): { fade: Float32Array | null; visible: Uint8Array | null } {
   return useMemo(() => {
     if (!terrain || !explored) return { fade: null, visible: null };
     const visible = party
-      ? computeVisibility(terrain, party, { night: isNight(worldMinutes), weather })
+      ? computeVisibility(terrain, party, { night: isNight(worldMinutes), weather, milesPerTile })
       : new Uint8Array(terrain.width * terrain.height);
     return { fade: fogFade(terrain.width, terrain.height, visible, explored), visible };
-  }, [terrain, explored, party, worldMinutes, weather]);
+  }, [terrain, explored, party, worldMinutes, weather, milesPerTile]);
 }

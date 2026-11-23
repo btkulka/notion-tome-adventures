@@ -308,7 +308,7 @@ function Editor({ campaign }: { campaign: SelectedCampaign }) {
 
   const realParty: TilePoint | null = live && live.partyMapId === mapId ? [Math.round(live.partyX), Math.round(live.partyY)] : null;
   const party = partyMoving ?? realParty;
-  const { fade, visible } = useFog(terrain, explored, realParty, live?.worldMinutes ?? 480, live?.weather ?? 'clear');
+  const { fade, visible } = useFog(terrain, explored, realParty, live?.worldMinutes ?? 480, live?.weather ?? 'clear', doc?.scale);
   const fogState = useCallback((i: number): FogState => (visible?.[i] ? 'visible' : explored && getBit(explored, i) ? 'remembered' : 'unknown'), [visible, explored]);
 
   const selectedPin = selection?.kind === 'pin' ? pins.find((p) => p.id === selection.id) ?? null : null;
@@ -575,12 +575,12 @@ function Editor({ campaign }: { campaign: SelectedCampaign }) {
     const out: TileMark[] = [];
     const W = terrain.width;
     if (selectedTile) {
-      out.push({ tiles: regionTiles(regions, regions.ids[selectedTile[1] * W + selectedTile[0]]), color: COLORS.gilt, fill: 0.07 });
+      out.push({ tiles: regionTiles(regions, regions.ids[selectedTile[1] * W + selectedTile[0]]), color: COLORS.gilt, fill: 0.07, soft: true });
       if (selection?.kind === 'tile') out.push({ tiles: [selectedTile], color: COLORS.giltHi, fill: 0.3 });
     }
     if (hover && tool === 'select' && !hoverPaths.length && !moving) {
       const id = regions.ids[hover[1] * W + hover[0]];
-      if (!selectedTile || regions.ids[selectedTile[1] * W + selectedTile[0]] !== id) out.push({ tiles: regionTiles(regions, id), color: COLORS.bone, fill: 0.05 });
+      if (!selectedTile || regions.ids[selectedTile[1] * W + selectedTile[0]] !== id) out.push({ tiles: regionTiles(regions, id), color: COLORS.bone, fill: 0.05, soft: true });
     }
     if (hover && !moving) {
       if (BRUSH_TOOLS.has(tool) && !(tool === 'biome' && mods.alt)) {

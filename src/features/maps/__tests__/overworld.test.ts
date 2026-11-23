@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SEA_STEP } from '../constants';
+import { ELEVATION_PER_STEP, MILES_PER_CELL, SEA_STEP } from '../constants';
 import { DEFAULT_GEN_PARAMS, generateOverworld, PICKABLE_BIOMES } from '../gen/overworld';
 import { Biome, isWater } from '../terrain/biomes';
 import type { OverworldGenParams } from '../types';
@@ -67,17 +67,58 @@ describe('generateOverworld', () => {
     }
   });
 
-  it('puts shallows only along the coast', () => {
+  it('puts shallows only along the coast, half a mile out', () => {
     const { terrain } = generateOverworld(params());
     const { width: W, height: H, biomes } = terrain;
-    for (let y = 1; y < H - 1; y++) {
-      for (let x = 1; x < W - 1; x++) {
+    const reach = Math.round(0.5 / MILES_PER_CELL);
+    let shallows = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
         if (biomes[y * W + x] !== Biome.Shallows) continue;
-        const touchesLand = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(
-          ([dx, dy]) => !isWater(biomes[(y + dy) * W + x + dx]) || biomes[(y + dy) * W + x + dx] === Biome.Lake
-        );
-        expect(touchesLand).toBe(true);
+        shallows++;
+        let nearLand = false;
+        for (let dy = -reach; dy <= reach && !nearLand; dy++) {
+          for (let dx = -reach; dx <= reach && !nearLand; dx++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            const b = biomes[ny * W + nx];
+            nearLand = !isWater(b) || b === Biome.Lake;
+          }
+        }
+        expect(nearLand).toBe(true);
       }
+    }
+    expect(shallows).toBeGreaterThan(0);
+  });
+
+  it('sizes its features in miles: a bigger map of the same seed is more land, not bigger hills', () => {
+    const small = generateOverworld(params({ width: 64, height: 64, landShape: 'landlocked' }));
+    const big = generateOverworld(params({ width: 128, height: 128, landShape: 'landlocked' }));
+    // Count how often the ground turns from rising to falling along rows: hills per mile.
+    const turnsPerCell = (t: typeof small.terrain) => {
+      let turns = 0;
+      const fine = t.elevation!;
+      for (let y = 0; y < t.height; y += 4) {
+        let last = 0;
+        for (let x = 1; x < t.width; x++) {
+          const d = Math.sign(fine[y * t.width + x] - fine[y * t.width + x - 1]);
+          if (d !== 0 && last !== 0 && d !== last) turns++;
+          if (d !== 0) last = d;
+        }
+      }
+      return turns / ((t.height / 4) * t.width);
+    };
+    const ratio = turnsPerCell(big.terrain) / turnsPerCell(small.terrain);
+    expect(ratio).toBeGreaterThan(0.6);
+    expect(ratio).toBeLessThan(1.6);
+  });
+
+  it('keeps fine elevation and steps in agreement', () => {
+    const { terrain } = generateOverworld(params({ seed: 9 }));
+    const fine = terrain.elevation!;
+    for (let i = 0; i < fine.length; i++) {
+      expect(Math.abs(fine[i] / ELEVATION_PER_STEP - terrain.heights[i])).toBeLessThanOrEqual(0.5);
     }
   });
 

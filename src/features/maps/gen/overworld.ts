@@ -7,9 +7,10 @@
  * biomes → stepped heights → settlements → roads → names.
  */
 import { createNoise2D, type NoiseFunction2D } from 'simplex-noise';
-import { MAX_STEP, SEA_STEP } from '../constants';
+import { ELEVATION_PER_STEP, MAX_STEP, MILES_PER_CELL, SEA_STEP } from '../constants';
 import { Biome, type BiomeId } from '../terrain/biomes';
 import { createTerrain } from '../terrain/codec';
+import { clampLandElevation, landStepOf } from '../terrain/elevation';
 import type { LandShape, OverworldGenParams, PinType, TerrainGrid, TilePoint } from '../types';
 import { MinHeap } from './heap';
 import { labelRegions, labelSpot } from '../terrain/regions';
@@ -55,12 +56,27 @@ const NAMED_REGION_SIZE: Partial<Record<BiomeId, number>> = {
   [Biome.Mountain]: 18,
   [Biome.Snow]: 20,
 };
-/** Names per map: about one per 450 tiles, 5 to 14. */
-const namedRegions = (width: number, height: number) => Math.min(14, Math.max(5, Math.round((width * height) / 450)));
+/** Names per map: about one per 1800 cells, 5 to 14. */
+const namedRegions = (width: number, height: number) => Math.min(14, Math.max(5, Math.round((width * height) / 1800)));
+
+/**
+ * NAMED_REGION_SIZE was set for a 64 × 64 map; region sizes are a share of the
+ * map, so a bigger map needs proportionally bigger regions before it names one.
+ */
+const regionSizeScale = (width: number, height: number) => Math.max(1, (width * height) / 4096);
+
+/** Miles of land per noise period at the base frequency: a 32-mile region spans 2.5 periods of hills. */
+const FEATURE_MILES = 12.8;
+
+/** How far (in miles) open water keeps the land around it moist. */
+const MOIST_MILES = 3;
+
+/** Width of the band of shallows along a coast, in miles. */
+const SHALLOWS_MILES = 0.5;
 
 export const DEFAULT_GEN_PARAMS: Omit<OverworldGenParams, 'seed'> = {
-  width: 64,
-  height: 64,
+  width: 128,
+  height: 128,
   landShape: 'continent',
   mountains: 0.5,
   moisture: 0.5,
@@ -68,6 +84,7 @@ export const DEFAULT_GEN_PARAMS: Omit<OverworldGenParams, 'seed'> = {
   settlements: 9,
   rivers: 5,
   roads: true,
+  cellMiles: MILES_PER_CELL,
 };
 
 const WATER_FRACTION: Record<LandShape, number> = {
@@ -125,13 +142,19 @@ export function allowedBiomes(params: Pick<OverworldGenParams, 'biomes'>): Set<B
 /** Depth (in land-height rank) a depression must have before it holds a lake. */
 const LAKE_DEPTH = 0.09;
 
-/** Lakes smaller than this many tiles are left dry. */
-const MIN_LAKE_TILES = 4;
+/** Lakes smaller than this many square miles are left dry. */
+const MIN_LAKE_SQUARE_MILES = 2;
+
+/** Rivers shorter than this many miles aren't kept. */
+const MIN_RIVER_MILES = 1.5;
 
 export function generateOverworld(params: OverworldGenParams): GeneratedOverworld {
   const { width: W, height: H } = params;
   const size = W * H;
   const S = Math.max(W, H);
+  const cellMiles = params.cellMiles ?? MILES_PER_CELL;
+  /** Noise coordinate of a cell, in base-frequency periods: features keep their size in miles whatever the map's size. */
+  const at = (cells: number) => (cells * cellMiles) / FEATURE_MILES;
   const rand = mulberry32(params.seed);
   const elevationNoise = createNoise2D(rand);
   const warpNoise = createNoise2D(rand);
@@ -143,8 +166,8 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
   const raw = new Float32Array(size);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      const nx = (x / S) * 2.5;
-      const ny = (y / S) * 2.5;
+      const nx = at(x);
+      const ny = at(y);
       const wx = fbm(warpNoise, nx + 3.1, ny + 7.7, 3);
       const wy = fbm(warpNoise, nx - 5.3, ny + 1.9, 3);
       const e = fbm(elevationNoise, nx + 0.8 * wx, ny + 0.8 * wy, 5) * 0.5 + 0.5;
@@ -172,7 +195,7 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
         continue;
       }
       let t = (e - sea) / (maxRaw - sea + 1e-6);
-      const ridge = 1 - Math.abs(fbm(ridgeNoise, (x / S) * 4, (y / S) * 4, 4));
+      const ridge = 1 - Math.abs(fbm(ridgeNoise, at(x) * 1.6, at(y) * 1.6, 4));
       t += params.mountains * ridge * ridge * ridge * smoothstep(0.05, 0.5, t) * 0.9;
       h[i] = t;
       landTiles.push(i);
@@ -224,7 +247,7 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
   const isOcean = (i: number) => h[i] <= 0;
   const lake = new Uint8Array(size);
   for (let i = 0; i < size; i++) if (h[i] > 0 && filled[i] - h[i] > LAKE_DEPTH) lake[i] = 1;
-  removeSmallRegions(lake, W, H, MIN_LAKE_TILES);
+  removeSmallRegions(lake, W, H, Math.max(4, Math.round(MIN_LAKE_SQUARE_MILES / (cellMiles * cellMiles))));
   const isWaterTile = (i: number) => isOcean(i) || lake[i] === 1;
 
   // 4. Rivers: trace downhill from high, spaced-out springs.
@@ -256,7 +279,7 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
         path.push(cur);
         if (riverTile[cur]) break;
       }
-      if (path.length < 6) continue;
+      if (path.length < Math.max(6, Math.round(MIN_RIVER_MILES / cellMiles))) continue;
 
       for (const i of path) if (!isOcean(i)) riverTile[i] = 1;
       rivers.push(path.map((i) => [i % W, Math.floor(i / W)] as TilePoint));
@@ -265,17 +288,20 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
   }
 
   // 5. Climate.
-  const waterDistance = distanceField(W, H, (i) => isWaterTile(i) || riverTile[i] === 1, 8);
+  const moistCells = Math.min(250, Math.max(2, Math.round(MOIST_MILES / cellMiles)));
+  const waterDistance = distanceField(W, H, (i) => isWaterTile(i) || riverTile[i] === 1, moistCells);
+  // Latitude matters less the smaller the region: a 64-mile map gets the full swing.
+  const latitudeSwing = 0.3 * Math.min(1, (H * cellMiles) / 64);
   const temperature = new Float32Array(size);
   const moisture = new Float32Array(size);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
       const land = Math.max(0, h[i]);
-      const latitude = ((y + 0.5) / H - 0.5) * 0.3;
-      temperature[i] = params.temperature + latitude + fbm(temperatureNoise, (x / S) * 2, (y / S) * 2, 3) * 0.15 - land * 0.25;
+      const latitude = ((y + 0.5) / H - 0.5) * latitudeSwing;
+      temperature[i] = params.temperature + latitude + fbm(temperatureNoise, at(x) * 0.8, at(y) * 0.8, 3) * 0.15 - land * 0.25;
       moisture[i] =
-        params.moisture + fbm(moistureNoise, (x / S) * 3, (y / S) * 3, 4) * 0.3 + (1 - Math.min(waterDistance[i], 8) / 8) * 0.2 - 0.1;
+        params.moisture + fbm(moistureNoise, at(x) * 1.2, at(y) * 1.2, 4) * 0.3 + (1 - Math.min(waterDistance[i], moistCells) / moistCells) * 0.2 - 0.1;
     }
   }
 
@@ -295,21 +321,28 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
   }
   const lean = [(params.temperature - 0.5) * 0.5, (params.moisture - 0.5) * 0.5] as const;
   const terrain = createTerrain(W, H);
-  const landStep = (t: number) => SEA_STEP + 1 + Math.round(Math.pow(Math.min(1, Math.max(0, t)), 2) * (MAX_STEP - SEA_STEP - 1));
+  const fine = new Uint16Array(size);
+  terrain.elevation = fine;
+  /** Land height in steps, unrounded: rank squared, so most land is low and the peaks stand out. */
+  const landLevel = (t: number) => SEA_STEP + 1 + Math.pow(Math.min(1, Math.max(0, t)), 2) * (MAX_STEP - SEA_STEP - 1);
+  const landStep = (t: number) => Math.round(landLevel(t));
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
       if (isOcean(i)) {
         terrain.biomes[i] = Biome.Ocean;
         terrain.heights[i] = SEA_STEP;
+        fine[i] = SEA_STEP * ELEVATION_PER_STEP;
         continue;
       }
       if (lake[i]) {
         terrain.biomes[i] = Biome.Lake;
         terrain.heights[i] = Math.max(SEA_STEP, landStep(filled[i]) - 1);
+        fine[i] = terrain.heights[i] * ELEVATION_PER_STEP;
         continue;
       }
-      terrain.heights[i] = landStep(h[i]);
+      fine[i] = clampLandElevation(landLevel(h[i]) * ELEVATION_PER_STEP);
+      terrain.heights[i] = landStepOf(fine[i]);
       terrain.biomes[i] = allowed
         ? pickedBiome(h[i], temperature[i], climateRank.temperature[i] + lean[0], climateRank.moisture[i] + lean[1], thresholds, allowed)
         : landBiome(h[i], temperature[i], moisture[i], thresholds);
@@ -317,16 +350,12 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
   }
   limitSlopes(terrain, isWaterTile);
   // Shallows: the band of sea along the coast.
+  const shallowCells = Math.max(1, Math.round(SHALLOWS_MILES / cellMiles));
+  const landDistance = distanceField(W, H, (i) => !isOcean(i), shallowCells + 1);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      if (!isOcean(i)) continue;
-      const nearLand = NEIGHBORS_8.some(([dx, dy]) => {
-        const nx = x + dx;
-        const ny = y + dy;
-        return nx >= 0 && ny >= 0 && nx < W && ny < H && !isOcean(ny * W + nx);
-      });
-      if (nearLand) terrain.biomes[i] = Biome.Shallows;
+      if (isOcean(i) && landDistance[i] <= shallowCells) terrain.biomes[i] = Biome.Shallows;
     }
   }
   // Beaches: lowest land touching the sea, unless it's frozen.
@@ -381,7 +410,7 @@ export function generateOverworld(params: OverworldGenParams): GeneratedOverworl
   const riverNames = rivers.map(() => riverName(rand, taken));
   const regions = labelRegions(terrain);
   const labels = regions.regions
-    .filter((r) => r.size >= (NAMED_REGION_SIZE[r.biome] ?? Infinity))
+    .filter((r) => r.size >= (NAMED_REGION_SIZE[r.biome] ?? Infinity) * regionSizeScale(W, H))
     .sort((a, b) => b.size - a.size)
     .slice(0, namedRegions(W, H))
     .map((r) => {
@@ -453,31 +482,37 @@ function pickedBiome(
 /**
  * Lowers land until no tile stands more than one step above any neighbour (two
  * in mountains and snow), so most of the land reads as slopes and only real
- * high ground keeps cliffs. Water never moves.
+ * high ground keeps cliffs. Works on the fine elevation, lowest ground first
+ * (each tile's cap comes from neighbours already settled), then rounds the
+ * steps from it. Water never moves.
  */
 function limitSlopes(terrain: TerrainGrid, isWaterTile: (i: number) => boolean): void {
   const { width: W, height: H, heights, biomes } = terrain;
-  const allowed = (i: number) => (biomes[i] === Biome.Mountain || biomes[i] === Biome.Snow ? 2 : 1);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = y * W + x;
-        if (isWaterTile(i)) continue;
-        for (const [dx, dy] of NEIGHBORS_8) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-          const cap = heights[ny * W + nx] + allowed(i);
-          if (heights[i] > cap) {
-            heights[i] = cap;
-            changed = true;
-          }
-        }
+  const fine = terrain.elevation!;
+  const allowed = (i: number) => (biomes[i] === Biome.Mountain || biomes[i] === Biome.Snow ? 2 : 1) * ELEVATION_PER_STEP;
+  const heap = new MinHeap();
+  const done = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) heap.push(i, fine[i]);
+  while (heap.size > 0) {
+    const c = heap.pop()!;
+    if (done[c]) continue;
+    done[c] = 1;
+    const cx = c % W;
+    const cy = Math.floor(c / W);
+    for (const [dx, dy] of NEIGHBORS_8) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const n = ny * W + nx;
+      if (done[n] || isWaterTile(n)) continue;
+      const cap = fine[c] + allowed(n);
+      if (fine[n] > cap) {
+        fine[n] = cap;
+        heap.push(n, cap);
       }
     }
   }
+  for (let i = 0; i < W * H; i++) if (!isWaterTile(i)) heights[i] = landStepOf(fine[i]);
 }
 
 /** Clears connected regions (4-neighbour) of set cells smaller than `minSize`. */

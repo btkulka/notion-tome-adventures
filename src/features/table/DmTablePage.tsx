@@ -156,7 +156,7 @@ function Table({ campaign }: { campaign: SelectedCampaign }) {
   const party: TilePoint | null = travelling?.party ?? placed;
   const minutes = travelling?.minutes ?? live?.worldMinutes ?? 480;
   const weather = live?.weather ?? 'clear';
-  const { fade } = useFog(doc?.terrain ?? null, explored, party, minutes, weather);
+  const { fade } = useFog(doc?.terrain ?? null, explored, party, minutes, weather, doc?.scale);
 
   const roadEdges = useMemo(() => {
     const roads = objects.filter((o): o is PathObject => o.type === 'path' && o.data.kind === 'road').map((o) => o.data.points);
@@ -206,7 +206,7 @@ function Table({ campaign }: { campaign: SelectedCampaign }) {
   // Reveal ground the party sees from a tile; auto-reveal pins it sights.
   const sight = (tile: TilePoint, atMinutes: number) => {
     if (!doc || !exploredRef.current) return { bits: exploredRef.current, newlySeen: [] as number[] };
-    const visible = computeVisibility(doc.terrain, tile, { night: isNight(atMinutes), weather });
+    const visible = computeVisibility(doc.terrain, tile, { night: isNight(atMinutes), weather, milesPerTile: doc.scale });
     const bits = exploredRef.current.slice();
     const newlySeen: number[] = [];
     for (let i = 0; i < visible.length; i++) {

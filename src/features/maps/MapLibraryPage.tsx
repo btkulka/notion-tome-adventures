@@ -18,6 +18,13 @@ interface Atlas {
 
 const NO_DOCS: Record<string, MapDoc> = {};
 
+/** "16 × 16 mi" for a region (scale is miles per cell), "60 × 40 ft" for a local map (feet per cell). */
+const mapSize = (m: MapSummary) => {
+  const unit = m.kind === 'overworld' ? 'mi' : 'ft';
+  const n = (cells: number) => +(cells * m.scale).toFixed(1);
+  return `${n(m.width)} × ${n(m.height)} ${unit}`;
+};
+
 async function loadAtlas(campaignId: string): Promise<Atlas> {
   const [maps, live] = await Promise.all([mapsApi.list(campaignId), mapsApi.live(campaignId)]);
   // Terrain is a few kilobytes per map, so the cards can paint real minimaps.
@@ -38,11 +45,29 @@ export default function MapLibraryPage() {
 function Library({ campaign }: { campaign: SelectedCampaign }) {
   const navigate = useNavigate();
   const [generating, setGenerating] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const atlas = useCached(['atlas', campaign.id], () => loadAtlas(campaign.id), { keep: keepAtlas });
   const maps = atlas.data?.maps ?? null;
   const docs = atlas.data?.docs ?? NO_DOCS;
   const live = atlas.data?.live ?? null;
-  const error = atlas.error ? atlas.error.message || 'Could not load maps' : null;
+  const error = atlas.error ? atlas.error.message || 'Could not load maps' : deleteError;
+
+  const remove = async (m: MapSummary) => {
+    const children = (maps ?? []).filter((c) => c.parentMapId === m.id).length;
+    const also = children ? ` Its ${children === 1 ? 'local map stays' : `${children} local maps stay`}, unlinked.` : '';
+    if (!window.confirm(`Delete ${m.name}? Its pins, paths, fog and travel log go with it.${also}`)) return;
+    setDeleting(m.id);
+    setDeleteError(null);
+    try {
+      await mapsApi.remove(m.id);
+      await atlas.reload();
+    } catch (err) {
+      setDeleteError(err instanceof Error && err.message ? err.message : 'Could not delete the map');
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const liveId = live?.status === 'live' ? live.activeMapId : null;
   const hero = (maps ?? []).find((m) => m.id === liveId) ?? maps?.[0];
@@ -123,7 +148,7 @@ function Library({ campaign }: { campaign: SelectedCampaign }) {
                 )}
                 <h2 className="t-h1 text-[28px]">{hero.name}</h2>
                 <dl className="m-0 grid grid-cols-2 gap-4">
-                  <div className="t-stat"><dt>Size</dt><dd className="text-[20px]">{hero.width} × {hero.height} mi</dd></div>
+                  <div className="t-stat"><dt>Size</dt><dd className="text-[20px]">{mapSize(hero)}</dd></div>
                   <div className="t-stat"><dt>Seed</dt><dd className="text-[20px]">{hero.seed}</dd></div>
                   {hero.id === liveId && live && (
                     <div className="t-stat col-span-2"><dt>World clock</dt><dd className="t-num text-[20px]">{formatWorldTime(live.worldMinutes)}</dd></div>
@@ -132,6 +157,9 @@ function Library({ campaign }: { campaign: SelectedCampaign }) {
                 <div className="mt-auto flex flex-wrap gap-2.5">
                   <button type="button" className="t-btn t-btn--primary" onClick={() => navigate(`/table?map=${hero.id}`)}>Run the table</button>
                   <Link to={`/maps/${hero.id}`} className="t-btn">Edit map</Link>
+                  <button type="button" className="t-btn t-btn--danger ml-auto" disabled={deleting === hero.id} onClick={() => remove(hero)}>
+                    {deleting === hero.id ? 'Deleting…' : 'Delete'}
+                  </button>
                 </div>
               </div>
             </section>
@@ -140,15 +168,22 @@ function Library({ campaign }: { campaign: SelectedCampaign }) {
           {others.length > 0 && (
             <section aria-label="Other maps" className="grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(260px,1fr))]">
               {others.map((m) => (
-                <Link key={m.id} to={`/maps/${m.id}`} className="t-panel flex flex-col text-bone">
-                  <div className="flex justify-center bg-ink-0 border-b border-rule p-4">
-                    {docs[m.id] ? <Minimap terrain={docs[m.id].terrain} className="w-full max-w-[220px] aspect-square" /> : <Shimmer className="w-full max-w-[220px] aspect-square" />}
+                <div key={m.id} className="t-panel flex flex-col text-bone">
+                  <Link to={`/maps/${m.id}`} className="flex flex-col text-bone">
+                    <div className="flex justify-center bg-ink-0 border-b border-rule p-4">
+                      {docs[m.id] ? <Minimap terrain={docs[m.id].terrain} className="w-full max-w-[220px] aspect-square" /> : <Shimmer className="w-full max-w-[220px] aspect-square" />}
+                    </div>
+                    <div className="px-4 pt-3 flex flex-col gap-1">
+                      <span className="t-h3">{m.name}</span>
+                      <span className="t-small">{m.kind === 'overworld' ? 'Region' : 'Local map'} · {mapSize(m)} · edited {new Date(m.updatedAt).toLocaleDateString()}</span>
+                    </div>
+                  </Link>
+                  <div className="px-4 pb-3 pt-1 flex justify-end">
+                    <button type="button" className="t-btn t-btn--quiet" disabled={deleting === m.id} onClick={() => remove(m)}>
+                      {deleting === m.id ? 'Deleting…' : 'Delete'}
+                    </button>
                   </div>
-                  <div className="px-4 py-3 flex flex-col gap-1">
-                    <span className="t-h3">{m.name}</span>
-                    <span className="t-small">{m.kind === 'overworld' ? 'Overworld' : 'Local map'} · {m.width} × {m.height} · edited {new Date(m.updatedAt).toLocaleDateString()}</span>
-                  </div>
-                </Link>
+                </div>
               ))}
             </section>
           )}

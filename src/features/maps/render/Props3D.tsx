@@ -41,6 +41,8 @@ function buildBatches(placements: PropPlacements, geometry: (name: string) => TH
     const geo = mini ? mini.geometry : far ? geometry(farName(name as keyof PropPlacements)) ?? hi : hi;
     const mesh = new THREE.InstancedMesh(geo, mini ? mini.material : far ? propMaterialFar : propMaterial, items.length);
     mesh.raycast = () => {};
+    // Props stand in the sun's shadows and cast their own (when shadows are on; see SkyRig).
+    mesh.castShadow = mesh.receiveShadow = true;
     group.add(mesh);
     batches.push({ mesh, items });
   }
@@ -133,7 +135,10 @@ export function Props3D({
     const next = {
       width: W,
       height: H,
-      layers: [terrain.heights.slice(), terrain.biomes.slice(), options.roads?.slice() ?? new Uint8Array(size), options.rivers?.slice() ?? new Uint8Array(size), sites],
+      layers: [
+        terrain.heights.slice(), terrain.biomes.slice(), options.roads?.slice() ?? new Uint8Array(size), options.rivers?.slice() ?? new Uint8Array(size), sites,
+        options.channels?.signature.slice() ?? new Uint8Array(size),
+      ],
     };
     const prev = s.inputs;
     let dirty: number[];

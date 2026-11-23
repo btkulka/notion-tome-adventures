@@ -10,9 +10,11 @@ import type { TerrainGrid, TilePoint, Weather } from '../types';
 export interface VisionOptions {
   night: boolean;
   weather: Weather;
+  /** The map's scale (MapDoc.scale). Sight is reckoned in miles; absent means a mile per tile. */
+  milesPerTile?: number;
 }
 
-/** Sight radius in tiles on open ground in clear daylight. */
+/** Sight radius in miles on open ground in clear daylight. */
 export const BASE_SIGHT = 3;
 
 /** Steps the party's eye sits above the tile it stands on. */
@@ -21,12 +23,13 @@ const EYE_HEIGHT = 1.5;
 /** Peaks at or above this step stay visible from twice the sight radius. */
 const LANDMARK_STEP = Math.round(MAX_STEP * 0.6);
 
+/** Sight radius in tiles: BASE_SIGHT miles and the biome's bonus, halved at night, a mile less in fog, storm or snow. */
 export function sightRadius(terrain: TerrainGrid, at: TilePoint, opts: VisionOptions): number {
   const biome = BIOMES[terrain.biomes[at[1] * terrain.width + at[0]] as BiomeId];
-  let radius = BASE_SIGHT + (biome?.visionBonus ?? 0);
-  if (opts.night) radius = Math.floor(radius / 2);
-  if (opts.weather === 'fog' || opts.weather === 'storm' || opts.weather === 'snow') radius -= 1;
-  return Math.max(1, radius);
+  let miles = BASE_SIGHT + (biome?.visionBonus ?? 0);
+  if (opts.night) miles = Math.floor(miles / 2);
+  if (opts.weather === 'fog' || opts.weather === 'storm' || opts.weather === 'snow') miles -= 1;
+  return Math.max(1, Math.round(Math.max(1, miles) / (opts.milesPerTile ?? 1)));
 }
 
 /**

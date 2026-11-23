@@ -12,6 +12,7 @@ import { Biome, isWater, type BiomeId } from '../terrain/biomes';
 import { DIRECTIONS } from '../terrain/roads';
 import type { PinType, TerrainGrid } from '../types';
 import { variantsOf, type ModelName } from './catalog';
+import type { Channels } from './channels';
 import { groundHeight, type TileBounds } from './geometry';
 
 export interface Placement {
@@ -133,6 +134,8 @@ export interface PropOptions {
   roads?: Uint8Array;
   rivers?: Uint8Array;
   sites?: Site[];
+  /** Rivers and roads as carved curves, so props stand on the carved ground. */
+  channels?: Channels;
 }
 
 export function placeProps(terrain: TerrainGrid, seed: number, options: PropOptions = {}): PropPlacements {
@@ -162,7 +165,7 @@ export function placePropsInBlocks(terrain: TerrainGrid, seed: number, options: 
   const put = (name: ModelName, fx: number, fy: number, tile: number, scale: number, rotation: number) => {
     const n = blockOf[tile];
     if (n < 0) return;
-    (results[n][name] ??= []).push({ x: fx, y: fy, z: groundHeight(terrain, fx, fy), scale, rotation, tile });
+    (results[n][name] ??= []).push({ x: fx, y: fy, z: groundHeight(terrain, fx, fy, options.channels), scale, rotation, tile });
   };
 
   // 1. Pins that stand as models: settlements, ruins, towers, camps...
@@ -279,7 +282,7 @@ export function placePropsInBlocks(terrain: TerrainGrid, seed: number, options: 
       if (!inside(nx, ny)) continue;
       const n = ny * W + nx;
       if (isWater(biomes[n]) || occupied.has(n) || roads?.[n] || rivers?.[n]) continue;
-      // Two steps of cliff (0.6) hide the gate's rock mass.
+      // Two steps of cliff hide the gate's rock mass.
       if ((heights[y * W + x] - heights[n]) * STEP_HEIGHT < 0.55) continue;
       occupied.add(n);
       put('dwarfgate-1', nx + 0.5 + dx * (0.5 - GATE_BACK), ny + 0.5 + dy * (0.5 - GATE_BACK), n, 1, Math.atan2(-dx, -dy));

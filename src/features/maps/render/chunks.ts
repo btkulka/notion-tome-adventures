@@ -1,15 +1,17 @@
 /**
  * Render chunks. The terrain and its props are built per block of tiles, and
- * an edit rebuilds only the blocks it can reach: a tile's slope and walls read
- * its neighbours' corners (two tiles out), and props read the same ground.
+ * an edit rebuilds only the blocks it can reach: the smooth ground reads cells
+ * two out, a water cell's depth reads the shore up to DEPTH_REACH away, and
+ * props stand on the same ground.
  */
 import type { TileBounds } from './geometry';
+import { DEPTH_REACH } from './surface';
 
 /** Tiles per chunk side. */
 export const CHUNK = 16;
 
 /** How far a changed tile reaches into its neighbours' geometry and props. */
-export const CHUNK_REACH = 2;
+export const CHUNK_REACH = DEPTH_REACH + 2;
 
 export const chunkId = (cx: number, cy: number) => cy * 4096 + cx;
 

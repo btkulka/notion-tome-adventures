@@ -44,7 +44,7 @@ export interface BiomeDef {
   water: boolean;
   /** Fraction of normal travel speed off-road. 0 means impassable on foot. */
   travelMultiplier: number;
-  /** Extra tiles of sight radius when the party stands in this biome. */
+  /** Extra miles of sight when the party stands in this biome. */
   visionBonus: number;
   /** Steps of canopy this biome adds when it sits between a viewer and a target. */
   canopy: number;

@@ -38,3 +38,6 @@ __pycache__/
 # The minis: generated models and their concept art stay out of git (scripts/models/minis makes them again).
 public/models/minis/
 scripts/models/minis/concept/
+# Cloud models and their concept art, likewise (Meshy, from the concept art; 2026-11-22).
+public/models/clouds/
+scripts/models/clouds/

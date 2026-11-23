@@ -12,12 +12,19 @@ export interface TerrainGrid {
   heights: Uint8Array;
   /** BiomeId per tile. */
   biomes: Uint8Array;
+  /**
+   * Fine elevation per tile, ELEVATION_PER_STEP units a step, so rolling ground
+   * isn't drawn as terraces. A land tile's step is this rounded (terrain/elevation.ts);
+   * water tiles hold their surface. Absent means the ground is drawn from the steps.
+   */
+  elevation?: Uint16Array;
 }
 
-/** Terrain as stored in `maps.terrain` (base64-packed byte arrays). */
+/** Terrain as stored in `maps.terrain` (base64-packed byte arrays; elevation is little-endian 16-bit). */
 export interface StoredTerrain {
   heights: string;
   biomes: string;
+  elevation?: string;
 }
 
 export type LandShape =
@@ -46,6 +53,8 @@ export interface OverworldGenParams {
   roads: boolean;
   /** Land biomes the region may use (see PICKABLE_BIOMES); absent means all of them. */
   biomes?: number[];
+  /** Miles per cell. Absent means MILES_PER_CELL. Features (hills, lakes, spacing) are sized in miles. */
+  cellMiles?: number;
 }
 
 export type EncounterDifficulty = 'easy' | 'medium' | 'hard' | 'deadly';

@@ -7,6 +7,7 @@ import { mulberry32, randomSeed } from './gen/prng';
 import { mapsApi } from './api';
 import { Minimap } from './Minimap';
 import { BIOMES, type BiomeId } from './terrain/biomes';
+import { MILES_PER_CELL } from './constants';
 import type { LandShape, OverworldGenParams } from './types';
 
 const SHAPES: { value: LandShape; label: string }[] = [
@@ -20,7 +21,8 @@ const SHAPES: { value: LandShape; label: string }[] = [
   { value: 'landlocked', label: 'Landlocked' },
 ];
 
-const SIZES = [32, 48, 64, 96, 128];
+/** Region sizes in cells: 16 to 64 miles across at a quarter mile a cell. */
+const SIZES = [64, 96, 128, 192, 256];
 
 /** Land biomes as toggles. At least one lowland biome stays on, since something has to cover the low ground. */
 function BiomeField({ value, onChange }: { value: number[] | undefined; onChange: (biomes: number[] | undefined) => void }) {
@@ -139,7 +141,10 @@ export function GenerateDialog({
               <div className="t-field">
                 <label htmlFor="region-size" className="t-label">Size, miles</label>
                 <select id="region-size" className="t-input" value={params.width} onChange={(e) => setParams((p) => ({ ...p, width: Number(e.target.value), height: Number(e.target.value) }))}>
-                  {SIZES.map((s) => <option key={s} value={s}>{s} × {s}</option>)}
+                  {SIZES.map((s) => {
+                    const miles = s * (params.cellMiles ?? MILES_PER_CELL);
+                    return <option key={s} value={s}>{miles} × {miles}</option>;
+                  })}
                 </select>
               </div>
             </div>

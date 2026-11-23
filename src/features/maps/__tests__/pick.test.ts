@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { STEP_HEIGHT } from '../constants';
 import { allChunks, changedTiles, chunkBounds, chunkId, dirtyChunks } from '../render/chunks';
-import { buildTerrainMeshes, groundHeight } from '../render/geometry';
+import { buildTerrainMeshes, groundHeight, triangleCount } from '../render/geometry';
 import { pickTile, type Vec3 } from '../render/pick';
 import { Biome } from '../terrain/biomes';
-import { createTerrain } from '../terrain/codec';
+import { cloneTerrain, createTerrain } from '../terrain/codec';
 
 function flat(width: number, height: number, step = 5) {
   const t = createTerrain(width, height);
@@ -23,26 +23,31 @@ describe('pickTile', () => {
     const t = flat(8, 8);
     const hit = pickTile(t, [3.5, 40, 2.5], [0, -1, 0]);
     expect(hit?.tile).toEqual([3, 2]);
-    expect(hit?.point[1]).toBeCloseTo(5 * STEP_HEIGHT);
+    expect(hit?.point[1]).toBeCloseTo(groundHeight(t, 3.5, 2.5), 3);
+    expect(hit?.point[1]).toBeCloseTo(5 * STEP_HEIGHT, 0);
   });
 
   it('meets the ground where an isometric ray crosses it', () => {
     const t = flat(8, 8);
-    const ground: Vec3 = [4.3, 5 * STEP_HEIGHT, 6.7];
+    const ground: Vec3 = [4.3, groundHeight(t, 4.3, 6.7), 6.7];
     const hit = pickTile(t, through(ground), ISO);
     expect(hit?.tile).toEqual([4, 6]);
-    expect(hit?.point[0]).toBeCloseTo(4.3);
-    expect(hit?.point[2]).toBeCloseTo(6.7);
+    expect(hit?.point[0]).toBeCloseTo(4.3, 2);
+    expect(hit?.point[2]).toBeCloseTo(6.7, 2);
   });
 
-  it('stops at the wall of a tall tile instead of the ground behind it', () => {
+  it('stops at a tall hill instead of the ground behind it', () => {
     const t = flat(10, 10);
-    t.heights[5 * 10 + 5] = 15;
-    // Halfway up the pillar's camera-facing side; without the pillar this ray lands on tile (4, 4).
-    const hit = pickTile(t, through([5.5, 3, 5.5]), ISO);
-    expect(hit?.tile).toEqual([5, 5]);
-    t.heights[5 * 10 + 5] = 5;
-    expect(pickTile(t, through([5.5, 3, 5.5]), ISO)?.tile).toEqual([4, 4]);
+    const behind: Vec3 = [4.5, groundHeight(t, 4.5, 4.5), 4.5];
+    expect(pickTile(t, through(behind), ISO)?.tile).toEqual([4, 4]);
+    // Edits clone the terrain (the surface is cached per terrain object), as the editor does.
+    const hill = cloneTerrain(t);
+    hill.heights[5 * 10 + 5] = 20;
+    // The same ray now meets the hill's camera-facing slope first: nearer the camera and higher up.
+    const hit = pickTile(hill, through(behind), ISO)!;
+    expect(hit.point[0]).toBeGreaterThan(behind[0] + 0.2);
+    expect(hit.point[1]).toBeGreaterThan(behind[1] + 0.2);
+    expect(hit.point[1]).toBeCloseTo(groundHeight(hill, hit.point[0], hit.point[2]), 3);
   });
 
   it('follows slopes', () => {
@@ -64,18 +69,18 @@ describe('pickTile', () => {
 describe('render chunks', () => {
   it('covers the map with blocks that build the same terrain as a whole', () => {
     const t = flat(20, 18);
-    t.heights[3 * 20 + 17] = 9;
+    t.heights[3 * 20 + 17] = 20;
+    t.biomes[10 * 20 + 2] = Biome.Lake;
     const whole = buildTerrainMeshes(t);
-    let grass = 0;
-    let cliff = 0;
+    const keys = ['ground', 'earth', 'water'] as const;
+    const sums = Object.fromEntries(keys.map((k) => [k, 0]));
     for (const id of allChunks(20, 18)) {
       const part = buildTerrainMeshes(t, {}, chunkBounds(id));
-      grass += part.grass?.positions.length ?? 0;
-      cliff += part.cliff?.positions.length ?? 0;
+      for (const k of keys) sums[k] += triangleCount(part[k]);
     }
     expect(allChunks(20, 18)).toHaveLength(4);
-    expect(grass).toBe(whole.grass!.positions.length);
-    expect(cliff).toBe(whole.cliff!.positions.length);
+    expect(triangleCount(whole.water)).toBeGreaterThan(0);
+    for (const k of keys) expect(sums[k]).toBe(triangleCount(whole[k]));
   });
 
   it('dirties the neighbouring chunk when an edit sits near its border', () => {

@@ -10,9 +10,16 @@
  *
  * Time changes sweep rather than jump: when the DM passes eight hours, the sun
  * crosses the sky in a couple of seconds and the light follows it.
+ *
+ * The sun casts shadows when `shadows` is on (High quality), over just the
+ * ground in view (so zoomed in, only the props on screen draw into the shadow
+ * map, and the shadows are sharper), and the far side of the map fades a
+ * little into the horizon's colour, so the land reads with depth. Shadows stay
+ * switched on through the night and fade with the sun: switching them off and
+ * on would recompile every material.
  */
 import { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { SkySettings, TerrainGrid, TilePoint, Weather } from '../types';
 import { MINUTES_PER_DAY } from '../travel/travel';
@@ -23,6 +30,36 @@ import { celestial, resolveSky, skyState, type RGB, type SkyState, type Vec3 } f
 /** Half the sky's height on screen, and the height above the horizon at mid-screen (radians). */
 const SPAN = (52 * Math.PI) / 180;
 const CENTRE = (18 * Math.PI) / 180;
+/**
+ * The middle of the ground the camera sees and a radius covering it, for the
+ * sun's shadow camera: each screen corner traced to the ground, clamped to the map.
+ */
+function fitShadow(
+  cam: THREE.Camera,
+  terrain: TerrainGrid,
+  scratch: { ray: THREE.Vector3; dir: THREE.Vector3 }
+): { x: number; z: number; r: number } {
+  cam.getWorldDirection(scratch.dir);
+  const pts: [number, number][] = [];
+  for (let i = 0; i < 4; i++) {
+    scratch.ray.set(i % 2 ? 1 : -1, i < 2 ? 1 : -1, -1).unproject(cam);
+    const t = scratch.dir.y < -0.01 ? -scratch.ray.y / scratch.dir.y : 0;
+    pts.push([
+      Math.min(terrain.width, Math.max(0, scratch.ray.x + scratch.dir.x * t)),
+      Math.min(terrain.height, Math.max(0, scratch.ray.z + scratch.dir.z * t)),
+    ]);
+  }
+  const x = pts.reduce((a, p) => a + p[0], 0) / 4;
+  const z = pts.reduce((a, p) => a + p[1], 0) / 4;
+  const r = Math.max(...pts.map((p) => Math.hypot(p[0] - x, p[1] - z)));
+  return { x, z, r: Math.min(Math.max(terrain.width, terrain.height) * 0.75 + 2, r + 3) };
+}
+
+/** Shadow map size, in texels a side. */
+const SHADOW_MAP = 4096;
+/** How much of the horizon's colour the map's far edge takes at most. */
+const HAZE_FAR = 0.32;
+
 /** Disc radii as a fraction of the canvas height. */
 const SUN_SIZE = 0.026;
 const MOON_SIZE = 0.022;
@@ -251,14 +288,18 @@ export function SkyRig({
   settings,
   terrain,
   party,
+  shadows = false,
 }: {
   minutes: number | null;
   weather?: Weather;
   settings?: Partial<SkySettings>;
   terrain: TerrainGrid;
   party?: TilePoint | null;
+  /** Let the sun cast shadows (High quality). */
+  shadows?: boolean;
 }) {
   const sky = useMemo(() => resolveSky(settings), [settings]);
+  const scene = useThree((state) => state.scene);
   const hemi = useRef<THREE.HemisphereLight>(null);
   const sun = useRef<THREE.DirectionalLight>(null);
   const fire = useRef<THREE.PointLight>(null);
@@ -323,7 +364,37 @@ export function SkyRig({
   });
   const cache = useRef<{ state: SkyState | null; minutes: number | null; weatherT: number; weather: Weather; sky: SkySettings | null }>({ state: null, minutes: null, weatherT: -1, weather, sky: null });
   const backdrop = useRef<THREE.Mesh>(null);
-  const scratch = useMemo(() => ({ basisX: new THREE.Vector3(), basisY: new THREE.Vector3(), basisZ: new THREE.Vector3(), ray: new THREE.Vector3(), dir: new THREE.Vector3() }), []);
+  const scratch = useMemo(() => ({ basisX: new THREE.Vector3(), basisY: new THREE.Vector3(), basisZ: new THREE.Vector3(), ray: new THREE.Vector3(), dir: new THREE.Vector3(), centre: new THREE.Vector3() }), []);
+
+  // Haze: always present, so materials compile with it once rather than when it first thickens.
+  const haze = useMemo(() => new THREE.Fog('#000000', 1e5, 1e5 + 1), []);
+  useEffect(() => {
+    scene.fog = haze;
+    return () => {
+      if (scene.fog === haze) scene.fog = null;
+    };
+  }, [scene, haze]);
+
+  // The sun's shadow: its camera is fitted to the ground in view every frame (below).
+  const span = Math.max(terrain.width, terrain.height);
+  const shadowFit = useRef({ x: 0, z: 0, r: 0 });
+  useEffect(() => {
+    const light = sun.current;
+    if (!light) return;
+    scene.add(light.target);
+    const cam = light.shadow.camera;
+    cam.near = 0.5;
+    cam.far = span * 3 + 40;
+    shadowFit.current.r = 0;
+    light.shadow.mapSize.set(SHADOW_MAP, SHADOW_MAP);
+    light.shadow.bias = -0.0004;
+    light.shadow.normalBias = 0.03;
+    light.shadow.map?.dispose();
+    light.shadow.map = null;
+    return () => {
+      scene.remove(light.target);
+    };
+  }, [scene, span]);
 
   useFrame((state, delta) => {
     const a = anim.current;
@@ -382,7 +453,37 @@ export function SkyRig({
     if (sun.current) {
       color(s.light.color, sun.current.color);
       sun.current.intensity = s.light.intensity;
-      sun.current.position.set(s.light.dir[0] * 60, s.light.dir[1] * 60, s.light.dir[2] * 60);
+      // Aimed at the middle of the ground in view, its shadow just covering it (with a margin for tall props).
+      const fit = fitShadow(state.camera, terrain, scratch);
+      const f = shadowFit.current;
+      if (Math.abs(fit.r - f.r) > f.r * 0.08 || Math.hypot(fit.x - f.x, fit.z - f.z) > f.r * 0.15) {
+        f.x = fit.x;
+        f.z = fit.z;
+        f.r = fit.r;
+        const cam = sun.current.shadow.camera;
+        cam.left = cam.bottom = -f.r;
+        cam.right = cam.top = f.r;
+        cam.updateProjectionMatrix();
+      }
+      const reach = span * 1.5 + 20;
+      sun.current.position.set(f.x + s.light.dir[0] * reach, s.light.dir[1] * reach, f.z + s.light.dir[2] * reach);
+      sun.current.target.position.set(f.x, 0, f.z);
+      sun.current.target.updateMatrixWorld();
+      sun.current.castShadow = shadows;
+    }
+
+    // Haze: the map's far side takes up to HAZE_FAR of the horizon's colour (more in fog).
+    {
+      const cam = state.camera;
+      cam.getWorldDirection(scratch.dir);
+      scratch.centre.set(terrain.width / 2, 0, terrain.height / 2).sub(cam.position);
+      const middle = scratch.centre.dot(scratch.dir);
+      const extent = span * 0.75 * Math.hypot(scratch.dir.x, scratch.dir.z) + 1;
+      const far = a.weatherTo === 'fog' ? 0.75 : HAZE_FAR;
+      color(s.horizon, haze.color);
+      // three's haze is smoothstep(near, far, depth): place far so the map's far edge lands at about `far`.
+      haze.near = middle - extent * 0.3;
+      haze.far = haze.near + (extent * 1.3) / Math.max(0.2, Math.sqrt(far) * 0.65);
     }
     a.fire += ((s.night && party ? 2.2 : 0) - a.fire) * (1 - Math.exp(-dt * 2));
     // Windows light up as the sun goes down (fully by six degrees below), and a little under heavy cloud.

@@ -1,5 +1,6 @@
 // Client for the Worker's map routes (worker/api/maps.ts).
 import { api } from '@/lib/api';
+import { MILES_PER_CELL } from './constants';
 import type { GeneratedOverworld } from './gen/overworld';
 import { decodeTerrain, encodeTerrain } from './terrain/codec';
 import type {
@@ -60,7 +61,7 @@ export const mapsApi = {
     const { id } = await api<{ id: string }>(`${campaign(campaignId)}/maps`, {
       method: 'POST',
       body: {
-        name, kind: 'overworld', width: params.width, height: params.height, scale: 1, seed: params.seed,
+        name, kind: 'overworld', width: params.width, height: params.height, scale: params.cellMiles ?? MILES_PER_CELL, seed: params.seed,
         genParams: params, terrain: encodeTerrain(region.terrain), settings: emptySettings(), objects,
       },
     });
