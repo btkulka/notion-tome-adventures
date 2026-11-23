@@ -16,6 +16,7 @@
 import * as THREE from 'three';
 import { MAX_STEP, STEP_HEIGHT } from '../constants';
 import type { TerrainGrid } from '../types';
+import { BLEND } from './fray';
 import { cellLayers, GROUND_LAYERS, layerIndex } from './layers';
 import { withOverlay, type OverlayUniforms } from './overlay';
 import { carve, type Channels } from './channels';
@@ -69,7 +70,7 @@ const GROUND_FRAGMENT_BODY = /* glsl */ `
   // Fray where the cells are read, like the ground's own shape (surface.ts); soft marks read the same way.
   vec2 c = tomeFray(p) - 0.5;
   vec2 i0 = floor(c);
-  vec2 s = smoothstep(0.5 - ${0.24.toFixed(2)}, 0.5 + ${0.24.toFixed(2)}, c - i0);
+  vec2 s = smoothstep(0.5 - ${BLEND.toFixed(3)}, 0.5 + ${BLEND.toFixed(3)}, c - i0);
   vec2 uv = p / ${TOP_REPEAT.toFixed(2)};
   vec2 dx = dFdx(uv);
   vec2 dy = dFdy(uv);

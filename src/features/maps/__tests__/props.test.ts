@@ -39,7 +39,15 @@ describe('placeProps', () => {
     const names = Object.keys(placements);
     expect(names.some((n) => n.startsWith('oak-') || n.startsWith('fir-'))).toBe(true);
     const settled = all(placements).filter((p) => /^(village|town|city|castle)-/.test(p.name));
-    expect(settled.length).toBe(sites.length);
+    // One at every pin's middle...
+    for (const s of sites) expect(settled.some((p) => p.x === s.x + 0.5 && p.y === s.y + 0.5)).toBe(true);
+    // ...and the rest are the lesser buildings round a city, town or castle, smaller and within its reach.
+    const spread = settled.filter((p) => !sites.some((s) => p.x === s.x + 0.5 && p.y === s.y + 0.5));
+    expect(spread.length).toBeGreaterThan(0);
+    for (const p of spread) {
+      expect(p.scale).toBeLessThan(1);
+      expect(sites.some((s) => s.pinType !== 'village' && Math.hypot(p.x - s.x - 0.5, p.y - s.y - 0.5) <= 1.75)).toBe(true);
+    }
     expect(names.some((n) => /^(stones|ruin|bones|elfspire|temple|monolith|dwarfgate)-/.test(n))).toBe(true);
   });
 

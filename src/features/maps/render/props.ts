@@ -7,12 +7,14 @@
  * 'oak' picks one of its variants per prop.
  */
 import { hash2 } from '../gen/prng';
+import { nearest, type Channels } from './channels';
+import { blendAt, tomeNoise } from './fray';
+import { groundNormal, surfaceOf, waterLevel } from './surface';
 import { STEP_HEIGHT } from '../constants';
 import { Biome, isWater, type BiomeId } from '../terrain/biomes';
 import { DIRECTIONS } from '../terrain/roads';
 import type { PinType, TerrainGrid } from '../types';
 import { variantsOf, type ModelName } from './catalog';
-import type { Channels } from './channels';
 import { groundHeight, type TileBounds } from './geometry';
 
 export interface Placement {
@@ -68,8 +70,34 @@ const ELDER: Partial<Record<BiomeId, { group: string; chance: number }>> = {
   [Biome.Taiga]: { group: 'elderfir', chance: 0.012 },
 };
 
+/** Spots per tile side where a prop may stand: a jittered grid, so props never stack on a tile's edges. */
+const SPOTS = 3;
+/** Overall density against SCATTER's counts: room to breathe, and a lighter frame. */
+const DENSITY = 0.6;
+/** Trees keep this far (tiles) from a road's or river's edge. */
+const CHANNEL_CLEARANCE = 0.12;
+/** Ground whose normal leans further than this (y below it) is rock: no trees or undergrowth on it. */
+const STEEP_NORMAL_Y = 0.8;
+
 /** Groups big enough to share out a tile's space; the rest scatter freely beneath them. */
 const LARGE = new Set(['oak', 'fir', 'snowfir', 'pine', 'jungle', 'palm', 'cypress', 'snag', 'thorn', 'hoodoo', 'crag', 'elderoak', 'elderfir']);
+
+/** Groups that are stone, so they may lie on ground too steep for anything to grow. */
+const ROCKS = new Set(['boulder', 'mossrock', 'crag', 'hoodoo', 'searock', 'icerock']);
+
+/**
+ * How settlements spread past their pin: how many lesser buildings, from how far
+ * (tiles) out, and of which sizes. Villages stay one model.
+ */
+const SPRAWL: Partial<Record<PinType, { count: [number, number]; radius: number; kinds: string[] }>> = {
+  city: { count: [4, 6], radius: 1.7, kinds: ['town', 'village', 'village'] },
+  town: { count: [1, 3], radius: 1.1, kinds: ['village'] },
+  castle: { count: [0, 1], radius: 0.9, kinds: ['village'] },
+};
+/** Spots tried for each building; the best (nearest a road) wins. */
+const SPRAWL_TRIES = 10;
+/** Tiles between one building's middle and the next. */
+const SPRAWL_SPACING = 0.75;
 
 /** Settlement architecture by the biome it stands in. */
 const CULTURE: Partial<Record<BiomeId, string>> = {
@@ -169,6 +197,9 @@ export function placePropsInBlocks(terrain: TerrainGrid, seed: number, options: 
   };
 
   // 1. Pins that stand as models: settlements, ruins, towers, camps...
+  const surface = surfaceOf(terrain);
+  const channels = options.channels;
+  const built: [number, number][] = [];
   for (const site of options.sites ?? []) {
     const { x, y } = site;
     if (!inside(x, y)) continue;
@@ -177,6 +208,49 @@ export function placePropsInBlocks(terrain: TerrainGrid, seed: number, options: 
     if (!name || occupied.has(i)) continue;
     occupied.add(i);
     put(name, x + 0.5, y + 0.5, i, 1, (Math.PI / 2) * Math.floor(rnd(x, y, 5) * 4));
+    built.push([x + 0.5, y + 0.5]);
+  }
+
+  // 1b. Settlements spread past their pin: lesser buildings of the same culture gather round a city,
+  //     a town or a castle, along the roads where there are any, on dry, level ground.
+  for (const site of options.sites ?? []) {
+    const sprawl = SPRAWL[site.pinType];
+    const { x, y } = site;
+    if (!sprawl || !inside(x, y)) continue;
+    const culture = CULTURE[biomes[y * W + x] as BiomeId] ?? 'temperate';
+    const count = sprawl.count[0] + Math.floor(rnd(x, y, 1201) * (sprawl.count[1] - sprawl.count[0] + 1));
+    for (let n = 0; n < count; n++) {
+      let best: { fx: number; fy: number; score: number } | null = null;
+      for (let t = 0; t < SPRAWL_TRIES; t++) {
+        const angle = rnd(x, y, 1300 + n * 37 + t) * Math.PI * 2;
+        const dist = (0.55 + rnd(x, y, 1400 + n * 37 + t) * 0.45) * sprawl.radius;
+        const fx = x + 0.5 + Math.cos(angle) * dist;
+        const fy = y + 0.5 + Math.sin(angle) * dist;
+        const tx = Math.floor(fx);
+        const ty = Math.floor(fy);
+        if (!inside(tx, ty) || isWater(biomes[ty * W + tx])) continue;
+        // Without the curves (channels), keep off road and river tiles whole.
+        if (!channels && (roads?.[ty * W + tx] || rivers?.[ty * W + tx])) continue;
+        if (built.some(([bx, by]) => Math.hypot(bx - fx, by - fy) < SPRAWL_SPACING)) continue;
+        const wl = waterLevel(surface, fx, fy);
+        if (!Number.isNaN(wl) && groundHeight(terrain, fx, fy, channels) <= wl * STEP_HEIGHT + 0.02) continue;
+        if (groundNormal(surface, fx, fy)[1] < STEEP_NORMAL_Y) continue;
+        const r = nearest(channels, 'river', fx, fy);
+        if (r && r.d < r.half + 0.3) continue;
+        const q = nearest(channels, 'road', fx, fy);
+        if (q && q.d < q.half + 0.25) continue;
+        // Nearer a road is better; without one, nearer the middle.
+        const score = q ? -q.d : -dist;
+        if (!best || score > best.score) best = { fx, fy, score };
+      }
+      if (!best) continue;
+      const kinds = sprawl.kinds;
+      const kind = kinds[Math.floor(rnd(x, y, 1500 + n) * kinds.length)];
+      const tile = Math.floor(best.fy) * W + Math.floor(best.fx);
+      occupied.add(tile);
+      built.push([best.fx, best.fy]);
+      put(`${kind}-${culture}` as ModelName, best.fx, best.fy, tile, 0.7 + rnd(x, y, 1600 + n) * 0.15, (Math.PI / 2) * Math.floor(rnd(x, y, 1700 + n) * 4));
+    }
   }
 
   // 2. Scenery landmarks, one chance per cell.
@@ -223,43 +297,73 @@ export function placePropsInBlocks(terrain: TerrainGrid, seed: number, options: 
     }
   }
 
-  // 4. Trees, rocks and undergrowth, inside the blocks only.
+  // 4. Trees, rocks and undergrowth, spread by density, inside the blocks only. Each tile has
+  //    SPOTS × SPOTS jittered spots; a spot takes the biome the ground shader shows there (render/fray.ts),
+  //    so props thin out across biome edges where the textures blend. Forests clump around clearings,
+  //    nothing grows on roads, rivers, water or ground too steep to stand on.
   for (const block of blocks) {
     for (let y = Math.max(0, block.y0); y < Math.min(H, block.y1); y++) for (let x = Math.max(0, block.x0); x < Math.min(W, block.x1); x++) {
       const i = y * W + x;
-      const biome = biomes[i] as BiomeId;
-      if (isWater(biome) || occupied.has(i) || roads?.[i] || rivers?.[i]) continue;
+      if (occupied.has(i) || isWater(biomes[i])) continue;
+      // Without the curves (channels), keep off road and river tiles whole, as before them.
+      if (!channels && (roads?.[i] || rivers?.[i])) continue;
       const near = (b: BiomeId) => DIRECTIONS.some(([dx, dy]) => inside(x + dx, y + dy) && biomes[(y + dy) * W + x + dx] === b);
       let salt = 0;
-      const items: string[] = [];
-      const elder = ELDER[biome];
-      const isElder = elder !== undefined && rnd(x, y, 307) < elder.chance;
-      for (const s of SCATTER[biome] ?? []) {
-        if (s.when && !s.when(near)) continue;
-        if (isElder && LARGE.has(s.group)) continue;
-        const whole = Math.floor(s.perTile);
-        const count = whole + (rnd(x, y, 97 * ++salt) < s.perTile - whole ? 1 : 0);
-        for (let n = 0; n < count; n++) items.push(s.group);
-      }
-
-      const large = items.filter((g) => LARGE.has(g));
-      const grid = Math.max(1, Math.ceil(Math.sqrt(large.length)));
-      const cells = Array.from({ length: grid * grid }, (_, k) => k).sort((a, b) => rnd(x, y, 401 + a) - rnd(x, y, 401 + b));
-      let cell = 0;
       const place = (group: string, fx: number, fy: number) => {
         const variants = variantsOf(group);
         const name = variants[Math.floor(rnd(x, y, 13 * ++salt) * variants.length)];
-        const scale = (LARGE.has(group) ? 0.85 + rnd(x, y, 19 * ++salt) * 0.3 : 0.8 + rnd(x, y, 19 * ++salt) * 0.45);
-        put(name, x + fx, y + fy, i, scale, rnd(x, y, 23 * ++salt) * Math.PI * 2);
+        const scale = LARGE.has(group) ? 0.85 + rnd(x, y, 19 * ++salt) * 0.3 : 0.8 + rnd(x, y, 19 * ++salt) * 0.45;
+        put(name, fx, fy, i, scale, rnd(x, y, 23 * ++salt) * Math.PI * 2);
       };
-      if (isElder) place(elder.group, 0.5 + (rnd(x, y, 311) - 0.5) * 0.15, 0.5 + (rnd(x, y, 313) - 0.5) * 0.15);
-      for (const group of items) {
-        if (LARGE.has(group)) {
-          const c = cells[cell++ % cells.length];
-          const span = 0.84 / grid;
-          place(group, 0.08 + ((c % grid) + 0.2 + rnd(x, y, 17 * ++salt) * 0.6) * span, 0.08 + (Math.floor(c / grid) + 0.2 + rnd(x, y, 29 * ++salt) * 0.6) * span);
-        } else {
-          place(group, 0.12 + rnd(x, y, 31 * ++salt) * 0.76, 0.12 + rnd(x, y, 37 * ++salt) * 0.76);
+
+      // Ancient giants: a rare tile holds one alone, with only undergrowth around it.
+      const own = biomes[i] as BiomeId;
+      const elder = ELDER[own];
+      const isElder = elder !== undefined && rnd(x, y, 307) < elder.chance;
+      if (isElder) place(elder.group, x + 0.5 + (rnd(x, y, 311) - 0.5) * 0.15, y + 0.5 + (rnd(x, y, 313) - 0.5) * 0.15);
+
+      for (let spot = 0; spot < SPOTS * SPOTS; spot++) {
+        const fx = x + ((spot % SPOTS) + 0.15 + rnd(x, y, 500 + spot) * 0.7) / SPOTS;
+        const fy = y + (Math.floor(spot / SPOTS) + 0.15 + rnd(x, y, 600 + spot) * 0.7) / SPOTS;
+        // The look the ground shows here, picked in proportion to the blend.
+        const { cells, weights } = blendAt(W, H, fx, fy);
+        let pick = rnd(x, y, 700 + spot);
+        let k = 0;
+        while (k < 3 && pick > weights[k]) pick -= weights[k++];
+        let biome = biomes[cells[k]] as BiomeId;
+        let weight = weights[k];
+        if (isWater(biome)) {
+          biome = own;
+          weight = 1;
+        }
+        if (isWater(biome)) continue;
+        // Not under water (a shore's edge), not on a road or river.
+        const wl = waterLevel(surface, fx, fy);
+        if (!Number.isNaN(wl) && groundHeight(terrain, fx, fy, channels) <= wl * STEP_HEIGHT + 0.005) continue;
+        if (channels) {
+          const r = nearest(channels, 'river', fx, fy);
+          if (r && r.d < r.half + CHANNEL_CLEARANCE) continue;
+          const q = nearest(channels, 'road', fx, fy);
+          if (q && q.d < q.half + CHANNEL_CLEARANCE) continue;
+        }
+        // Forests gather into stands with clearings between; a biome's trees thin out toward its edges.
+        const clump = 2 * Math.min(1, Math.max(0, (tomeNoise(fx * 0.16 + 11.3, fy * 0.16 - 4.7) + 0.35) / 0.8));
+        const edge = Math.min(1, weight * 1.4);
+        let steep: boolean | null = null;
+        let tall = false;
+        for (const sc of SCATTER[biome] ?? []) {
+          if (sc.when && !sc.when(near)) continue;
+          const large = LARGE.has(sc.group);
+          if (large && (tall || (isElder && biome === own))) continue;
+          const chance = (sc.perTile / (SPOTS * SPOTS)) * DENSITY * (large ? clump * edge : 1);
+          if (rnd(x, y, 800 + spot * 31 + ++salt) >= chance) continue;
+          // Too steep to stand on: rock, and nothing grows on it (rocks themselves may lie there).
+          steep ??= groundNormal(surface, fx, fy)[1] < STEEP_NORMAL_Y;
+          if (steep && !ROCKS.has(sc.group)) continue;
+          // Undergrowth sits a little off the spot so it doesn't grow out of a trunk.
+          const off = large ? 0 : 0.12;
+          place(sc.group, fx + (rnd(x, y, 900 + spot) - 0.5) * off, fy + (rnd(x, y, 950 + spot) - 0.5) * off);
+          if (large) tall = true;
         }
       }
     }

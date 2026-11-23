@@ -129,10 +129,16 @@ export function fadeMarks(uniforms: OverlayUniforms, dt: number): void {
 
 /**
  * Value noise and the fraying the ground shader reads its cells through
- * (terrainMaterial.ts), shared so soft marks follow the same edges.
+ * (terrainMaterial.ts), shared so soft marks follow the same edges. Mirrored on
+ * the CPU by render/fray.ts (props follow these edges too): change both together.
  */
 export const FRAY_GLSL = /* glsl */ `
-float tomeHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// Float-safe (no sine), so render/fray.ts can reproduce it on the CPU: Dave Hoskins' hash12.
+float tomeHash(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
 float tomeNoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -263,6 +269,6 @@ export function withOverlay<M extends THREE.Material>(
       .replace('#include <common>', `#include <common>\n${FRAGMENT_HEAD}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${FRAGMENT_BODY}`);
   };
-  material.customProgramCacheKey = () => `tome-terrain-overlay-2${key}`;
+  material.customProgramCacheKey = () => `tome-terrain-overlay-3${key}`;
   return material;
 }
